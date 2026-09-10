@@ -1,0 +1,410 @@
+{
+  "title": "StarVie 2027",
+  "source": "starvie-2027/STARVIE COLECCIÓN 2027 ES VF.pdf",
+  "sourceBytes": 27202796,
+  "pageCount": 39,
+  "sourcePage": {
+    "width": 1440,
+    "height": 810,
+    "aspectRatio": 1.7777777777777777
+  },
+  "output": {
+    "format": "webp",
+    "width": 1920,
+    "quality": 84,
+    "thumbnailWidth": 480,
+    "thumbnailQuality": 68
+  },
+  "pages": [
+    {
+      "id": "page-01",
+      "number": 1,
+      "src": "/catalog/pages/page-01.webp",
+      "thumbnail": "/catalog/thumbnails/page-01.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 16752,
+      "thumbnailBytes": 2178
+    },
+    {
+      "id": "page-02",
+      "number": 2,
+      "src": "/catalog/pages/page-02.webp",
+      "thumbnail": "/catalog/thumbnails/page-02.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 104240,
+      "thumbnailBytes": 7782
+    },
+    {
+      "id": "page-03",
+      "number": 3,
+      "src": "/catalog/pages/page-03.webp",
+      "thumbnail": "/catalog/thumbnails/page-03.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 90346,
+      "thumbnailBytes": 8480
+    },
+    {
+      "id": "page-04",
+      "number": 4,
+      "src": "/catalog/pages/page-04.webp",
+      "thumbnail": "/catalog/thumbnails/page-04.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 168424,
+      "thumbnailBytes": 15142
+    },
+    {
+      "id": "page-05",
+      "number": 5,
+      "src": "/catalog/pages/page-05.webp",
+      "thumbnail": "/catalog/thumbnails/page-05.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 94792,
+      "thumbnailBytes": 8746
+    },
+    {
+      "id": "page-06",
+      "number": 6,
+      "src": "/catalog/pages/page-06.webp",
+      "thumbnail": "/catalog/thumbnails/page-06.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 167474,
+      "thumbnailBytes": 18012
+    },
+    {
+      "id": "page-07",
+      "number": 7,
+      "src": "/catalog/pages/page-07.webp",
+      "thumbnail": "/catalog/thumbnails/page-07.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 112060,
+      "thumbnailBytes": 10860
+    },
+    {
+      "id": "page-08",
+      "number": 8,
+      "src": "/catalog/pages/page-08.webp",
+      "thumbnail": "/catalog/thumbnails/page-08.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 88654,
+      "thumbnailBytes": 8442
+    },
+    {
+      "id": "page-09",
+      "number": 9,
+      "src": "/catalog/pages/page-09.webp",
+      "thumbnail": "/catalog/thumbnails/page-09.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 126538,
+      "thumbnailBytes": 12398
+    },
+    {
+      "id": "page-10",
+      "number": 10,
+      "src": "/catalog/pages/page-10.webp",
+      "thumbnail": "/catalog/thumbnails/page-10.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 113842,
+      "thumbnailBytes": 11074
+    },
+    {
+      "id": "page-11",
+      "number": 11,
+      "src": "/catalog/pages/page-11.webp",
+      "thumbnail": "/catalog/thumbnails/page-11.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 149172,
+      "thumbnailBytes": 13982
+    },
+    {
+      "id": "page-12",
+      "number": 12,
+      "src": "/catalog/pages/page-12.webp",
+      "thumbnail": "/catalog/thumbnails/page-12.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 79276,
+      "thumbnailBytes": 7974
+    },
+    {
+      "id": "page-13",
+      "number": 13,
+      "src": "/catalog/pages/page-13.webp",
+      "thumbnail": "/catalog/thumbnails/page-13.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 49186,
+      "thumbnailBytes": 6698
+    },
+    {
+      "id": "page-14",
+      "number": 14,
+      "src": "/catalog/pages/page-14.webp",
+      "thumbnail": "/catalog/thumbnails/page-14.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 156538,
+      "thumbnailBytes": 14946
+    },
+    {
+      "id": "page-15",
+      "number": 15,
+      "src": "/catalog/pages/page-15.webp",
+      "thumbnail": "/catalog/thumbnails/page-15.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 102858,
+      "thumbnailBytes": 11200
+    },
+    {
+      "id": "page-16",
+      "number": 16,
+      "src": "/catalog/pages/page-16.webp",
+      "thumbnail": "/catalog/thumbnails/page-16.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 107206,
+      "thumbnailBytes": 10986
+    },
+    {
+      "id": "page-17",
+      "number": 17,
+      "src": "/catalog/pages/page-17.webp",
+      "thumbnail": "/catalog/thumbnails/page-17.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 119750,
+      "thumbnailBytes": 10168
+    },
+    {
+      "id": "page-18",
+      "number": 18,
+      "src": "/catalog/pages/page-18.webp",
+      "thumbnail": "/catalog/thumbnails/page-18.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 106558,
+      "thumbnailBytes": 10296
+    },
+    {
+      "id": "page-19",
+      "number": 19,
+      "src": "/catalog/pages/page-19.webp",
+      "thumbnail": "/catalog/thumbnails/page-19.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 87140,
+      "thumbnailBytes": 8984
+    },
+    {
+      "id": "page-20",
+      "number": 20,
+      "src": "/catalog/pages/page-20.webp",
+      "thumbnail": "/catalog/thumbnails/page-20.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 89362,
+      "thumbnailBytes": 9458
+    },
+    {
+      "id": "page-21",
+      "number": 21,
+      "src": "/catalog/pages/page-21.webp",
+      "thumbnail": "/catalog/thumbnails/page-21.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 97102,
+      "thumbnailBytes": 9920
+    },
+    {
+      "id": "page-22",
+      "number": 22,
+      "src": "/catalog/pages/page-22.webp",
+      "thumbnail": "/catalog/thumbnails/page-22.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 96074,
+      "thumbnailBytes": 9732
+    },
+    {
+      "id": "page-23",
+      "number": 23,
+      "src": "/catalog/pages/page-23.webp",
+      "thumbnail": "/catalog/thumbnails/page-23.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 83698,
+      "thumbnailBytes": 9514
+    },
+    {
+      "id": "page-24",
+      "number": 24,
+      "src": "/catalog/pages/page-24.webp",
+      "thumbnail": "/catalog/thumbnails/page-24.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 103044,
+      "thumbnailBytes": 10696
+    },
+    {
+      "id": "page-25",
+      "number": 25,
+      "src": "/catalog/pages/page-25.webp",
+      "thumbnail": "/catalog/thumbnails/page-25.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 81262,
+      "thumbnailBytes": 8232
+    },
+    {
+      "id": "page-26",
+      "number": 26,
+      "src": "/catalog/pages/page-26.webp",
+      "thumbnail": "/catalog/thumbnails/page-26.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 80560,
+      "thumbnailBytes": 9400
+    },
+    {
+      "id": "page-27",
+      "number": 27,
+      "src": "/catalog/pages/page-27.webp",
+      "thumbnail": "/catalog/thumbnails/page-27.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 77312,
+      "thumbnailBytes": 8632
+    },
+    {
+      "id": "page-28",
+      "number": 28,
+      "src": "/catalog/pages/page-28.webp",
+      "thumbnail": "/catalog/thumbnails/page-28.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 63370,
+      "thumbnailBytes": 7062
+    },
+    {
+      "id": "page-29",
+      "number": 29,
+      "src": "/catalog/pages/page-29.webp",
+      "thumbnail": "/catalog/thumbnails/page-29.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 69496,
+      "thumbnailBytes": 8026
+    },
+    {
+      "id": "page-30",
+      "number": 30,
+      "src": "/catalog/pages/page-30.webp",
+      "thumbnail": "/catalog/thumbnails/page-30.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 61212,
+      "thumbnailBytes": 6846
+    },
+    {
+      "id": "page-31",
+      "number": 31,
+      "src": "/catalog/pages/page-31.webp",
+      "thumbnail": "/catalog/thumbnails/page-31.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 58258,
+      "thumbnailBytes": 6822
+    },
+    {
+      "id": "page-32",
+      "number": 32,
+      "src": "/catalog/pages/page-32.webp",
+      "thumbnail": "/catalog/thumbnails/page-32.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 65496,
+      "thumbnailBytes": 7366
+    },
+    {
+      "id": "page-33",
+      "number": 33,
+      "src": "/catalog/pages/page-33.webp",
+      "thumbnail": "/catalog/thumbnails/page-33.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 43502,
+      "thumbnailBytes": 5280
+    },
+    {
+      "id": "page-34",
+      "number": 34,
+      "src": "/catalog/pages/page-34.webp",
+      "thumbnail": "/catalog/thumbnails/page-34.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 58640,
+      "thumbnailBytes": 6766
+    },
+    {
+      "id": "page-35",
+      "number": 35,
+      "src": "/catalog/pages/page-35.webp",
+      "thumbnail": "/catalog/thumbnails/page-35.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 58522,
+      "thumbnailBytes": 6644
+    },
+    {
+      "id": "page-36",
+      "number": 36,
+      "src": "/catalog/pages/page-36.webp",
+      "thumbnail": "/catalog/thumbnails/page-36.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 65938,
+      "thumbnailBytes": 6518
+    },
+    {
+      "id": "page-37",
+      "number": 37,
+      "src": "/catalog/pages/page-37.webp",
+      "thumbnail": "/catalog/thumbnails/page-37.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 44382,
+      "thumbnailBytes": 5222
+    },
+    {
+      "id": "page-38",
+      "number": 38,
+      "src": "/catalog/pages/page-38.webp",
+      "thumbnail": "/catalog/thumbnails/page-38.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 86146,
+      "thumbnailBytes": 8166
+    },
+    {
+      "id": "page-39",
+      "number": 39,
+      "src": "/catalog/pages/page-39.webp",
+      "thumbnail": "/catalog/thumbnails/page-39.webp",
+      "width": 1920,
+      "height": 1080,
+      "bytes": 12466,
+      "thumbnailBytes": 1170
+    }
+  ]
+}
