@@ -1,23 +1,23 @@
-import type { Hotspot, Product } from "../types/catalog";
+import type { Hotspot } from "../types/catalog";
 
 type HotspotLayerProps = {
   hotspots: Hotspot[];
-  products: Record<string, Product>;
-  onProductSelect: (product: Product) => void;
+  /** Nombres vigentes (del catálogo generado) para accesibilidad. */
+  productNames: Record<string, string>;
+  onProductSelect: (productId: string) => void;
 };
 
-export function HotspotLayer({ hotspots, products, onProductSelect }: HotspotLayerProps) {
+export function HotspotLayer({ hotspots, productNames, onProductSelect }: HotspotLayerProps) {
   return (
     <div className="hotspot-layer" aria-label="Contenido interactivo">
       {hotspots.map((hotspot) => {
-        const product = products[hotspot.productId];
-        if (!product) return null;
+        const name = productNames[hotspot.productId] ?? hotspot.productId;
 
         return (
           <button
             className="product-hotspot"
             data-hotspot-id={hotspot.id}
-            data-product-id={product.id}
+            data-product-id={hotspot.productId}
             key={hotspot.id}
             style={{
               left: `${hotspot.x}%`,
@@ -26,10 +26,10 @@ export function HotspotLayer({ hotspots, products, onProductSelect }: HotspotLay
               height: `${hotspot.height}%`,
             }}
             type="button"
-            aria-label={`Abrir ficha de ${product.name}`}
+            aria-label={`Abrir ficha de ${name}`}
             onClick={(event) => {
               event.stopPropagation();
-              onProductSelect(product);
+              onProductSelect(hotspot.productId);
             }}
           >
             <span className="hotspot-marker" aria-hidden="true">

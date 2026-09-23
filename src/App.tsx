@@ -1,8 +1,16 @@
 import { useEffect, useState } from "react";
+import { CommerceProvider } from "./commerce/CommerceContext";
 import { Magazine } from "./components/Magazine";
+import { PadelViewerLab } from "./components/PadelViewerLab";
 import type { CatalogMetadata } from "./types/catalog";
 
 export default function App() {
+  const isViewerLab = window.location.pathname === "/viewer-lab"
+    || new URLSearchParams(window.location.search).has("viewer-lab");
+  return isViewerLab ? <PadelViewerLab /> : <CatalogApp />;
+}
+
+function CatalogApp() {
   const [catalog, setCatalog] = useState<CatalogMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -33,5 +41,9 @@ export default function App() {
     );
   }
 
-  return <Magazine catalog={catalog} />;
+  return (
+    <CommerceProvider>
+      <Magazine catalog={catalog} />
+    </CommerceProvider>
+  );
 }

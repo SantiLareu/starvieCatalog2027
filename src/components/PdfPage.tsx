@@ -1,5 +1,5 @@
-import type { CatalogPage, Product } from "../types/catalog";
-import { hotspotsForPage, products } from "../data/CatalogData";
+import type { CatalogPage } from "../types/catalog";
+import { hotspotsForPage, selectLiveHotspots } from "../data/CatalogData";
 import { CoverIntro } from "./CoverIntro";
 import { HotspotLayer } from "./HotspotLayer";
 
@@ -7,11 +7,21 @@ type PdfPageProps = {
   page: CatalogPage;
   initiallySharp: boolean;
   onCoverReady?: () => void;
-  onProductSelect: (product: Product) => void;
+  productNames: Record<string, string>;
+  onProductSelect: (productId: string) => void;
 };
 
-export function PdfPage({ page, initiallySharp, onCoverReady, onProductSelect }: PdfPageProps) {
-  const pageHotspots = hotspotsForPage(page.id);
+export function PdfPage({
+  page,
+  initiallySharp,
+  onCoverReady,
+  productNames,
+  onProductSelect,
+}: PdfPageProps) {
+  // Solo productos vigentes del Excel (cualquier categoría): un producto
+  // retirado del catálogo deja de mostrar hotspot; uno no disponible sigue
+  // visible y abre el modal como "Sin stock".
+  const pageHotspots = selectLiveHotspots(hotspotsForPage(page.id), productNames);
 
   return (
     <div className="pdf-page" data-page-number={page.number}>
@@ -41,7 +51,7 @@ export function PdfPage({ page, initiallySharp, onCoverReady, onProductSelect }:
       {pageHotspots.length > 0 ? (
         <HotspotLayer
           hotspots={pageHotspots}
-          products={products}
+          productNames={productNames}
           onProductSelect={onProductSelect}
         />
       ) : null}

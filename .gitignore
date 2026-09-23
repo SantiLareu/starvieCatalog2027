@@ -4,3 +4,5 @@ tmp/
 test-results/
 playwright-report/
 *.tsbuildinfo
+__pycache__/
+*.pyc

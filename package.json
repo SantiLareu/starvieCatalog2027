@@ -7,11 +7,15 @@
     "dev": "vite --host 0.0.0.0 --port 5173",
     "build": "tsc -b && vite build",
     "build:pdf-pages": "node scripts/build-pdf-pages.mjs",
+    "products:seed": "node scripts/seed-pilot-xlsx.mjs",
+    "import-products": "node scripts/import-products.mjs catalog/products.xlsx",
+    "check-products": "node scripts/import-products.mjs catalog/products.xlsx --check",
     "test": "vitest run",
     "test:watch": "vitest",
     "test:e2e": "playwright test"
   },
   "dependencies": {
+    "exceljs": "^4.4.0",
     "page-flip": "^2.0.7",
     "react": "^19.2.8",
     "react-dom": "^19.2.8"

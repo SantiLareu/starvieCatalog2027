@@ -1,0 +1,23 @@
+[
+  {
+    "id": "raptor-plus",
+    "sku": "PSTRP41000",
+    "nombre": "Raptor+",
+    "categoria": "palas",
+    "subcategoria": "super-pro",
+    "precio": 320,
+    "disponible": true,
+    "imagenPrincipal": "products/palas/RAPTOR+/RAPTOR1.3.webp",
+    "imagen2": "",
+    "imagen3": "",
+    "imagen4": "",
+    "gama": "Super Pro · Profesional y semi pro",
+    "tipoJuego": "Versátil",
+    "forma": "Lágrima",
+    "plano": "3D Carbon",
+    "peso": "350–370 g",
+    "balance": "Medio",
+    "ean": "8436612942025",
+    "pagina": 17
+  }
+]
