@@ -42,3 +42,18 @@ El runtime no usa el PDF original. Carga miniaturas para páginas lejanas y prom
 - `CatalogData`: producto y hotspot reales.
 
 Las notas de investigación y decisiones están en [docs/phase-1-notes.md](docs/phase-1-notes.md).
+
+## Turnstile del checkout
+
+El checkout mantiene Turnstile desactivado por defecto. Para probarlo **solo en desarrollo**, configurá variables públicas de Vite en tu entorno local:
+
+```dotenv
+VITE_TURNSTILE_ENABLED=true
+VITE_TURNSTILE_SITE_KEY=1x00000000000000000000AA
+```
+
+La sitekey del ejemplo es la clave oficial de prueba de Cloudflare. Los tests usan la misma clave y simulan el widget; no llaman a Siteverify. No coloques el secret en variables `VITE_`: la verificación y el secret pertenecen al backend. Si se activa el flag sin sitekey, el checkout bloquea nuevos envíos.
+
+Para el build de GitHub Pages, el workflow `.github/workflows/deploy.yml` lee **variables del repositorio** (no del environment `github-pages`) en el paso `npm run build`. En GitHub, abrí **Settings → Secrets and variables → Actions → Variables** y creá `VITE_TURNSTILE_SITE_KEY` con la Site Key pública del widget de `starvie.real-step.com.ar`. Mantené `VITE_TURNSTILE_ENABLED` sin definir o con valor `false` hasta coordinar la activación del Worker; el workflow usa `false` si falta. Cuando ambos lados estén listos para publicar, cambiá esa variable a `true` antes del build del frontend previsto. Vite incorpora estos valores públicos en el bundle durante el build: cambiar una variable de GitHub no modifica un sitio ya publicado. No cargues `TURNSTILE_SECRET_STARVIE` en GitHub ni en archivos del frontend.
+
+El widget usa la acción `order_starvie`. El token se envía solo con el POST que lo obtiene y nunca se guarda en storage. Tras un timeout, el checkout consulta primero con el mismo payload y la misma `idempotencyKey`, sin token; el Worker recupera un pedido existente antes de verificar Turnstile. Si ese pedido no llegó a crearse, el Worker responde que falta el token y el checkout pide uno nuevo para **el mismo intento**. Antes de activar producción hay que coordinar sitekey, hostname, acción, secret y habilitación de `starvie` en el Worker, y probar el flujo completo en un entorno aislado.

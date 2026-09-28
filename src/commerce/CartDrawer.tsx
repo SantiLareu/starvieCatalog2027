@@ -4,6 +4,7 @@ import { useCommerce } from "./CommerceContext";
 import { formatNotice } from "./cart";
 import { CheckoutModal } from "./CheckoutModal";
 import { formatPrice } from "./money";
+import { getStoredAttemptStatus, getStoredSessionPresence } from "./orderAttempt";
 
 export function CartDrawer() {
   const {
@@ -38,7 +39,11 @@ export function CartDrawer() {
   if (!cartOpen) return null;
 
   return createPortal(
-    <div className="cart-backdrop" role="presentation" onMouseDown={() => setCartOpen(false)}>
+    <div
+      className="cart-backdrop"
+      role="presentation"
+      onMouseDown={() => setCartOpen(false)}
+    >
       <aside
         className="cart-drawer"
         role="dialog"
@@ -56,7 +61,13 @@ export function CartDrawer() {
             aria-label="Cerrar pedido"
           >
             <svg viewBox="0 0 24 24" width="20" height="20" aria-hidden="true">
-              <path d="m6 6 12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
+              <path
+                d="m6 6 12 12M18 6 6 18"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+              />
             </svg>
           </button>
         </header>
@@ -64,21 +75,45 @@ export function CartDrawer() {
         {cartNotices.length > 0 ? (
           <div className="cart-notices" role="alert">
             {cartNotices.length > 1 ? (
-              <p className="cart-notices-title">Se actualizaron algunos productos de tu pedido.</p>
+              <p className="cart-notices-title">
+                Se actualizaron algunos productos de tu pedido.
+              </p>
             ) : null}
             <ul>
               {cartNotices.map((notice, index) => (
-                <li key={`${notice.productId}-${notice.type}-${index}`}>{formatNotice(notice)}</li>
+                <li key={`${notice.productId}-${notice.type}-${index}`}>
+                  {formatNotice(notice)}
+                </li>
               ))}
             </ul>
-            <button className="cart-notices-dismiss" type="button" onClick={dismissNotices}>
+            <button
+              className="cart-notices-dismiss"
+              type="button"
+              onClick={dismissNotices}
+            >
               Entendido
             </button>
           </div>
         ) : null}
 
         {presented.length === 0 ? (
-          <p className="cart-empty">Todavía no agregaste productos. Tocá una pala del catálogo para ver su ficha.</p>
+          getStoredAttemptStatus().kind !== "missing" || getStoredSessionPresence() !== "missing" ? (
+            <p className="cart-empty">
+              Hay un pedido anterior para revisar.{" "}
+              <button
+                className="cart-retry"
+                type="button"
+                onClick={() => setCheckoutOpen(true)}
+              >
+                Consultar pedido
+              </button>
+            </p>
+          ) : (
+            <p className="cart-empty">
+              Todavía no agregaste productos. Tocá una pala del catálogo para
+              ver su ficha.
+            </p>
+          )
         ) : (
           <>
             <ul className="cart-lines">
@@ -87,10 +122,16 @@ export function CartDrawer() {
                   <div className="cart-line-info">
                     <strong>{product.nombre}</strong>
                     <small>SKU {product.sku}</small>
-                    <span className="cart-line-price">{formatPrice(product.precio)} c/u</span>
+                    <span className="cart-line-price">
+                      {formatPrice(product.precio)} c/u
+                    </span>
                   </div>
                   <div className="cart-line-controls">
-                    <div className="qty-selector" role="group" aria-label={`Cantidad de ${product.nombre}`}>
+                    <div
+                      className="qty-selector"
+                      role="group"
+                      aria-label={`Cantidad de ${product.nombre}`}
+                    >
                       <button
                         type="button"
                         onClick={() => setQty(line.productId, line.qty - 1)}
@@ -107,7 +148,9 @@ export function CartDrawer() {
                         +
                       </button>
                     </div>
-                    <span className="cart-line-subtotal">{formatPrice(subtotal)}</span>
+                    <span className="cart-line-subtotal">
+                      {formatPrice(subtotal)}
+                    </span>
                     <button
                       className="cart-line-remove"
                       type="button"
@@ -135,7 +178,9 @@ export function CartDrawer() {
               <button className="cart-clear" type="button" onClick={clearCart}>
                 Vaciar pedido
               </button>
-              <p className="future-note">Precios y disponibilidad vigentes del catálogo.</p>
+              <p className="future-note">
+                Precios y disponibilidad vigentes del catálogo.
+              </p>
             </footer>
           </>
         )}

@@ -33,6 +33,9 @@ jobs:
 
       - name: Build
         run: npm run build
+        env:
+          VITE_TURNSTILE_ENABLED: ${{ vars.VITE_TURNSTILE_ENABLED || 'false' }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY || '' }}
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

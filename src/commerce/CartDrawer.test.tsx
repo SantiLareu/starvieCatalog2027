@@ -2,13 +2,18 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { CartDrawer } from "./CartDrawer";
 import { useCommerce } from "./CommerceContext";
+import { prepareAttempt, updateAttempt } from "./orderAttempt";
 import type { CommerceProduct } from "./types";
 
 vi.mock("./CommerceContext", () => ({ useCommerce: vi.fn() }));
 
 const mocked = vi.mocked(useCommerce);
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  localStorage.clear();
+  sessionStorage.clear();
+});
 
 const raptor: CommerceProduct = {
   id: "raptor-plus",
@@ -101,5 +106,20 @@ describe("CartDrawer: banner de avisos", () => {
     expect(more.title).toBe("");
     fireEvent.click(more);
     expect(setQty).toHaveBeenCalledWith("raptor-plus", 11);
+  });
+
+  it("con carrito vacío permite abrir la confirmación de un pedido completado", () => {
+    prepareAttempt(
+      { name: "Santiago", legalName: "StarVie", email: "santi@example.com" },
+      [{ productId: "raptor-plus", qty: 1 }],
+    );
+    updateAttempt([{ productId: "raptor-plus", qty: 1 }], {
+      orderId: "done-drawer", status: "completed", completed: true,
+    });
+    mockCommerce();
+    render(<CartDrawer />);
+    fireEvent.click(screen.getByRole("button", { name: "Consultar pedido" }));
+    expect(screen.getByText("N° done-drawer")).toBeVisible();
+    expect(screen.getByRole("button", { name: "Iniciar nueva compra" })).toBeVisible();
   });
 });
