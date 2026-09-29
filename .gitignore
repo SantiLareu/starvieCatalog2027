@@ -8,3 +8,4 @@ __pycache__/
 *.pyc
 # Local Pi runtime state
 .atl/
+/odd/tasks/
