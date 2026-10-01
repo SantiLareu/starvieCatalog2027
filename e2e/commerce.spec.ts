@@ -1,5 +1,6 @@
 import { expect, test, type Page } from "@playwright/test";
 import { formatPrice } from "../src/commerce/money";
+import imageVariants from "../src/data/productImageVariants.json" with { type: "json" };
 
 /**
  * Piloto comercial Raptor+: Excel → import → JSON → hotspot → modal →
@@ -75,19 +76,24 @@ test.describe("Comercio piloto Raptor+", () => {
   test("la imagen principal del Excel carga en el navegador", async ({ page }) => {
     // Data-driven: la ruta esperada sale del JSON publicado (que viene del
     // Excel), sin hardcodear carpetas ni archivos. Demuestra
-    // Excel → products.json → ProductModal → asset real cargado.
+    // Excel → products.json → derivado de la imagen → asset real cargado.
     const pilot = await getPilot(page);
     expect(pilot.imagenes.length).toBeGreaterThan(0);
     const expectedPath = pilot.imagenes[0];
+    const variants = Object.entries(imageVariants.images).find(([source]) => source === expectedPath)?.[1];
+    expect(variants, "la imagen del Excel debe tener derivados generados").toBeDefined();
     const dialog = await openRaptor(page);
     await expect(dialog).toBeVisible();
     const main = dialog.getByAltText(/Raptor\+, imagen 1 de/);
-    // La ruta del Excel puede viajar URL-encoded por segmento en el src
-    // (+ → %2B, espacios → %20): se compara la URL lógica decodificada.
-    const src = await main.getAttribute("src");
-    expect(src, "el modal debe renderizar la imagen principal").not.toBeNull();
+    await expect.poll(() => main.evaluate(image => {
+      const img = image as HTMLImageElement;
+      return img.complete && img.naturalWidth > 0;
+    })).toBe(true);
+    // The browser chooses 768/1280 according to display size and density.
+    // Assert the exact source mapping rather than accepting any small image.
+    const src = await main.evaluate(image => (image as HTMLImageElement).currentSrc);
     const decodedPath = decodeURIComponent(new URL(src as string, page.url()).pathname);
-    expect(decodedPath).toContain(expectedPath);
+    expect([variants!.standard.src, variants!.large.src].some(path => decodedPath.endsWith("/" + path))).toBe(true);
     await expect.poll(() => main.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
     await expect.poll(() => main.evaluate((image) => (image as HTMLImageElement).naturalHeight)).toBeGreaterThan(0);
   });

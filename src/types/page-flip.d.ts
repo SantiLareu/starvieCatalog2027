@@ -37,6 +37,7 @@ declare module "page-flip" {
     flip(pageNumber: number, corner?: PageFlipCorner): void;
     turnToPage(pageNumber: number): void;
     getCurrentPageIndex(): number;
+    getOrientation(): "portrait" | "landscape";
     getFlipController(): PageFlipController;
     destroy(): void;
   }

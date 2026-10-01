@@ -155,7 +155,7 @@ test.describe("Catálogo StarVie 2027", () => {
     expect(bookOpen).not.toBeNull();
     expect(Math.abs(bookOpen!.x - bookRest!.x)).toBeLessThan(2);
     expect(Math.abs(bookOpen!.width - bookRest!.width)).toBeLessThan(2);
-    const lineupPage = page.getByRole("img", { name: "Página 14 del catálogo StarVie 2027", exact: true }).first();
+    const lineupPage = page.getByTestId("page14-coverflow").first();
     const interiorOpenBox = await lineupPage.boundingBox();
     expect(interiorOpenBox).not.toBeNull();
     expect(Math.abs(interiorOpenBox!.y - closedCoverBox!.y)).toBeLessThan(3);
@@ -246,7 +246,8 @@ test.describe("Catálogo StarVie 2027", () => {
     const physicalPages = page.locator('.catalog-leaf > .pdf-page > img[data-catalog-page]');
     const videoLeaves = page.locator('.catalog-leaf > .video-page[data-virtual-page="collection-2027-video"]');
     await expect(leaves).toHaveCount(39);
-    await expect(physicalPages).toHaveCount(38);
+    await expect(physicalPages).toHaveCount(37);
+    await expect(page.locator('.catalog-leaf > [data-testid="page14-coverflow"]')).toHaveCount(1);
     await expect(videoLeaves).toHaveCount(1);
     expect(await leaves.evaluateAll((nodes) => nodes.map((node) => Number((node as HTMLElement).dataset.bookIndex)))).toEqual(
       Array.from({ length: 39 }, (_, index) => index),
@@ -276,7 +277,7 @@ test.describe("Catálogo StarVie 2027", () => {
       await expect(indicator).toContainText("14 · VIDEO / 39");
     }
 
-    const lineup = page.getByRole("img", { name: "Página 14 del catálogo StarVie 2027", exact: true }).first();
+    const lineup = page.getByTestId("page14-coverflow").first();
     const videoPage = page.locator('[data-virtual-page="collection-2027-video"]');
     await expect(videoPage).toBeVisible();
     await expect(videoPage.getByText("COLLECTION 2027", { exact: true })).toBeVisible();
@@ -335,7 +336,7 @@ test.describe("Catálogo StarVie 2027", () => {
     const mobileCoverTitle = page.locator(".cover-title-overlay");
     await expect(mobileCoverTitle).toBeVisible();
     await expect.poll(() => mobileCoverTitle.evaluate((title) => getComputedStyle(title).opacity)).toBe("1");
-    await expect(page.getByRole("button", { name: "Página siguiente", exact: true })).toBeHidden();
+    await expect(page.getByRole("button", { name: "Página siguiente", exact: true })).toBeVisible();
 
     await page.getByTestId("page-indicator").click();
     await page.getByRole("spinbutton", { name: "Ir a", exact: true }).fill("17");
@@ -619,7 +620,7 @@ test.describe("Catálogo StarVie 2027", () => {
       expect(box).not.toBeNull();
       const startX = box!.x + box!.width * (direction === "next" ? 0.82 : 0.18);
       const endX = box!.x + box!.width * (direction === "next" ? 0.42 : 0.58);
-      const y = box!.y + box!.height * 0.82;
+      const y = box!.y + box!.height * (selector === '[data-testid="page14-coverflow"]' ? 0.03 : 0.82);
       if (mobile) {
         const cdp = await context.newCDPSession(page);
         await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: startX, y }] });
@@ -654,7 +655,7 @@ test.describe("Catálogo StarVie 2027", () => {
     await expect(indicator).toContainText(collectionLabel);
     await waitIdle();
 
-    await drag('img[data-catalog-page="14"]', "previous");
+    await drag('[data-testid="page14-coverflow"]', "previous");
     await expect(app).toHaveAttribute("data-book-transition", "close-to-cover");
     await expect(page.locator('[data-cover-bridge="lineup"]')).toBeVisible();
     await expect(indicator).toContainText("1 / 39");
@@ -696,7 +697,8 @@ test.describe("Catálogo StarVie 2027", () => {
 
     // El book conserva sus hojas normales: P39 sigue sin ser hoja.
     await expect(page.locator(".catalog-leaf")).toHaveCount(39);
-    await expect(page.locator('.catalog-leaf > .pdf-page > img[data-catalog-page]')).toHaveCount(38);
+    await expect(page.locator('.catalog-leaf > .pdf-page > img[data-catalog-page]')).toHaveCount(37);
+    await expect(page.locator('.catalog-leaf > [data-testid="page14-coverflow"]')).toHaveCount(1);
     await expect(page.locator('.catalog-leaf > .video-page[data-virtual-page="collection-2027-video"]')).toHaveCount(1);
     await expect(page.locator('.catalog-leaf img[data-catalog-page="39"]')).toHaveCount(0);
   });

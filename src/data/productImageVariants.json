@@ -1,0 +1,1025 @@
+{
+  "schemaVersion": 1,
+  "images": {
+    "products/palas/ASTRUM/ASTRUM1.1.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/71e4302f4e9a07bc-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6340
+      },
+      "standard": {
+        "src": "catalog/product-images/71e4302f4e9a07bc-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 59386
+      },
+      "large": {
+        "src": "catalog/product-images/71e4302f4e9a07bc-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 120868
+      }
+    },
+    "products/palas/ASTRUM/ASTRUM1.2.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/1a722b7d4e847322-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 3970
+      },
+      "standard": {
+        "src": "catalog/product-images/1a722b7d4e847322-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 42760
+      },
+      "large": {
+        "src": "catalog/product-images/1a722b7d4e847322-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 88888
+      }
+    },
+    "products/palas/ASTRUM/ASTRUM1.4.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/05e1b46126e5e2a6-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 3814
+      },
+      "standard": {
+        "src": "catalog/product-images/05e1b46126e5e2a6-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 27940
+      },
+      "large": {
+        "src": "catalog/product-images/05e1b46126e5e2a6-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 53498
+      }
+    },
+    "products/palas/ASTRUM/ASTRUM1.5.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/e372aa40da4a108a-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6884
+      },
+      "standard": {
+        "src": "catalog/product-images/e372aa40da4a108a-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 78580
+      },
+      "large": {
+        "src": "catalog/product-images/e372aa40da4a108a-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 155340
+      }
+    },
+    "products/palas/ASTRUM/ASTRUM1.6.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/9cf9098bac4876e5-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 8128
+      },
+      "standard": {
+        "src": "catalog/product-images/9cf9098bac4876e5-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 72218
+      },
+      "large": {
+        "src": "catalog/product-images/9cf9098bac4876e5-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 147216
+      }
+    },
+    "products/palas/BLACK TITAN/BLACKT1.1 (1).webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/4f70cb9e948f0664-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6332
+      },
+      "standard": {
+        "src": "catalog/product-images/4f70cb9e948f0664-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 62754
+      },
+      "large": {
+        "src": "catalog/product-images/4f70cb9e948f0664-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 128102
+      }
+    },
+    "products/palas/BLACK TITAN/BLACKT1.2.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/6505a7ffca3d5d1f-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6846
+      },
+      "standard": {
+        "src": "catalog/product-images/6505a7ffca3d5d1f-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 60536
+      },
+      "large": {
+        "src": "catalog/product-images/6505a7ffca3d5d1f-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 131360
+      }
+    },
+    "products/palas/BLACK TITAN/BLACKT1.3 (1).webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/fa468ad236a0f91c-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 4450
+      },
+      "standard": {
+        "src": "catalog/product-images/fa468ad236a0f91c-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 50174
+      },
+      "large": {
+        "src": "catalog/product-images/fa468ad236a0f91c-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 103622
+      }
+    },
+    "products/palas/BLACK TITAN/BLACKT1.4.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/ebaea5227bd90cec-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 11662
+      },
+      "standard": {
+        "src": "catalog/product-images/ebaea5227bd90cec-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 122700
+      },
+      "large": {
+        "src": "catalog/product-images/ebaea5227bd90cec-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 244822
+      }
+    },
+    "products/palas/DRAX/DRAX1.1.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/1414ec9be95fb20e-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 10366
+      },
+      "standard": {
+        "src": "catalog/product-images/1414ec9be95fb20e-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 99826
+      },
+      "large": {
+        "src": "catalog/product-images/1414ec9be95fb20e-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 206452
+      }
+    },
+    "products/palas/DRAX/DRAX1.2.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/a3745a3c837408ca-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 9434
+      },
+      "standard": {
+        "src": "catalog/product-images/a3745a3c837408ca-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 83858
+      },
+      "large": {
+        "src": "catalog/product-images/a3745a3c837408ca-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 180050
+      }
+    },
+    "products/palas/DRAX/DRAX1.3.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/8c94e1a5c91cb6d8-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 8566
+      },
+      "standard": {
+        "src": "catalog/product-images/8c94e1a5c91cb6d8-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 76122
+      },
+      "large": {
+        "src": "catalog/product-images/8c94e1a5c91cb6d8-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 145074
+      }
+    },
+    "products/palas/DRAX/DRAX1.4.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/12f109d75ebf6f55-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 4376
+      },
+      "standard": {
+        "src": "catalog/product-images/12f109d75ebf6f55-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 42354
+      },
+      "large": {
+        "src": "catalog/product-images/12f109d75ebf6f55-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 88442
+      }
+    },
+    "products/palas/DRAX/DRAX1.5.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/9aedf7fb704e6fd6-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6494
+      },
+      "standard": {
+        "src": "catalog/product-images/9aedf7fb704e6fd6-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 57348
+      },
+      "large": {
+        "src": "catalog/product-images/9aedf7fb704e6fd6-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 117826
+      }
+    },
+    "products/palas/ETERNAL/ETERNAL1.1.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/89e6a4f9e0130f1f-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6972
+      },
+      "standard": {
+        "src": "catalog/product-images/89e6a4f9e0130f1f-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 52018
+      },
+      "large": {
+        "src": "catalog/product-images/89e6a4f9e0130f1f-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 106400
+      }
+    },
+    "products/palas/ETERNAL/ETERNAL1.2.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/29a63bf109df50e4-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 2154
+      },
+      "standard": {
+        "src": "catalog/product-images/29a63bf109df50e4-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 14126
+      },
+      "large": {
+        "src": "catalog/product-images/29a63bf109df50e4-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 28102
+      }
+    },
+    "products/palas/ETERNAL/ETERNAL1.3.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/cc77a8153f6939ad-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 4148
+      },
+      "standard": {
+        "src": "catalog/product-images/cc77a8153f6939ad-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 30748
+      },
+      "large": {
+        "src": "catalog/product-images/cc77a8153f6939ad-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 59004
+      }
+    },
+    "products/palas/ETERNAL/ETERNAL1.4.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/63dcd76059800d73-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 5852
+      },
+      "standard": {
+        "src": "catalog/product-images/63dcd76059800d73-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 42902
+      },
+      "large": {
+        "src": "catalog/product-images/63dcd76059800d73-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 82464
+      }
+    },
+    "products/palas/ETERNAL/ETERNAL1.5.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/8270fe4438d8e056-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 4400
+      },
+      "standard": {
+        "src": "catalog/product-images/8270fe4438d8e056-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 28286
+      },
+      "large": {
+        "src": "catalog/product-images/8270fe4438d8e056-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 59408
+      }
+    },
+    "products/palas/KYRA/KYRA1.1.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/6e3cafeaf79a9247-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 5696
+      },
+      "standard": {
+        "src": "catalog/product-images/6e3cafeaf79a9247-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 37812
+      },
+      "large": {
+        "src": "catalog/product-images/6e3cafeaf79a9247-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 71048
+      }
+    },
+    "products/palas/KYRA/KYRA1.2.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/4977ad083a52adb8-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 5252
+      },
+      "standard": {
+        "src": "catalog/product-images/4977ad083a52adb8-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 37288
+      },
+      "large": {
+        "src": "catalog/product-images/4977ad083a52adb8-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 70212
+      }
+    },
+    "products/palas/KYRA/KYRA1.3.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/f56e537a40174639-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 4226
+      },
+      "standard": {
+        "src": "catalog/product-images/f56e537a40174639-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 28586
+      },
+      "large": {
+        "src": "catalog/product-images/f56e537a40174639-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 53578
+      }
+    },
+    "products/palas/METHEORA/METHE1.1.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/aeeb2dac3c4eb2fb-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 4198
+      },
+      "standard": {
+        "src": "catalog/product-images/aeeb2dac3c4eb2fb-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 39770
+      },
+      "large": {
+        "src": "catalog/product-images/aeeb2dac3c4eb2fb-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 82322
+      }
+    },
+    "products/palas/METHEORA/METHE1.2.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/9b79aa2c19dcabde-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 9604
+      },
+      "standard": {
+        "src": "catalog/product-images/9b79aa2c19dcabde-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 86906
+      },
+      "large": {
+        "src": "catalog/product-images/9b79aa2c19dcabde-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 191668
+      }
+    },
+    "products/palas/METHEORA/METHE1.3.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/3a682218c0e3c31a-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 2624
+      },
+      "standard": {
+        "src": "catalog/product-images/3a682218c0e3c31a-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 16364
+      },
+      "large": {
+        "src": "catalog/product-images/3a682218c0e3c31a-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 35162
+      }
+    },
+    "products/palas/METHEORA/METHE1.4.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/a1bd2d88571e7fb5-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6038
+      },
+      "standard": {
+        "src": "catalog/product-images/a1bd2d88571e7fb5-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 52808
+      },
+      "large": {
+        "src": "catalog/product-images/a1bd2d88571e7fb5-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 109640
+      }
+    },
+    "products/palas/METHEORA/METHE1.5.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/4f7a787aeac5d970-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 7664
+      },
+      "standard": {
+        "src": "catalog/product-images/4f7a787aeac5d970-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 73868
+      },
+      "large": {
+        "src": "catalog/product-images/4f7a787aeac5d970-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 179860
+      }
+    },
+    "products/palas/PHANTOM/PHANTON1.1.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/f5dc91befd6a0f3b-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 4944
+      },
+      "standard": {
+        "src": "catalog/product-images/f5dc91befd6a0f3b-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 35380
+      },
+      "large": {
+        "src": "catalog/product-images/f5dc91befd6a0f3b-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 72078
+      }
+    },
+    "products/palas/PHANTOM/PHANTON1.2.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/c8324e88d10ff16f-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 7238
+      },
+      "standard": {
+        "src": "catalog/product-images/c8324e88d10ff16f-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 53664
+      },
+      "large": {
+        "src": "catalog/product-images/c8324e88d10ff16f-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 110546
+      }
+    },
+    "products/palas/PHANTOM/PHANTON1.3.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/eb577accf4909dca-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 5376
+      },
+      "standard": {
+        "src": "catalog/product-images/eb577accf4909dca-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 42914
+      },
+      "large": {
+        "src": "catalog/product-images/eb577accf4909dca-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 92494
+      }
+    },
+    "products/palas/PHANTOM/PHANTON1.4.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/a5d4a7593d6c6805-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 3452
+      },
+      "standard": {
+        "src": "catalog/product-images/a5d4a7593d6c6805-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 23926
+      },
+      "large": {
+        "src": "catalog/product-images/a5d4a7593d6c6805-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 47624
+      }
+    },
+    "products/palas/RAPTOR/RAPTOR1.2.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/ac9a8706a57ab484-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 7364
+      },
+      "standard": {
+        "src": "catalog/product-images/ac9a8706a57ab484-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 60640
+      },
+      "large": {
+        "src": "catalog/product-images/ac9a8706a57ab484-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 126358
+      }
+    },
+    "products/palas/RAPTOR/RAPTOR1.3.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/5f286e60eb031167-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 5898
+      },
+      "standard": {
+        "src": "catalog/product-images/5f286e60eb031167-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 57416
+      },
+      "large": {
+        "src": "catalog/product-images/5f286e60eb031167-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 124404
+      }
+    },
+    "products/palas/RAPTOR/RAPTOR1.4.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/ea255c154c4e9b39-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 4362
+      },
+      "standard": {
+        "src": "catalog/product-images/ea255c154c4e9b39-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 43974
+      },
+      "large": {
+        "src": "catalog/product-images/ea255c154c4e9b39-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 92830
+      }
+    },
+    "products/palas/RAPTOR/RAPTOR1.5.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/02dbfcc21a8a5284-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6876
+      },
+      "standard": {
+        "src": "catalog/product-images/02dbfcc21a8a5284-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 49400
+      },
+      "large": {
+        "src": "catalog/product-images/02dbfcc21a8a5284-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 102952
+      }
+    },
+    "products/palas/SHADE/SHADE1.1.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/dd7dcb036414eadc-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6306
+      },
+      "standard": {
+        "src": "catalog/product-images/dd7dcb036414eadc-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 50038
+      },
+      "large": {
+        "src": "catalog/product-images/dd7dcb036414eadc-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 106958
+      }
+    },
+    "products/palas/SHADE/SHADE1.2.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/10493ba8a4e80d0c-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 3762
+      },
+      "standard": {
+        "src": "catalog/product-images/10493ba8a4e80d0c-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 31062
+      },
+      "large": {
+        "src": "catalog/product-images/10493ba8a4e80d0c-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 64384
+      }
+    },
+    "products/palas/SHADE/SHADE1.3.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/285b7a272a29639a-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6912
+      },
+      "standard": {
+        "src": "catalog/product-images/285b7a272a29639a-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 63832
+      },
+      "large": {
+        "src": "catalog/product-images/285b7a272a29639a-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 142064
+      }
+    },
+    "products/palas/TRITON BALANCE/TRITONB1.1.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/a5c9a88f12a210ce-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 4800
+      },
+      "standard": {
+        "src": "catalog/product-images/a5c9a88f12a210ce-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 49554
+      },
+      "large": {
+        "src": "catalog/product-images/a5c9a88f12a210ce-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 107358
+      }
+    },
+    "products/palas/TRITON BALANCE/TRITONB1.3.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/d2b69ccd77a4578a-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 8806
+      },
+      "standard": {
+        "src": "catalog/product-images/d2b69ccd77a4578a-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 82402
+      },
+      "large": {
+        "src": "catalog/product-images/d2b69ccd77a4578a-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 191114
+      }
+    },
+    "products/palas/TRITON BALANCE/TRITONB1.4.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/7f4106470be81b33-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 10376
+      },
+      "standard": {
+        "src": "catalog/product-images/7f4106470be81b33-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 108694
+      },
+      "large": {
+        "src": "catalog/product-images/7f4106470be81b33-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 242852
+      }
+    },
+    "products/palas/TRITON BALANCE/TRITONB1.5.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/a70e69b8175ed6f8-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6422
+      },
+      "standard": {
+        "src": "catalog/product-images/a70e69b8175ed6f8-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 63504
+      },
+      "large": {
+        "src": "catalog/product-images/a70e69b8175ed6f8-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 137106
+      }
+    },
+    "products/palas/TRITON POWER/TRITONPOER1.1.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/de091ba1088d9190-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6218
+      },
+      "standard": {
+        "src": "catalog/product-images/de091ba1088d9190-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 58100
+      },
+      "large": {
+        "src": "catalog/product-images/de091ba1088d9190-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 123322
+      }
+    },
+    "products/palas/TRITON POWER/TRITONPOER1.2.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/99ef4dad151f1025-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 5960
+      },
+      "standard": {
+        "src": "catalog/product-images/99ef4dad151f1025-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 57324
+      },
+      "large": {
+        "src": "catalog/product-images/99ef4dad151f1025-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 120902
+      }
+    },
+    "products/palas/TRITON POWER/TRITONPOER1.3.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/f5220853604682cb-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 4484
+      },
+      "standard": {
+        "src": "catalog/product-images/f5220853604682cb-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 46072
+      },
+      "large": {
+        "src": "catalog/product-images/f5220853604682cb-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 100180
+      }
+    },
+    "products/palas/TRITON POWER/TRITONPOER1.4.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/1b9431ed60685f76-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 8800
+      },
+      "standard": {
+        "src": "catalog/product-images/1b9431ed60685f76-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 77850
+      },
+      "large": {
+        "src": "catalog/product-images/1b9431ed60685f76-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 165678
+      }
+    },
+    "products/palas/TRITON POWER/TRITONPOER1.5.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/ee6ca21a45e58f24-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 12566
+      },
+      "standard": {
+        "src": "catalog/product-images/ee6ca21a45e58f24-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 140418
+      },
+      "large": {
+        "src": "catalog/product-images/ee6ca21a45e58f24-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 318672
+      }
+    },
+    "products/palas/TRITÓN T-ONE/TRITONTONE1.1.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/99328228707a4ef3-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 7618
+      },
+      "standard": {
+        "src": "catalog/product-images/99328228707a4ef3-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 59422
+      },
+      "large": {
+        "src": "catalog/product-images/99328228707a4ef3-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 126088
+      }
+    },
+    "products/palas/TRITÓN T-ONE/TRITONTONE1.2.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/8b1f1dd6224e9ed3-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 4106
+      },
+      "standard": {
+        "src": "catalog/product-images/8b1f1dd6224e9ed3-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 36514
+      },
+      "large": {
+        "src": "catalog/product-images/8b1f1dd6224e9ed3-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 74448
+      }
+    },
+    "products/palas/TRITÓN T-ONE/TRITONTONE1.4.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/d6fefd11bbd0fdb6-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 3080
+      },
+      "standard": {
+        "src": "catalog/product-images/d6fefd11bbd0fdb6-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 22618
+      },
+      "large": {
+        "src": "catalog/product-images/d6fefd11bbd0fdb6-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 43656
+      }
+    },
+    "products/palas/TRITÓN T-ONE/TRITONTONE1.5.webp": {
+      "thumbnail": {
+        "src": "catalog/product-images/f2313e799dd874d2-160.webp",
+        "width": 160,
+        "height": 160,
+        "bytes": 6058
+      },
+      "standard": {
+        "src": "catalog/product-images/f2313e799dd874d2-768.webp",
+        "width": 768,
+        "height": 768,
+        "bytes": 48628
+      },
+      "large": {
+        "src": "catalog/product-images/f2313e799dd874d2-1280.webp",
+        "width": 1280,
+        "height": 1280,
+        "bytes": 99236
+      }
+    }
+  }
+}

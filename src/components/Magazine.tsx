@@ -104,6 +104,7 @@ type BookTransition =
 
 export function Magazine({ catalog }: MagazineProps) {
   const engineRef = useRef<PageFlipHandle>(null);
+  const activeIndexRef = useRef(0);
   const experienceRef = useRef<ExperienceMode>("collection");
   const transitionRef = useRef<BookTransition | null>(null);
   const transitionSequenceRef = useRef(0);
@@ -118,6 +119,20 @@ export function Magazine({ catalog }: MagazineProps) {
   const [pagePickerOpen, setPagePickerOpen] = useState(false);
   const [pageInput, setPageInput] = useState("1");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [gestureHintDismissed, setGestureHintDismissed] = useState(() => {
+    try { return sessionStorage.getItem("starvie-mobile-gesture-seen") === "1"; }
+    catch { return false; }
+  });
+  const dismissGestureHint = useCallback(() => {
+    setGestureHintDismissed(true);
+    try { sessionStorage.setItem("starvie-mobile-gesture-seen", "1"); } catch { /* Storage can be unavailable. */ }
+  }, []);
+  useEffect(() => {
+    if (orientation !== "portrait" || !coverReady || gestureHintDismissed) return;
+    // This timeout only limits the onboarding hint; navigation has no timer.
+    const timeout = window.setTimeout(dismissGestureHint, 4500);
+    return () => window.clearTimeout(timeout);
+  }, [orientation, coverReady, gestureHintDismissed, dismissGestureHint]);
   const {
     catalogError,
     productNames,
@@ -170,6 +185,7 @@ export function Magazine({ catalog }: MagazineProps) {
   }, []);
 
   const onPageChange = useCallback((index: number) => {
+    activeIndexRef.current = index;
     setActiveIndex(index);
   }, []);
   const onOrientationChange = useCallback((value: "portrait" | "landscape") => {
@@ -216,7 +232,7 @@ export function Magazine({ catalog }: MagazineProps) {
   }, [backCoverState, bookPages, catalog.pageCount, displayIndex, lastPageIndex, orientation]);
 
   const goToBookIndex = useCallback((index: number, mode: ExperienceMode, instant = true) => {
-    if (index < 0 || index >= bookPages.length || transitionRef.current) return;
+    if (index < 0 || index >= bookPages.length || transitionRef.current || engineRef.current?.isTurning()) return;
     setBackCoverState("open");
     setExperienceMode(mode);
     if (instant) engineRef.current?.goToInstant(index);
@@ -234,7 +250,7 @@ export function Magazine({ catalog }: MagazineProps) {
   }, [bookPages, goToBookIndex, lastPageIndex]);
 
   const startSectionTransition = useCallback((targetIndex: number, targetExperience: ExperienceMode) => {
-    if (transitionRef.current || targetIndex < 0 || targetIndex >= bookPages.length) return;
+    if (transitionRef.current || engineRef.current?.isTurning() || targetIndex < 0 || targetIndex >= bookPages.length) return;
     if (activeIndex === targetIndex && experienceRef.current === targetExperience) return;
     const transition: BookTransition = {
       id: ++transitionSequenceRef.current,
@@ -385,9 +401,12 @@ export function Magazine({ catalog }: MagazineProps) {
   }, [bookTransition, finishBookTransition]);
 
   const navigate = useCallback((direction: NavigationDirection) => {
-    if (transitionRef.current) return;
+    // A turn owns the physical spread until "read". Discard new requests
+    // instead of resolving them against the old index or queueing more turns.
+    if (transitionRef.current || engineRef.current?.isTurning()) return;
+    if (orientation === "portrait" && !gestureHintDismissed) dismissGestureHint();
     const intent = resolveNavigation({
-      activeIndex,
+      activeIndex: activeIndexRef.current,
       experience: experienceRef.current,
       starLabStartIndex,
       starLabEndIndex,
@@ -426,7 +445,9 @@ export function Magazine({ catalog }: MagazineProps) {
         break;
     }
   }, [
-    activeIndex,
+    orientation,
+    gestureHintDismissed,
+    dismissGestureHint,
     backCoverState,
     collectionStartIndex,
     backCoverOpenIndex,
@@ -452,13 +473,13 @@ export function Magazine({ catalog }: MagazineProps) {
   const nextBlocked = backCoverState === "closed";
 
   const handleFirst = useCallback(() => {
-    if (transitionRef.current) return;
+    if (transitionRef.current || engineRef.current?.isTurning()) return;
     if (experienceRef.current === "starlab") engineRef.current?.goToInstant(starLabStartIndex);
     else engineRef.current?.goToInstant(0);
   }, [starLabStartIndex]);
 
   const handleLast = useCallback(() => {
-    if (transitionRef.current) return;
+    if (transitionRef.current || engineRef.current?.isTurning()) return;
     if (experienceRef.current === "starlab") engineRef.current?.goToInstant(starLabEndIndex);
     else {
       setBackCoverState("open");
@@ -507,7 +528,7 @@ export function Magazine({ catalog }: MagazineProps) {
 
   const goToPage = (event: FormEvent) => {
     event.preventDefault();
-    if (transitionRef.current) return;
+    if (transitionRef.current || engineRef.current?.isTurning()) return;
     const requested = Math.max(1, Math.min(catalog.pageCount, Number(pageInput) || 1));
     setPageInput(String(requested));
     goToOriginalPage(requested, false);
@@ -525,6 +546,13 @@ export function Magazine({ catalog }: MagazineProps) {
     },
     [resolveProduct, showToast],
   );
+
+  const handleCoverflowProductSelect = useCallback((productId: string) => {
+    const resolved = resolveProduct(productId);
+    if (resolved.kind === "ok" && resolved.product.pagina != null) {
+      goToOriginalPage(resolved.product.pagina, false);
+    }
+  }, [resolveProduct, goToOriginalPage]);
 
   // El modal resuelve el producto vivo en cada render: si el catálogo se
   // actualiza por polling, precio/disponibilidad/imágenes se refrescan sin F5.
@@ -553,6 +581,7 @@ export function Magazine({ catalog }: MagazineProps) {
       const target = event.target as HTMLElement | null;
       if (target) {
         if (target.closest('[role="dialog"]')) return;
+        if (target.closest(".page14-coverflow__interactive")) return;
         const tag = target.tagName;
         if (
           tag === "INPUT" ||
@@ -589,6 +618,7 @@ export function Magazine({ catalog }: MagazineProps) {
     <main
       className={`catalog-app ${coverReady ? "cover-ready" : ""} ${visualCoverActive ? "cover-active" : ""} ${visualCoverActive && orientation === "landscape" ? "is-cover" : ""} ${backCoverState === "closed" ? "back-cover-closed" : ""}`}
       data-book-transition={bookTransition?.kind ?? "idle"}
+      data-orientation={orientation}
       data-back-cover-state={backCoverState}
       data-transition-direction={bookTransition?.kind === "section"
         ? bookTransition.direction
@@ -707,7 +737,8 @@ export function Magazine({ catalog }: MagazineProps) {
         </div>
       </aside>
 
-      <section className="magazine-stage" aria-label="Catálogo StarVie 2027">
+      <section className="magazine-stage" aria-label="Catálogo StarVie 2027"
+        onPointerDownCapture={() => { if (orientation === "portrait" && !gestureHintDismissed) dismissGestureHint(); }}>
         <div className="stage-glow" aria-hidden="true" />
         <PageFlipEngine
           ref={engineRef}
@@ -721,12 +752,15 @@ export function Magazine({ catalog }: MagazineProps) {
           onCoverReady={() => setCoverReady(true)}
           productNames={productNames}
           onProductSelect={handleProductSelect}
+          onCoverflowProductSelect={handleCoverflowProductSelect}
           coverBridgeActive={coverBridgeActive}
           coverMotionActive={bookTransition?.kind === "initial-cover-open" || bookTransition?.kind === "close-to-cover"}
           backCoverState={backCoverState}
           onBackCoverTransitionEnd={handleBackCoverTransitionEnd}
           interactionLocked={isBookTransitioning}
           videoPlaybackAllowed={!isBookTransitioning}
+          productOpen={selectedProductId != null}
+          cartOpen={cartOpen}
           onCoverTransitionStart={startInitialCoverOpen}
           manualNavigationBoundary={manualNavigationBoundary}
           onManualNavigationIntent={navigate}
@@ -737,15 +771,25 @@ export function Magazine({ catalog }: MagazineProps) {
             <span aria-hidden="true">|‹</span>
           </button>
           <button type="button" onClick={handlePrevious} disabled={isBookTransitioning || previousBlocked} aria-label="Página anterior">
-            <span aria-hidden="true">‹</span>
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m15 6-6 6 6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
           <button type="button" onClick={handleNext} disabled={isBookTransitioning || nextBlocked} aria-label="Página siguiente">
-            <span aria-hidden="true">›</span>
+            <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true"><path d="m9 6 6 6-6 6" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" /></svg>
           </button>
           <button className="page-jump" type="button" onClick={handleLast} disabled={isBookTransitioning || atLastPage} aria-label="Última página">
             <span aria-hidden="true">›|</span>
           </button>
         </nav>
+
+        {orientation === "portrait" && coverReady && !gestureHintDismissed && !isBookTransitioning && !selectedProductId && !cartOpen && !drawerOpen && !pagePickerOpen ? (
+          <div className="mobile-gesture-hint" role="status">
+            <svg className="mobile-gesture-hint__hand" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
+              <path d="M13 17V7a2 2 0 0 1 4 0v8l2-1 3 1 3 2v7c0 4-3 6-7 6h-2l-8-9a2 2 0 0 1 3-3l2 2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="m4 8-2 2 2 2m24-4 2 2-2 2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" />
+            </svg>
+            <span>Toca un lado o desliza la hoja</span>
+          </div>
+        ) : null}
 
         {!coverReady ? (
           <div className="catalog-loading" role="status">

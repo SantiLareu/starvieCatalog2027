@@ -11,6 +11,8 @@ import {
 import { createPortal } from "react-dom";
 import type { CommerceProduct } from "../commerce/types";
 import { formatPrice } from "../commerce/money";
+import { ProductImage, assetUrl } from "./ProductImage";
+export { assetUrl } from "./ProductImage";
 
 type ProductModalProps = {
   product: CommerceProduct;
@@ -56,23 +58,6 @@ type ImageGesture = PanGesture | PinchGesture;
 
 function formatZoom(zoom: number): string {
   return `${Number.isInteger(zoom) ? zoom.toFixed(0) : zoom.toFixed(1)}×`;
-}
-
-/**
- * URL HTTP de una ruta del Excel (p. ej. products/palas/RAPTOR+/RAPTOR1.3.webp).
- * Codifica cada segmento por separado para que "+", espacios y demás
- * caracteres habituales viajen como %2B, %20, etc. El valor original del
- * Excel se conserva intacto en el JSON; solo se codifica al construir la URL.
- */
-export function assetUrl(relative: string): string {
-  const base = import.meta.env.BASE_URL.endsWith("/")
-    ? import.meta.env.BASE_URL
-    : `${import.meta.env.BASE_URL}/`;
-  const encoded = relative
-    .split("/")
-    .map((segment) => encodeURIComponent(segment))
-    .join("/");
-  return new URL(encoded, new URL(base, window.location.href)).href;
 }
 
 export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: ProductModalProps) {
@@ -142,17 +127,17 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
 
   // Galería construida desde el Excel; con campo vacío o asset roto se usa fallback limpio.
   const gallery = useMemo(() => {
-    const fromExcel = product.imagenes.map(assetUrl);
+    const fromExcel = product.imagenes.map(source => ({ source, src: assetUrl(source) }));
     if (fromExcel.length > 0) return fromExcel;
-    if (pageSrc) return [pageSrc];
-    return [PLACEHOLDER];
+    if (pageSrc) return [{ source: pageSrc, src: pageSrc }];
+    return [{ source: PLACEHOLDER, src: PLACEHOLDER }];
   }, [product.imagenes, pageSrc]);
   const [selected, setSelected] = useState(0);
   const [failed, setFailed] = useState<ReadonlySet<number>>(new Set());
   const [qty, setQty] = useState(1);
   const visible = useMemo(
     () => gallery
-      .map((src, index) => ({ src, index }))
+      .map((image, index) => ({ ...image, index }))
       .filter(({ index }) => !failed.has(index)),
     [failed, gallery],
   );
@@ -398,9 +383,12 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
               tabIndex={0}
               aria-label="Visor ampliable de la imagen del producto"
             >
-              <img
+              <ProductImage
                 key={currentSrc}
-                src={currentSrc}
+                source={current?.source ?? currentSrc}
+                original={currentSrc}
+                zoomed={imageView.zoom > MIN_ZOOM}
+                decoding="async"
                 alt={`${product.nombre}, imagen ${selectedPosition + 1} de ${Math.max(1, visible.length)}`}
                 draggable={false}
                 style={{ transform: `translate3d(${imageView.x}px, ${imageView.y}px, 0) scale(${imageView.zoom})` }}
@@ -469,7 +457,7 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
           </div>
           {visible.length > 1 ? (
             <div className="gallery-thumbs" role="group" aria-label="Imágenes del producto">
-              {visible.map(({ src }, position) => (
+              {visible.map(({ src, source }, position) => (
                 <button
                   key={src}
                   ref={position === selectedPosition ? activeThumbRef : undefined}
@@ -479,7 +467,7 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
                   aria-label={`Ver imagen ${position + 1}`}
                   aria-pressed={position === selectedPosition}
                 >
-                  <img src={src} alt="" aria-hidden="true" loading="lazy" />
+                  <ProductImage key={source} source={source} original={src} thumbnail alt="" aria-hidden="true" loading="lazy" decoding="async" />
                 </button>
               ))}
             </div>

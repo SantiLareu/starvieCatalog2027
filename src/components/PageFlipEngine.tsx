@@ -1,10 +1,11 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
 import { PageFlip } from "page-flip";
 import { COLLECTION_LINEUP_PAGE, type BookPage } from "../data/bookFlow";
 import { createHardCoverPageFlipSettings } from "../data/hardCoverMotion";
 import type { CatalogPage } from "../types/catalog";
 import { PdfPage } from "./PdfPage";
 import { VideoPage } from "./VideoPage";
+import { Page14Coverflow } from "./Page14Coverflow";
 import { BackCover, type BackCoverHandle } from "./BackCover";
 
 type PageFlipRuntime = {
@@ -27,6 +28,7 @@ type PageFlipRuntime = {
 };
 
 export type PageFlipHandle = {
+  isTurning: () => boolean;
   next: () => void;
   previous: () => void;
   closeCover: () => void;
@@ -51,12 +53,15 @@ type PageFlipEngineProps = {
   onCoverReady: () => void;
   productNames: Record<string, string>;
   onProductSelect: (productId: string) => void;
+  onCoverflowProductSelect: (productId: string) => void;
   coverBridgeActive: boolean;
   coverMotionActive: boolean;
   backCoverState: "open" | "closing" | "closed" | "opening";
   onBackCoverTransitionEnd: (state: "open" | "closed") => void;
   interactionLocked: boolean;
   videoPlaybackAllowed: boolean;
+  productOpen: boolean;
+  cartOpen: boolean;
   onCoverTransitionStart: () => void;
   manualNavigationBoundary: boolean;
   onManualNavigationIntent: (direction: "previous" | "next") => void;
@@ -75,12 +80,15 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       onCoverReady,
       productNames,
       onProductSelect,
+      onCoverflowProductSelect,
       coverBridgeActive,
       coverMotionActive,
       backCoverState,
       onBackCoverTransitionEnd,
       interactionLocked,
       videoPlaybackAllowed,
+      productOpen,
+      cartOpen,
       onCoverTransitionStart,
       manualNavigationBoundary,
       onManualNavigationIntent,
@@ -88,7 +96,12 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
     forwardedRef,
   ) {
     const hostRef = useRef<HTMLDivElement>(null);
+    const [flipInProgress, setFlipInProgress] = useState(false);
+    const [coverflowProductId, setCoverflowProductId] = useState<string | null>(null);
     const engineRef = useRef<PageFlip | null>(null);
+    // changeState is emitted before StPageFlip updates getState(). Keep the
+    // event value synchronously so input guards also work before React commits.
+    const flipStateRef = useRef("read");
     const backCoverRef = useRef<BackCoverHandle>(null);
     const activeIndexRef = useRef(activeIndex);
     const sharpPagesRef = useRef(new Set([0, 1, 2, 3, 4]));
@@ -121,7 +134,15 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       [pages],
     );
 
+    const isTurning = useCallback(() =>
+      flipStateRef.current === "flipping" ||
+      // An invalid outward drag at a cover can emit user_fold without a
+      // calculation. It owns no turn and must not lock subsequent navigation.
+      (flipStateRef.current === "user_fold" && engineRef.current?.getFlipController().getCalculation() != null),
+    []);
+
     useImperativeHandle(forwardedRef, () => ({
+      isTurning,
       next: () => engineRef.current?.flipNext("bottom"),
       previous: () => {
         const engine = engineRef.current;
@@ -185,7 +206,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         }
         engine.flip(bookIndex, "bottom");
       },
-    }), [pages.length]);
+    }), [isTurning, pages.length]);
 
     useEffect(() => {
       const host = hostRef.current;
@@ -208,27 +229,34 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         if (pageIndex !== 0) host.classList.remove("is-cover-opening");
       };
 
-      type PendingBoundaryGesture = { x: number; y: number };
+      type PendingBoundaryGesture = { x: number; y: number; tapDirection?: "previous" | "next" };
       let pendingMouseGesture: PendingBoundaryGesture | null = null;
       let pendingTouchGesture: PendingBoundaryGesture | null = null;
 
       const isLeafTarget = (target: EventTarget | null) =>
-        target instanceof HTMLElement && target.closest(".catalog-leaf, .back-cover-bridge") != null;
+        target instanceof Element && target.closest(".catalog-leaf, .back-cover-bridge") != null;
 
       const beginBoundaryGesture = (
         point: PendingBoundaryGesture,
         target: EventTarget | null,
-      ) => {
+      ): PendingBoundaryGesture | false => {
+        const portrait = engine.getOrientation() === "portrait";
         if (
           interactionLockedRef.current ||
-          !manualNavigationBoundaryRef.current ||
-          activeIndexRef.current === 0 ||
+          (!portrait && (!manualNavigationBoundaryRef.current || activeIndexRef.current === 0)) ||
+          (target instanceof Element && target.closest(".page14-coverflow__interactive, button, a, input, video") != null) ||
           !isLeafTarget(target)
         ) {
           return false;
         }
         engine.getSettings().showPageCorners = false;
-        return point;
+        // Native portrait flipPrev uses x=10 outside its book corners, while
+        // slow backward folds are calculated on the hidden half of the book.
+        // Route portrait gestures through Magazine's existing physical and
+        // logical navigation, including its synchronous in-flight guard.
+        const leaf = (target as Element).closest(".catalog-leaf, .back-cover-bridge")!;
+        const rect = leaf.getBoundingClientRect();
+        return { ...point, tapDirection: portrait ? (point.x < rect.left + rect.width / 2 ? "previous" : "next") : undefined };
       };
 
       const resolveBoundaryGesture = (
@@ -245,7 +273,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       };
 
       const handleCoverMouseDown = (event: MouseEvent) => {
-        if (interactionLockedRef.current) {
+        if (interactionLockedRef.current || isTurning()) {
           event.preventDefault();
           event.stopImmediatePropagation();
           return;
@@ -265,7 +293,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         if (activeIndexRef.current === 0) engine.getSettings().showPageCorners = true;
       };
       const handleLockedTouchStart = (event: TouchEvent) => {
-        if (interactionLockedRef.current) {
+        if (interactionLockedRef.current || isTurning()) {
           event.preventDefault();
           event.stopImmediatePropagation();
           return;
@@ -315,9 +343,15 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         event.stopImmediatePropagation();
         if (result === "handled") pendingTouchGesture = null;
       };
-      const handleCoverMouseUp = () => {
+      const handleCoverMouseUp = (event: MouseEvent | TouchEvent) => {
+        const pending = event.type === "mouseup" ? pendingMouseGesture : pendingTouchGesture;
         pendingMouseGesture = null;
         pendingTouchGesture = null;
+        if (pending?.tapDirection && event.type !== "touchcancel") {
+          onManualNavigationIntentRef.current(pending.tapDirection);
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        }
         if (activeIndexRef.current === 0) engine.getSettings().showPageCorners = false;
         else syncCornerPreview(activeIndexRef.current);
       };
@@ -357,11 +391,15 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
 
       engine.on("flip", (event) => {
         const pageIndex = Number(event.data);
+        activeIndexRef.current = pageIndex;
         syncCornerPreview(pageIndex);
         onPageChange(pageIndex);
       });
       engine.on("changeState", (event) => {
         const state = String(event.data);
+        flipStateRef.current = state;
+        host.dataset.flipState = state;
+        setFlipInProgress(state !== "read");
         // StPageFlip updates its internal page index before the React indicator
         // catches up. Use the active direction to distinguish the cover return
         // (page 1 -> 0) from the first interior turn (page 1 -> 3).
@@ -406,6 +444,8 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
 
       engine.loadFromHTML(host.querySelectorAll<HTMLElement>(".catalog-leaf"));
       engineRef.current = engine;
+      flipStateRef.current = "read";
+      host.dataset.flipState = "read";
       // Sin densidades manuales al fondo: P39 no es hoja del book y P38
       // conserva su densidad soft nativa dentro del último spread.
       const coverLeaf = host.querySelector<HTMLElement>(".catalog-leaf:first-child");
@@ -441,6 +481,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       window.addEventListener("mousemove", handleBoundaryMouseMove, true);
       window.addEventListener("touchmove", handleBoundaryTouchMove, { capture: true, passive: false });
       window.addEventListener("touchend", handleCoverMouseUp, true);
+      window.addEventListener("touchcancel", handleCoverMouseUp, true);
 
       return () => {
         host.removeEventListener("click", handleDelegatedHotspot, true);
@@ -452,13 +493,14 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         window.removeEventListener("mousemove", handleBoundaryMouseMove, true);
         window.removeEventListener("touchmove", handleBoundaryTouchMove, true);
         window.removeEventListener("touchend", handleCoverMouseUp, true);
+        window.removeEventListener("touchcancel", handleCoverMouseUp, true);
         resetCoverLight();
         window.cancelAnimationFrame(coverTopFrame);
         host.style.removeProperty("--cover-open-top");
         engine.destroy();
         engineRef.current = null;
       };
-    }, [onOrientationChange, onPageChange, pages]);
+    }, [isTurning, onOrientationChange, onPageChange, pages]);
 
     // Sin spread P38–P39: el último spread abierto lo compone StPageFlip de
     // forma nativa como P37–P38. La contratapa sólo existe como overlay.
@@ -507,7 +549,14 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
             data-density={index === 0 ? "hard" : "soft"}
             key={bookPage.id}
           >
-            {bookPage.kind === "pdf" ? (
+            {bookPage.kind === "pdf" && bookPage.originalNumber === 14 ? (
+              <Page14Coverflow
+                visible={activeIndex === index && !flipInProgress && !interactionLocked && !productOpen && !cartOpen}
+                activeProductId={coverflowProductId}
+                onActiveProductChange={setCoverflowProductId}
+                onProductSelect={onCoverflowProductSelect}
+              />
+            ) : bookPage.kind === "pdf" ? (
               <PdfPage
                 page={bookPage.page}
                 initiallySharp={index <= 4}
@@ -523,11 +572,12 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
             )}
             {coverBridgeActive && index === 1 && bridgePages.lineup?.kind === "pdf" ? (
               <div className="cover-bridge-surface" data-cover-bridge="lineup" aria-hidden="true">
-                <PdfPage
-                  page={bridgePages.lineup.page}
-                  initiallySharp
-                  productNames={productNames}
-                  onProductSelect={() => undefined}
+                <Page14Coverflow
+                  visible={false}
+                  staticOnly
+                  activeProductId={coverflowProductId}
+                  onActiveProductChange={setCoverflowProductId}
+                  onProductSelect={onCoverflowProductSelect}
                 />
               </div>
             ) : null}
