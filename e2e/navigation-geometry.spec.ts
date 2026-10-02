@@ -161,6 +161,10 @@ test("swipe desde el centro y espacio del visor conduce un fold en ambos sentido
   await page.locator(".page-picker button").click();
   const indicator = page.getByTestId("page-indicator");
   const engine = page.getByTestId("page-flip-engine");
+  await expect(page.getByRole("img", { name: "Página 17 del catálogo StarVie 2027", exact: true })).toBeVisible();
+  await expect(indicator).toHaveText("17 / 39");
+  await expect(engine).toHaveAttribute("data-flip-state", "read");
+  await expect(page.locator("main.catalog-app")).toHaveAttribute("data-book-transition", "idle");
   const box = (await engine.boundingBox())!;
   const cdp = await context.newCDPSession(page);
   for (const y of [box.y + box.height / 2, box.y - 35]) {

@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PageFlip } from "page-flip";
 import { COLLECTION_LINEUP_PAGE, type BookPage } from "../data/bookFlow";
 import { createHardCoverPageFlipSettings } from "../data/hardCoverMotion";
@@ -15,12 +15,14 @@ type PageFlipRuntime = {
     getRect: () => { left: number; top: number; height: number; pageWidth: number };
   };
   getFlipController: () => {
+    getCalculation: () => { getDirection: () => number; getFlippingProgress: () => number } | null;
     flip: (point: { x: number; y: number }) => void;
     start: (point: { x: number; y: number }) => boolean;
     fold: (point: { x: number; y: number }) => void;
     stopMove: () => void;
   };
   getPageCollection: () => {
+    getBottomPage: (direction: number) => { getElement: () => HTMLElement };
     getPage: (pageIndex: number) => {
       setDensity: (density: "soft" | "hard") => void;
     };
@@ -60,6 +62,10 @@ type PageFlipEngineProps = {
   onBackCoverTransitionEnd: (state: "open" | "closed") => void;
   interactionLocked: boolean;
   videoPlaybackAllowed: boolean;
+  /** Índice de book revelado por la transición running (salto por sección). */
+  videoRevealIndex: number | null;
+  /** Destino del bridge de apertura; sólo reproduce cuando el motor lo expone. */
+  coverVideoRevealIndex: number | null;
   productOpen: boolean;
   cartOpen: boolean;
   onCoverTransitionStart: () => void;
@@ -87,6 +93,8 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       onBackCoverTransitionEnd,
       interactionLocked,
       videoPlaybackAllowed,
+      videoRevealIndex,
+      coverVideoRevealIndex,
       productOpen,
       cartOpen,
       onCoverTransitionStart,
@@ -97,6 +105,11 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
   ) {
     const hostRef = useRef<HTMLDivElement>(null);
     const [flipInProgress, setFlipInProgress] = useState(false);
+    // Spread adyacente revelado por un flip manual (botón/flecha/drag), sin
+    // BookTransition: el evento "flip" recién llega al final de la animación.
+    const [manualRevealIndex, setManualRevealIndex] = useState<number | null>(null);
+    const [departingVideoIndex, setDepartingVideoIndex] = useState<number | null>(null);
+    const [coverVideoRevealed, setCoverVideoRevealed] = useState(false);
     const [coverflowProductId, setCoverflowProductId] = useState<string | null>(null);
     const engineRef = useRef<PageFlip | null>(null);
     // changeState is emitted before StPageFlip updates getState(). Keep the
@@ -441,9 +454,42 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       });
       engine.on("changeState", (event) => {
         const state = String(event.data);
+        if (state === "flipping" || state === "user_fold") {
+          const currentIndex = activeIndexRef.current;
+          const videoIndex = pages.findIndex((page, index) => page.kind === "video" &&
+            (index === currentIndex || (engine.getOrientation() === "landscape" && currentIndex > 0 && index === currentIndex + 1)));
+          if (videoIndex >= 0) {
+            setDepartingVideoIndex(videoIndex);
+            // Cortar en el evento, antes del commit de React. Incluye las
+            // copias portrait ya creadas; si se clona después de user_fold,
+            // el original ya no tiene autoplay y hereda el atributo muted.
+            host.querySelectorAll<HTMLVideoElement>(`.catalog-leaf[data-book-index="${videoIndex}"] video`).forEach(video => {
+              video.muted = true;
+              video.defaultMuted = true;
+              video.autoplay = false;
+              video.pause();
+            });
+          }
+        } else if (state === "read") {
+          // Si el drag se canceló, activeIndex sigue en el video y se recupera
+          // su reproducción. Si terminó, la hoja saliente permanece inactiva.
+          setDepartingVideoIndex(null);
+        }
         flipStateRef.current = state;
         host.dataset.flipState = state;
         setFlipInProgress(state !== "read");
+        if (state !== "read") {
+          // El índice React (activeIndex) recién se sincroniza con "flip" al
+          // final de la animación. El spread adyacente en la dirección del
+          // cálculo ya está quedando expuesto: anticipa sólo su visibilidad.
+          const direction = engine.getFlipController().getCalculation()?.getDirection();
+          if (direction === 0 || direction === 1) {
+            const step = engine.getOrientation() === "portrait" ? 1 : 2;
+            const currentPage = engine.getCurrentPageIndex();
+            const target = direction === 0 ? currentPage + step : currentPage - step;
+            setManualRevealIndex(Math.max(0, Math.min(pages.length - 1, target)));
+          }
+        }
         // StPageFlip updates its internal page index before the React indicator
         // catches up. Use the active direction to distinguish the cover return
         // (page 1 -> 0) from the first interior turn (page 1 -> 3).
@@ -462,6 +508,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
             onCoverTransitionStartRef.current();
           }
         } else if (state === "read") {
+          setManualRevealIndex(null);
           host.classList.remove("is-cover-opening");
           delete host.dataset.coverMotion;
           host.style.removeProperty("--cover-left-offset");
@@ -541,6 +588,31 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       };
     }, [isTurning, onOrientationChange, onPageChange, pages]);
 
+    useLayoutEffect(() => {
+      setCoverVideoRevealed(false);
+      // En portrait el bridge de P3 muestra las palas, no el video.
+      if (coverVideoRevealIndex == null || orientation !== "landscape" || !coverBridgeActive ||
+          pages[coverVideoRevealIndex + 1]?.kind !== "video") return;
+      let frame: number;
+      const checkReveal = () => {
+        const engine = engineRef.current;
+        const runtime = engine as unknown as PageFlipRuntime | null;
+        const calculation = runtime?.getFlipController().getCalculation();
+        if (!engine || flipStateRef.current === "read" || calculation?.getDirection() !== 0) {
+          setCoverVideoRevealed(false);
+          return;
+        }
+        // changeState precede al primer dibujo. Esperar al progreso físico y
+        // al bottom page pintado evita reproducir al tocar una tapa aún cerrada.
+        const bottom = runtime!.getPageCollection().getBottomPage(0);
+        const leaf = bottom.getElement();
+        setCoverVideoRevealed(leaf.querySelector('[data-cover-bridge="video"]') != null && leaf.style.display === "block" && calculation.getFlippingProgress() > 0);
+        frame = requestAnimationFrame(checkReveal);
+      };
+      frame = requestAnimationFrame(checkReveal);
+      return () => cancelAnimationFrame(frame);
+    }, [coverVideoRevealIndex, orientation, coverBridgeActive, pages]);
+
     // El último spread abierto conserva P37–P38 en el engine principal.
     // Durante el cierre, P38 participa también como cara interior de la tapa.
     useEffect(() => {
@@ -572,6 +644,12 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       // mousedown/touch intent under concurrent browser load.
       engine.getSettings().showPageCorners = activeIndex !== 0 && !manualNavigationBoundary;
     }, [activeIndex, manualNavigationBoundary]);
+
+    // Spread que está quedando expuesto a mitad del flip: salto por sección
+    // (target en running, vía prop) o flip manual adyacente (dirección del
+    // cálculo, vía estado local). Sólo anticipa el video de ese spread; el
+    // gate global videoPlaybackAllowed queda intacto para todo lo demás.
+    const videoRevealLeft = videoRevealIndex ?? manualRevealIndex;
 
     return (
       <div
@@ -607,7 +685,11 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
             ) : (
               <VideoPage
                 src={bookPage.src}
-                visible={videoPlaybackAllowed && (index === activeIndex || (orientation === "landscape" && activeIndex > 0 && index === activeIndex + 1))}
+                playbackAllowed={index !== departingVideoIndex}
+                visible={
+                  (videoPlaybackAllowed && (index === activeIndex || (orientation === "landscape" && activeIndex > 0 && index === activeIndex + 1))) ||
+                  (videoRevealLeft != null && (index === videoRevealLeft || (orientation === "landscape" && index === videoRevealLeft + 1)))
+                }
               />
             )}
             {coverBridgeActive && index === 1 && bridgePages.lineup?.kind === "pdf" ? (
@@ -626,7 +708,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
                 {orientation === "portrait" ? (
                   <Page14Coverflow visible={false} staticOnly activeProductId={coverflowProductId}
                     onActiveProductChange={setCoverflowProductId} onProductSelect={onCoverflowProductSelect} />
-                ) : <VideoPage src={bridgePages.video.src} visible={false} />}
+                ) : <VideoPage src={bridgePages.video.src} visible={coverVideoRevealIndex != null && coverVideoRevealed} />}
               </div>
             ) : null}
           </div>

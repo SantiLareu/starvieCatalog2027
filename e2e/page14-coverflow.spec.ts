@@ -17,6 +17,46 @@ async function goToPage(page: Page, number: number) {
 const playing = (page: Page) => sourceCarousel(page).evaluate((root) =>
   Boolean((root.querySelector(".swiper") as HTMLElement & { swiper?: { autoplay: { running: boolean } } } | null)?.swiper?.autoplay.running));
 
+test("el fan conserva los vecinos en ambos sentidos durante drags largos y cambios de dirección", async ({ page, context }, testInfo) => {
+  await page.emulateMedia({ reducedMotion: "reduce" });
+  await page.goto("/");
+  await goToPage(page, 14);
+  const slider = sourceCarousel(page).locator(".swiper");
+  const mobile = testInfo.project.name.includes("mobile");
+  const cdp = mobile ? await context.newCDPSession(page) : null;
+  const box = (await slider.boundingBox())!;
+  const y = box.y + box.height / 2;
+  for (const direction of [-1, 1]) {
+    // Mismo origen, incluso al cruzar Eternal/Kyra en el loop.
+    await slider.evaluate(el => (el as any).swiper.slideToLoop(0, 0));
+    await expect.poll(() => slider.evaluate(el => (el as any).swiper.realIndex)).toBe(0);
+    const x = box.x + box.width / 2;
+    if (cdp) await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x, y }] });
+    else { await page.mouse.move(x, y); await page.mouse.down(); }
+    // Ir y volver sin soltar también ejercita el cambio de dirección de loopFix.
+    for (const step of [1, 3, 6, 9, 12, 9, 6, 3]) {
+      const toX = x + direction * step * box.width * .035;
+      if (cdp) await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: toX, y }] });
+      else await page.mouse.move(toX, y, { steps: 3 });
+      await slider.evaluate(() => new Promise<void>(resolve => requestAnimationFrame(() => resolve())));
+      const fan = await slider.evaluate(el => {
+        const slides = [...el.querySelectorAll<HTMLElement>(".swiper-slide")].filter(slide => slide.style.visibility === "visible" && Number(slide.style.opacity) > .02);
+        const sides = slides.map(slide => Number(slide.style.getPropertyValue("--fan-transform").match(/rotateZ\(([-.\d]+)deg\)/)![1]));
+        return { left: sides.filter(angle => angle < -.1).length, right: sides.filter(angle => angle > .1).length, count: slides.length, ids: slides.map(slide => slide.dataset.swiperSlideIndex) };
+      });
+      expect(fan.left).toBeGreaterThanOrEqual(3);
+      expect(fan.right).toBeGreaterThanOrEqual(3);
+      expect(fan.count).toBeGreaterThanOrEqual(7);
+      expect(new Set(fan.ids).size).toBe(fan.count);
+    }
+    if (cdp) await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
+    else await page.mouse.up();
+    await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+    await expect(sourceCarousel(page)).toHaveAttribute("data-presentation", "interactive");
+  }
+  await cdp?.detach();
+});
+
 test("P14 conserva instancia y geometría y las flechas empiezan desde la pose actual", async ({ page }, testInfo) => {
   await page.goto("/");
   await expect(page.getByTestId("page-indicator")).toHaveText("1 / 39");

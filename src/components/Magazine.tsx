@@ -176,6 +176,18 @@ export function Magazine({ catalog }: MagazineProps) {
   // límites físicos del engine (ver backCoverOpenBookIndex).
   const backCoverOpenIndex = backCoverOpenBookIndex(lastPageIndex, orientation);
   const isBookTransitioning = bookTransition != null;
+  // Spread objetivo de un salto por sección mientras su hoja ya se mueve
+  // (phase running): el video puede empezar ahí sin esperar al settle.
+  // Se excluye initial-cover-open (revela un spread intermedio antes del salto
+  // instantáneo) y los cierres de tapa (sin target directo).
+  const videoRevealIndex =
+    bookTransition?.phase === "running" &&
+    (bookTransition.kind === "section" || bookTransition.kind === "edge-enter-collection")
+      ? bookTransition.targetIndex
+      : null;
+  const coverVideoRevealIndex = bookTransition?.kind === "initial-cover-open"
+    ? bookTransition.targetIndex
+    : null;
 
   const finishBookTransition = useCallback(() => {
     transitionRef.current = null;
@@ -770,6 +782,8 @@ export function Magazine({ catalog }: MagazineProps) {
           onBackCoverTransitionEnd={handleBackCoverTransitionEnd}
           interactionLocked={isBookTransitioning}
           videoPlaybackAllowed={!isBookTransitioning}
+          videoRevealIndex={videoRevealIndex}
+          coverVideoRevealIndex={coverVideoRevealIndex}
           productOpen={selectedProductId != null}
           cartOpen={cartOpen}
           onCoverTransitionStart={startInitialCoverOpen}

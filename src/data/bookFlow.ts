@@ -4,7 +4,7 @@ export const STARLAB_FIRST_PAGE = 2;
 export const STARLAB_LAST_PAGE = 13;
 export const COLLECTION_LINEUP_PAGE = 14;
 export const COLLECTION_VIDEO_ID = "collection-2027-video";
-export const COLLECTION_VIDEO_SRC = "/catalog/video/collection-2027.mp4";
+export const COLLECTION_VIDEO_SRC = "/videos/news.mp4";
 /**
  * P39 es exclusivamente la contratapa física. Nunca forma parte del array
  * normal de StPageFlip: el último spread abierto es siempre P37|P38 y P39

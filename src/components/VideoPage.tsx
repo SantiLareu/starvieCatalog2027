@@ -1,21 +1,31 @@
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 type VideoPageProps = {
   src: string;
   visible: boolean;
+  playbackAllowed?: boolean;
 };
 
-export function VideoPage({ src, visible }: VideoPageProps) {
+export function VideoPage({ src, visible, playbackAllowed = true }: VideoPageProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
+  const attachVideo = useCallback((video: HTMLVideoElement | null) => {
+    videoRef.current = video;
+    // React fija muted como propiedad. StPageFlip clona el DOM en portrait:
+    // necesita también el atributo para que la copia nazca silenciada.
+    if (video) video.defaultMuted = true;
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
     if (!video || !visible || failed) return;
-    void video.play().catch(() => undefined);
+    video.muted = true;
+    video.autoplay = playbackAllowed;
+    if (playbackAllowed) void video.play().catch(() => undefined);
+    else video.pause();
     return () => video.pause();
-  }, [failed, ready, visible]);
+  }, [failed, playbackAllowed, ready, visible]);
 
   return (
     <div
@@ -31,10 +41,10 @@ export function VideoPage({ src, visible }: VideoPageProps) {
       </div>
       {visible && !failed ? (
         <video
-          ref={videoRef}
+          ref={attachVideo}
           className={`collection-video${ready ? " is-ready" : ""}`}
           src={src}
-          autoPlay
+          autoPlay={playbackAllowed}
           muted
           loop
           playsInline

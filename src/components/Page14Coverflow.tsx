@@ -35,12 +35,21 @@ function composeFan(swiper: SwiperInstance) {
   const matrix = getComputedStyle(swiper.wrapperEl).transform;
   const translate = matrix === "none" ? swiper.translate : new DOMMatrixReadOnly(matrix).m41;
   const center = -translate + swiper.width / 2;
+  const trackSize = swiper.slidesSizesGrid.reduce((total, size) => total + size, 0);
   swiper.slides.forEach((slide, index) => {
     const size = swiper.slidesSizesGrid[index];
     if (!size) return;
     const offset = (slide as HTMLElement & { swiperSlideOffset?: number }).swiperSlideOffset ?? 0;
-    const distance = (offset + size / 2 - center) / size;
-    slide.style.setProperty("--fan-transform", fanTransform(distance, (-distance * size * .2) + "px", (Math.abs(distance) * swiper.height * .022) + "px"));
+    const linearOffset = offset + size / 2 - center;
+    // Swiper mueve las hojas del loop al alcanzar el borde del track. El fan
+    // debe conservar sus vecinos también DURANTE un drag, antes de loopFix.
+    // Cada pala ocupa su posición circular más cercana; el salto de vuelta
+    // ocurre fuera del fan visible, sin clones ni diferencias por dirección.
+    const circularShift = swiper.params.loop && trackSize > 0
+      ? -Math.round(linearOffset / trackSize) * trackSize
+      : 0;
+    const distance = (linearOffset + circularShift) / size;
+    slide.style.setProperty("--fan-transform", fanTransform(distance, (circularShift - distance * size * .2) + "px", (Math.abs(distance) * swiper.height * .022) + "px"));
     slide.style.zIndex = String(20 - Math.round(Math.abs(distance) * 3));
     slide.style.opacity = String(Math.min(1, Math.max(0, (4 - Math.abs(distance)) * 2)));
     slide.style.visibility = Math.abs(distance) >= 4 ? "hidden" : "visible";
