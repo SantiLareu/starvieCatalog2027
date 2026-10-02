@@ -12,10 +12,13 @@ type PageFlipRuntime = {
   getOrientation: () => "portrait" | "landscape";
   getRender: () => {
     orientation: "portrait" | "landscape";
-    getRect: () => { left: number; top: number; height: number };
+    getRect: () => { left: number; top: number; height: number; pageWidth: number };
   };
   getFlipController: () => {
     flip: (point: { x: number; y: number }) => void;
+    start: (point: { x: number; y: number }) => boolean;
+    fold: (point: { x: number; y: number }) => void;
+    stopMove: () => void;
   };
   getPageCollection: () => {
     getPage: (pageIndex: number) => {
@@ -34,9 +37,6 @@ export type PageFlipHandle = {
   closeCover: () => void;
   closeBackCover: () => void;
   openBackCover: () => void;
-  first: () => void;
-  last: () => void;
-  goTo: (pageNumber: number) => void;
   goToInstant: (bookIndex: number) => void;
   transitionTo: (bookIndex: number, duration: number) => void;
 };
@@ -64,7 +64,7 @@ type PageFlipEngineProps = {
   cartOpen: boolean;
   onCoverTransitionStart: () => void;
   manualNavigationBoundary: boolean;
-  onManualNavigationIntent: (direction: "previous" | "next") => void;
+  onManualNavigationIntent: (direction: "previous" | "next", drag?: boolean) => boolean;
 };
 
 export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
@@ -108,7 +108,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
     const decodeRequestedRef = useRef(new Set<string>());
     const transitionDurationRef = useRef<number | null>(null);
     const suppressCoverStartRef = useRef(false);
-    const portraitCoverCloseRef = useRef(false);
+    const portraitCoverMotionRef = useRef(false);
     const onProductSelectRef = useRef(onProductSelect);
     const onPageSettledRef = useRef(onPageSettled);
     const onCoverTransitionStartRef = useRef(onCoverTransitionStart);
@@ -143,7 +143,20 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
 
     useImperativeHandle(forwardedRef, () => ({
       isTurning,
-      next: () => engineRef.current?.flipNext("bottom"),
+      next: () => {
+        const engine = engineRef.current;
+        if (!engine) return;
+        const runtime = engine as unknown as PageFlipRuntime;
+        if (engine.getCurrentPageIndex() === 0 && runtime.getOrientation() === "portrait") {
+          // Native portrait reuses the same hard DOM page for both faces,
+          // overwriting its first transform. Compose the two real cover faces
+          // exactly as in landscape, retaining the fitted portrait frame.
+          runtime.getRender().orientation = "landscape";
+          portraitCoverMotionRef.current = true;
+          engine.turnToPage(0);
+        }
+        engine.flipNext("bottom");
+      },
       previous: () => {
         const engine = engineRef.current;
         if (!engine) return;
@@ -166,7 +179,8 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
           // el viewport sigue mostrando una sola hoja y se restaura al leer.
           const render = runtime.getRender();
           render.orientation = "landscape";
-          portraitCoverCloseRef.current = true;
+          portraitCoverMotionRef.current = true;
+          engine.turnToPage(1);
           const rect = render.getRect();
           runtime.getFlipController().flip({
             x: rect.left + 10,
@@ -182,16 +196,14 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       openBackCover: () => {
         backCoverRef.current?.open();
       },
-      first: () => engineRef.current?.turnToPage(0),
-      last: () => engineRef.current?.turnToPage(pages.length - 1),
-      goTo: (pageNumber: number) => {
-        suppressCoverStartRef.current = true;
-        engineRef.current?.flip(pageNumber - 1, "bottom");
+      goToInstant: (bookIndex: number) => {
+        backCoverRef.current?.resetOpen();
+        engineRef.current?.turnToPage(bookIndex);
       },
-      goToInstant: (bookIndex: number) => engineRef.current?.turnToPage(bookIndex),
       transitionTo: (bookIndex: number, duration: number) => {
         const engine = engineRef.current;
         if (!engine) return;
+        backCoverRef.current?.resetOpen();
         transitionDurationRef.current = engine.getSettings().flippingTime ?? 950;
         engine.getSettings().flippingTime = duration;
         suppressCoverStartRef.current = true;
@@ -226,37 +238,37 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
 
       const syncCornerPreview = (pageIndex: number) => {
         engine.getSettings().showPageCorners = pageIndex !== 0;
-        if (pageIndex !== 0) host.classList.remove("is-cover-opening");
       };
 
-      type PendingBoundaryGesture = { x: number; y: number; tapDirection?: "previous" | "next" };
+      type PendingBoundaryGesture = {
+        x: number; y: number; tapDirection?: "previous" | "next";
+        direction?: "previous" | "next"; corner?: { x: number; y: number };
+        travelScale?: number;
+      };
       let pendingMouseGesture: PendingBoundaryGesture | null = null;
       let pendingTouchGesture: PendingBoundaryGesture | null = null;
-
-      const isLeafTarget = (target: EventTarget | null) =>
-        target instanceof Element && target.closest(".catalog-leaf, .back-cover-bridge") != null;
+      let suppressGestureClick = false;
+      const gestureSurface = host.closest<HTMLElement>(".magazine-stage") ?? host;
 
       const beginBoundaryGesture = (
         point: PendingBoundaryGesture,
         target: EventTarget | null,
       ): PendingBoundaryGesture | false => {
         const portrait = engine.getOrientation() === "portrait";
+        const hotspot = target instanceof Element && target.closest("[data-product-id]") != null;
         if (
           interactionLockedRef.current ||
           (!portrait && (!manualNavigationBoundaryRef.current || activeIndexRef.current === 0)) ||
-          (target instanceof Element && target.closest(".page14-coverflow__interactive, button, a, input, video") != null) ||
-          !isLeafTarget(target)
+          (target instanceof Element && (target.closest(".page14-coverflow__interactive, input, video") != null ||
+            (!hotspot && target.closest("button, a") != null)))
         ) {
           return false;
         }
         engine.getSettings().showPageCorners = false;
-        // Native portrait flipPrev uses x=10 outside its book corners, while
-        // slow backward folds are calculated on the hidden half of the book.
-        // Route portrait gestures through Magazine's existing physical and
-        // logical navigation, including its synchronous in-flight guard.
-        const leaf = (target as Element).closest(".catalog-leaf, .back-cover-bridge")!;
-        const rect = leaf.getBoundingClientRect();
-        return { ...point, tapDirection: portrait ? (point.x < rect.left + rect.width / 2 ? "previous" : "next") : undefined };
+        suppressGestureClick = false;
+        const leaf = target instanceof Element ? target.closest(".catalog-leaf, .back-cover-bridge") : null;
+        const rect = leaf?.getBoundingClientRect();
+        return { ...point, tapDirection: portrait && rect && !hotspot ? (point.x < rect.left + rect.width / 2 ? "previous" : "next") : undefined };
       };
 
       const resolveBoundaryGesture = (
@@ -266,13 +278,40 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       ): "pending" | "cancel" | "handled" => {
         const deltaX = x - start.x;
         const deltaY = y - start.y;
-        if (Math.abs(deltaX) < 12 && Math.abs(deltaY) < 12) return "pending";
-        if (Math.abs(deltaY) > Math.abs(deltaX)) return "cancel";
-        onManualNavigationIntentRef.current(deltaX < 0 ? "next" : "previous");
-        return "handled";
+        if (!start.direction) {
+          if (Math.abs(deltaX) < 12 && Math.abs(deltaY) < 12) return "pending";
+          if (Math.abs(deltaY) > Math.abs(deltaX)) return "cancel";
+          const direction = deltaX < 0 ? "next" : "previous";
+          suppressGestureClick = true;
+          // Magazine grants a physical fold only for a normal adjacent turn.
+          // Section/cover boundaries use the same safe command as buttons.
+          if (!onManualNavigationIntentRef.current(direction, true)) return "handled";
+          const runtime = engine as unknown as PageFlipRuntime;
+          const rect = runtime.getRender().getRect();
+          start.corner = { x: direction === "next" ? rect.left + rect.pageWidth * 2 - 2 : rect.left + 2,
+            y: rect.top + rect.height - 2 };
+          const viewport = host.getBoundingClientRect();
+          const availableTravel = direction === "next" ? start.x - viewport.left : viewport.right - start.x;
+          start.travelScale = rect.pageWidth * 2 / Math.max(rect.pageWidth / 4, availableTravel);
+          if (!runtime.getFlipController().start(start.corner)) return "cancel";
+          start.direction = direction;
+        }
+        const runtime = engine as unknown as PageFlipRuntime;
+        const rect = runtime.getRender().getRect();
+        // Map a swipe begun anywhere to the native corner, including the
+        // virtual left half in portrait. The finger drives the physical fold
+        // until release; no page index is changed by this adapter.
+        const travel = Math.min(rect.pageWidth * 2 - 2, Math.max(2,
+          (start.direction === "next" ? -deltaX : deltaX) * start.travelScale!));
+        runtime.getFlipController().fold({
+          x: start.corner!.x + (start.direction === "next" ? -travel : travel),
+          y: start.corner!.y + Math.max(-rect.height / 3, Math.min(0, deltaY)),
+        });
+        return "pending";
       };
 
       const handleCoverMouseDown = (event: MouseEvent) => {
+        suppressGestureClick = false;
         if (interactionLockedRef.current || isTurning()) {
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -293,6 +332,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         if (activeIndexRef.current === 0) engine.getSettings().showPageCorners = true;
       };
       const handleLockedTouchStart = (event: TouchEvent) => {
+        suppressGestureClick = false;
         if (interactionLockedRef.current || isTurning()) {
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -347,7 +387,11 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         const pending = event.type === "mouseup" ? pendingMouseGesture : pendingTouchGesture;
         pendingMouseGesture = null;
         pendingTouchGesture = null;
-        if (pending?.tapDirection && event.type !== "touchcancel") {
+        if (pending?.direction) {
+          (engine as unknown as PageFlipRuntime).getFlipController().stopMove();
+          event.preventDefault();
+          event.stopImmediatePropagation();
+        } else if (pending?.tapDirection && event.type !== "touchcancel") {
           onManualNavigationIntentRef.current(pending.tapDirection);
           event.preventDefault();
           event.stopImmediatePropagation();
@@ -409,6 +453,8 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
           (activeIndexRef.current === 0 && currentPage === 0) ||
           (currentPage === 1 && direction === 1);
         if (isCoverTransition && state !== "read") {
+          const rect = (engine as unknown as PageFlipRuntime).getRender().getRect();
+          host.style.setProperty("--cover-left-offset", `${rect.left}px`);
           resetCoverLight();
           host.classList.add("is-cover-opening");
           host.dataset.coverMotion = direction === 1 ? "closing" : "opening";
@@ -418,10 +464,11 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         } else if (state === "read") {
           host.classList.remove("is-cover-opening");
           delete host.dataset.coverMotion;
-          if (portraitCoverCloseRef.current) {
+          host.style.removeProperty("--cover-left-offset");
+          if (portraitCoverMotionRef.current) {
             const render = (engine as unknown as PageFlipRuntime).getRender();
             render.orientation = "portrait";
-            portraitCoverCloseRef.current = false;
+            portraitCoverMotionRef.current = false;
             engine.turnToPage(currentPage);
           }
           if (transitionDurationRef.current != null) {
@@ -448,23 +495,16 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       host.dataset.flipState = "read";
       // Sin densidades manuales al fondo: P39 no es hoja del book y P38
       // conserva su densidad soft nativa dentro del último spread.
-      const coverLeaf = host.querySelector<HTMLElement>(".catalog-leaf:first-child");
-      const captureCoverTop = () => {
-        if (!coverLeaf || activeIndexRef.current !== 0 || host.classList.contains("is-cover-opening")) return;
-        const coverTop = coverLeaf.style.top || getComputedStyle(coverLeaf).top;
-        if (coverTop && coverTop !== "auto") host.style.setProperty("--cover-open-top", coverTop);
-      };
-      captureCoverTop();
-      const coverTopFrame = window.requestAnimationFrame(captureCoverTop);
 
       const handleDelegatedHotspot = (event: MouseEvent) => {
-        if (interactionLockedRef.current) {
+        const target = event.target as HTMLElement | null;
+        const hotspot = target?.closest<HTMLElement>("[data-product-id]");
+        if (interactionLockedRef.current || (suppressGestureClick && hotspot != null && event.detail !== 0)) {
+          suppressGestureClick = false;
           event.preventDefault();
           event.stopPropagation();
           return;
         }
-        const target = event.target as HTMLElement | null;
-        const hotspot = target?.closest<HTMLElement>("[data-product-id]");
         const productId = hotspot?.dataset.productId;
         if (productId) {
           event.preventDefault();
@@ -473,8 +513,8 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         }
       };
       host.addEventListener("click", handleDelegatedHotspot, true);
-      host.addEventListener("mousedown", handleCoverMouseDown, true);
-      host.addEventListener("touchstart", handleLockedTouchStart, { capture: true, passive: false });
+      gestureSurface.addEventListener("mousedown", handleCoverMouseDown, true);
+      gestureSurface.addEventListener("touchstart", handleLockedTouchStart, { capture: true, passive: false });
       host.addEventListener("pointermove", handleCoverPointerMove, true);
       host.addEventListener("pointerleave", handleCoverPointerLeave, true);
       window.addEventListener("mouseup", handleCoverMouseUp, true);
@@ -485,8 +525,8 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
 
       return () => {
         host.removeEventListener("click", handleDelegatedHotspot, true);
-        host.removeEventListener("mousedown", handleCoverMouseDown, true);
-        host.removeEventListener("touchstart", handleLockedTouchStart, true);
+        gestureSurface.removeEventListener("mousedown", handleCoverMouseDown, true);
+        gestureSurface.removeEventListener("touchstart", handleLockedTouchStart, true);
         host.removeEventListener("pointermove", handleCoverPointerMove, true);
         host.removeEventListener("pointerleave", handleCoverPointerLeave, true);
         window.removeEventListener("mouseup", handleCoverMouseUp, true);
@@ -495,15 +535,14 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         window.removeEventListener("touchend", handleCoverMouseUp, true);
         window.removeEventListener("touchcancel", handleCoverMouseUp, true);
         resetCoverLight();
-        window.cancelAnimationFrame(coverTopFrame);
-        host.style.removeProperty("--cover-open-top");
+        host.style.removeProperty("--cover-left-offset");
         engine.destroy();
         engineRef.current = null;
       };
     }, [isTurning, onOrientationChange, onPageChange, pages]);
 
-    // Sin spread P38–P39: el último spread abierto lo compone StPageFlip de
-    // forma nativa como P37–P38. La contratapa sólo existe como overlay.
+    // El último spread abierto conserva P37–P38 en el engine principal.
+    // Durante el cierre, P38 participa también como cara interior de la tapa.
     useEffect(() => {
       const host = hostRef.current;
       if (!host) return;
@@ -546,6 +585,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
           <div
             className="catalog-leaf"
             data-book-index={index}
+            data-rear-source={index === pages.length - 1 ? "" : undefined}
             data-density={index === 0 ? "hard" : "soft"}
             key={bookPage.id}
           >
@@ -582,8 +622,11 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
               </div>
             ) : null}
             {coverBridgeActive && index === 2 && bridgePages.video?.kind === "video" ? (
-              <div className="cover-bridge-surface" data-cover-bridge="video" aria-hidden="true">
-                <VideoPage src={bridgePages.video.src} visible={false} />
+              <div className="cover-bridge-surface" data-cover-bridge={orientation === "portrait" ? "portrait-lineup" : "video"} aria-hidden="true">
+                {orientation === "portrait" ? (
+                  <Page14Coverflow visible={false} staticOnly activeProductId={coverflowProductId}
+                    onActiveProductChange={setCoverflowProductId} onProductSelect={onCoverflowProductSelect} />
+                ) : <VideoPage src={bridgePages.video.src} visible={false} />}
               </div>
             ) : null}
           </div>

@@ -10,7 +10,7 @@ test("descarta el retorno durante un flip sin bloquear ni duplicar giros", async
   const engine = page.getByTestId("page-flip-engine");
   const next = page.getByRole("button", { name: "Página siguiente", exact: true });
   const previous = page.getByRole("button", { name: "Página anterior", exact: true });
-  // Mobile intentionally hides the navigation bar; use its keyboard path.
+  // Cover both keyboard and button routes.
   const requestNext = () => mobile ? page.keyboard.press("ArrowRight") : next.click();
   const requestPrevious = () => mobile ? page.keyboard.press("ArrowLeft") : previous.click();
 
@@ -64,11 +64,13 @@ test("descarta el retorno durante un flip sin bloquear ni duplicar giros", async
   const right = box!.x + box!.width - 8;
   if (mobile) {
     const cdp = await context.newCDPSession(page);
-    for (const [start, end] of [[right, left], [left, right]]) {
+    // Release just past the spine so a genuine native fold still owns its
+    // completion animation. A fully traversed drag has already finished.
+    for (const [start, end] of [[right, right - box!.width * .6], [left, right]]) {
       await cdp.send("Input.dispatchTouchEvent", { type: "touchStart", touchPoints: [{ x: start, y }] });
       await cdp.send("Input.dispatchTouchEvent", { type: "touchMove", touchPoints: [{ x: end, y }] });
       await cdp.send("Input.dispatchTouchEvent", { type: "touchEnd", touchPoints: [] });
-      await expect(engine).toHaveAttribute("data-flip-state", "flipping");
+      await expect(engine).toHaveAttribute("data-flip-state", /flipping|user_fold/);
     }
     await cdp.detach();
   } else {
@@ -78,12 +80,18 @@ test("descarta el retorno durante un flip sin bloquear ni duplicar giros", async
     await page.mouse.up();
     // StPageFlip keeps user_fold during a drag's release animation.
     await expect(engine).toHaveAttribute("data-flip-state", /flipping|user_fold/);
+    // Send the keyboard reversal now. The following mouse gesture can take
+    // longer than the remaining animation; a reversal after it would be a
+    // legitimate new turn rather than a request during the current flip.
+    await page.keyboard.press("ArrowLeft");
     await page.mouse.move(left, y);
     await page.mouse.down();
     await page.mouse.move(right, y, { steps: 3 });
     await page.mouse.up();
+    // Salir de la esquina evita el preview pasivo fold_corner tras el drag.
+    await page.mouse.move(0, 0);
   }
-  await page.keyboard.press("ArrowLeft");
+  if (mobile) await page.keyboard.press("ArrowLeft");
   await expect(engine).toHaveAttribute("data-flip-state", "read");
   await expect(indicator).toHaveText(mobile ? "4 / 39" : "6–7 / 39");
   await page.keyboard.press("ArrowLeft");

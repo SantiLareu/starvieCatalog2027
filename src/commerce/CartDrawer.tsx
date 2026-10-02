@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { useCommerce } from "./CommerceContext";
 import { formatNotice } from "./cart";
-import { CheckoutModal } from "./CheckoutModal";
+import { CHECKOUT_HERO_SRC, CheckoutModal } from "./CheckoutModal";
 import { formatPrice } from "./money";
 import { getStoredAttemptStatus, getStoredSessionPresence } from "./orderAttempt";
 
@@ -24,6 +24,14 @@ export function CartDrawer() {
   useEffect(() => {
     setUiBusy(cartOpen);
   }, [cartOpen, setUiBusy]);
+
+  useEffect(() => {
+    if (!cartOpen || presented.length === 0 || !window.matchMedia("(min-width: 1024px)").matches) return;
+    const image = new Image();
+    image.decoding = "async";
+    image.src = CHECKOUT_HERO_SRC;
+    void image.decode().catch(() => undefined);
+  }, [cartOpen, presented.length]);
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
 

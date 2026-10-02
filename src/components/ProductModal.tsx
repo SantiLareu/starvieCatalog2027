@@ -12,6 +12,7 @@ import { createPortal } from "react-dom";
 import type { CommerceProduct } from "../commerce/types";
 import { formatPrice } from "../commerce/money";
 import { ProductImage, assetUrl } from "./ProductImage";
+import { ProductGalleryImage } from "./ProductGalleryImage";
 export { assetUrl } from "./ProductImage";
 
 type ProductModalProps = {
@@ -383,8 +384,8 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
               tabIndex={0}
               aria-label="Visor ampliable de la imagen del producto"
             >
-              <ProductImage
-                key={currentSrc}
+              <ProductGalleryImage
+                key={product.id}
                 source={current?.source ?? currentSrc}
                 original={currentSrc}
                 zoomed={imageView.zoom > MIN_ZOOM}

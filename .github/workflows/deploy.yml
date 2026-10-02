@@ -31,10 +31,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Validate Turnstile configuration
+        env:
+          VITE_TURNSTILE_ENABLED: ${{ vars.VITE_TURNSTILE_ENABLED || 'true' }}
+          VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY || '' }}
+        run: |
+          if [ "$VITE_TURNSTILE_ENABLED" != "false" ] && [ -z "$VITE_TURNSTILE_SITE_KEY" ]; then
+            echo "::error::Turnstile site key is required when protection is enabled"
+            exit 1
+          fi
+
       - name: Build
         run: npm run build
         env:
-          VITE_TURNSTILE_ENABLED: ${{ vars.VITE_TURNSTILE_ENABLED || 'false' }}
+          VITE_TURNSTILE_ENABLED: ${{ vars.VITE_TURNSTILE_ENABLED || 'true' }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY || '' }}
 
       - name: Configure GitHub Pages

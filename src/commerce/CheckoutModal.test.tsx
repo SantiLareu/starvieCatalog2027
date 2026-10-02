@@ -114,6 +114,7 @@ function renderModal(overrides = {}) {
 describe("CheckoutModal", () => {
   /* Ensure clean storage before each test (parallel tests share localStorage). */
   beforeEach(() => {
+    vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
     localStorage.clear();
     sessionStorage.clear();
     document.body.innerHTML = "";
@@ -912,7 +913,17 @@ describe("CheckoutModal Turnstile", () => {
     expect(props.submitFn).not.toHaveBeenCalled();
   });
 
-  it("sin configuración pública continúa con Turnstile desactivado", async () => {
+  it("sin configuración pública falla cerrado y no crea un pedido", () => {
+    const props = renderModal();
+    fillValidForm();
+    expect(screen.queryByLabelText("Verificación de seguridad")).toBeNull();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
+    expect(screen.getByText(/La verificación de seguridad no está configurada/)).toBeVisible();
+    expect(props.submitFn).not.toHaveBeenCalled();
+  });
+
+  it("solo una desactivación explícita permite enviar sin Turnstile", async () => {
+    vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
     const props = renderModal();
     fillValidForm();
     expect(screen.queryByLabelText("Verificación de seguridad")).toBeNull();
@@ -926,7 +937,9 @@ describe("CheckoutModal Turnstile", () => {
     const props = renderModal({ submitFn: vi.fn(async () => ({ kind: "processing" as const, orderId: "proc-ts" })) });
     fillValidForm();
     await waitFor(() => expect(widget.api.render).toHaveBeenCalledOnce());
-    expect(widget.api.render.mock.calls[0][1]).toMatchObject({ sitekey: TEST_SITEKEY, action: "order_starvie" });
+    expect(widget.api.render.mock.calls[0][1]).toMatchObject({
+      sitekey: TEST_SITEKEY, action: "order_starvie", appearance: "always", execution: "render",
+    });
     expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
     act(() => widget.callbacks().callback("fresh-token"));

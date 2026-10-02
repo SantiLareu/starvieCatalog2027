@@ -17,6 +17,7 @@ type BackCoverRuntime = {
 export type BackCoverHandle = {
   close: () => void;
   open: () => void;
+  resetOpen: () => void;
 };
 
 type BackCoverProps = {
@@ -44,29 +45,35 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
     const physicsRef = useRef<HTMLDivElement>(null);
     const engineRef = useRef<PageFlip | null>(null);
     const motionRef = useRef<"closing" | "opening" | null>(null);
-    const portraitCloseRef = useRef(false);
+    const portraitMotionRef = useRef(false);
     const onMotionEndRef = useRef(onMotionEnd);
     onMotionEndRef.current = onMotionEnd;
 
-    const captureStableTop = (engine: PageFlip) => {
+    const captureHinge = (engine: PageFlip) => {
       const root = rootRef.current;
       if (!root) return;
-      const stableTop = (engine as unknown as BackCoverRuntime).getRender().getRect().top;
-      root.style.setProperty("--back-cover-open-top", `${stableTop}px`);
+      const rect = (engine as unknown as BackCoverRuntime).getRender().getRect();
+      root.style.setProperty("--back-cover-left-offset", `${rect.left}px`);
     };
 
     useImperativeHandle(forwardedRef, () => ({
+      resetOpen: () => {
+        if (!motionRef.current) engineRef.current?.turnToPage(1);
+      },
       close: () => {
         const engine = engineRef.current;
         if (!engine || motionRef.current) return;
-        captureStableTop(engine);
+        captureHinge(engine);
         motionRef.current = "closing";
         const runtime = engine as unknown as BackCoverRuntime;
         if (runtime.getOrientation() === "portrait") {
           // Mismo puente de orientación que usa closeCover() para P1.
           const render = runtime.getRender();
           render.orientation = "landscape";
-          portraitCloseRef.current = true;
+          portraitMotionRef.current = true;
+          // Rebuild the spread's two faces without recalculating its portrait
+          // dimensions. Both native hard faces must share the same hinge.
+          engine.turnToPage(1);
           const rect = render.getRect();
           runtime.getFlipController().flip({
             x: rect.left + 10,
@@ -79,8 +86,14 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
       open: () => {
         const engine = engineRef.current;
         if (!engine || motionRef.current) return;
-        captureStableTop(engine);
+        captureHinge(engine);
         motionRef.current = "opening";
+        const runtime = engine as unknown as BackCoverRuntime;
+        if (runtime.getOrientation() === "portrait") {
+          runtime.getRender().orientation = "landscape";
+          portraitMotionRef.current = true;
+          engine.turnToPage(0);
+        }
         // P1 abre mediante esta misma operación nativa.
         engine.flipNext("bottom");
       },
@@ -100,14 +113,14 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
       engine.on("changeState", (event) => {
         if (String(event.data) !== "read" || motionRef.current == null) return;
         const finishedMotion = motionRef.current;
-        if (portraitCloseRef.current) {
+        if (portraitMotionRef.current) {
           const render = (engine as unknown as BackCoverRuntime).getRender();
           render.orientation = "portrait";
-          portraitCloseRef.current = false;
-          engine.turnToPage(0);
+          portraitMotionRef.current = false;
+          engine.turnToPage(finishedMotion === "closing" ? 0 : 1);
         }
         motionRef.current = null;
-        rootRef.current?.style.removeProperty("--back-cover-open-top");
+        rootRef.current?.style.removeProperty("--back-cover-left-offset");
         onMotionEndRef.current(finishedMotion === "closing" ? "closed" : "open");
       });
       engine.loadFromHTML(host.querySelectorAll<HTMLElement>(".back-cover-physics-leaf"));
@@ -117,7 +130,7 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
       return () => {
         engine.destroy();
         engineRef.current = null;
-        rootRef.current?.style.removeProperty("--back-cover-open-top");
+        rootRef.current?.style.removeProperty("--back-cover-left-offset");
       };
     }, []);
 
@@ -152,8 +165,8 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
               </div>
             </div>
           </div>
-          <div className="back-cover-physics-leaf" data-density="soft" data-rear-bridge-page="right">
-            <div className="back-cover-mirror-content">
+          <div className="back-cover-physics-leaf" data-density="hard" data-rear-bridge-page="right">
+            <div className="back-cover-mirror-content back-cover-surface back-cover-inner-surface">
               <img src={rightPage.src} width={rightPage.width} height={rightPage.height} alt="" draggable={false} />
             </div>
           </div>

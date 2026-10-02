@@ -5,6 +5,8 @@ type TurnstileApi = {
     sitekey: string;
     action: string;
     size: "normal" | "compact";
+    appearance: "always";
+    execution: "render";
     callback: (token: string) => void;
     "expired-callback": () => void;
     "error-callback": () => void;
@@ -41,13 +43,13 @@ function loadTurnstile(): Promise<TurnstileApi> {
 
 export function turnstileSiteKey(): string | null {
   const env = import.meta.env;
-  if (env.VITE_TURNSTILE_ENABLED !== "true") return null;
+  if (env.VITE_TURNSTILE_ENABLED === "false") return null;
   const key = env.VITE_TURNSTILE_SITE_KEY?.trim();
   return key || null;
 }
 
 export function turnstileEnabled(): boolean {
-  return import.meta.env.VITE_TURNSTILE_ENABLED === "true";
+  return import.meta.env.VITE_TURNSTILE_ENABLED !== "false";
 }
 
 export function TurnstileWidget({ siteKey, onToken, onUnavailable, resetSignal }: {
@@ -71,6 +73,8 @@ export function TurnstileWidget({ siteKey, onToken, onUnavailable, resetSignal }
         sitekey: siteKey,
         action: "order_starvie",
         size: window.innerWidth < 380 ? "compact" : "normal",
+        appearance: "always",
+        execution: "render",
         callback: (token) => { if (active) callbacks.current.onToken(token); },
         "expired-callback": () => { if (active) callbacks.current.onUnavailable("expired"); },
         "error-callback": () => { if (active) callbacks.current.onUnavailable("error"); },

@@ -240,8 +240,11 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .page-flip-host {
   position: relative;
-  width: min(calc(100vw - 32px), 2200px);
-  height: min(calc(100dvh - var(--toolbar-height) - 20px), 700px);
+  /* The renderer's frame is the fitted spread, not a taller empty canvas.
+     Native hard faces and hard shadows both draw at y=0. */
+  width: min(calc(100vw - 32px), 2200px, calc((100dvh - var(--toolbar-height) - 20px) * 32 / 9));
+  aspect-ratio: 32 / 9;
+  height: auto;
   filter: drop-shadow(0 26px 28px rgba(0, 0, 0, 0.38));
 }
 
@@ -251,14 +254,6 @@ button { -webkit-tap-highlight-color: transparent; }
      over without a horizontal reframe. Interior leaves never receive this. */
 @media (min-width: 601px) {
     .catalog-app.is-cover .page-flip-host .catalog-leaf:first-child { translate: 0 0; }
-    .page-flip-host.is-cover-opening .catalog-leaf:has(img[data-catalog-page="1"]),
-    .page-flip-host.is-cover-opening .catalog-leaf:has(img[data-catalog-page="2"]),
-    .page-flip-host.is-cover-opening .catalog-leaf:has(img[data-catalog-page="3"]) {
-      /* StPageFlip resets the page top to 0 while it starts the 3D turn.
-         Keep the responsive top captured in the stable cover layout for every
-         leaf participating in this first cover composition. */
-      top: var(--cover-open-top, 0px) !important;
-    }
 
     /* StPageFlip draws these two native hard-cover gradients over the turning
        leaves.  During the first cover flip they overlap at the spine and can
@@ -490,14 +485,6 @@ button { -webkit-tap-highlight-color: transparent; }
   backface-visibility: hidden;
 }
 
-/* Igual que --cover-open-top en P1: StPageFlip fuerza top: 0 durante el
-   hard-cover flip. Conservamos el offset responsive medido en reposo para
-   neutralizar únicamente ese salto vertical, sin alterar la física 3D. */
-.page-flip-host.is-back-cover-closing .back-cover-physics-leaf,
-.page-flip-host.is-back-cover-opening .back-cover-physics-leaf {
-  top: var(--back-cover-open-top, 0px) !important;
-}
-
 .back-cover-mirror-content {
   position: absolute;
   inset: 0;
@@ -530,70 +517,37 @@ button { -webkit-tap-highlight-color: transparent; }
     inset 0 0 70px rgba(0,0,0,0.32);
 }
 
-/* P39 es una tapa neutra durante el vuelo. El asset sólo alimenta el recorte
-   del logo cuando el estado cerrado ya fue confirmado. */
+/* The original asset only supplies the logo crop. The complete outer face
+   stays mounted and ready throughout closing and reopening. */
 .back-cover-surface > img { opacity: 0; }
 
-/* La misma tapa pinta frente y reverso neutros durante el giro. Los helper
-   leaves siguen presentes para el cálculo de StPageFlip, pero no aportan
-   píxeles: así no aparecen ni la hoja estática ni una segunda cara rígida. */
-.page-flip-host.is-back-cover-closing
-  .back-cover-physics-leaf[data-rear-bridge-page="cover"],
-.page-flip-host.is-back-cover-opening
-  .back-cover-physics-leaf[data-rear-bridge-page="cover"],
-.page-flip-host.is-back-cover-closing
-  .back-cover-physics-leaf[data-rear-bridge-page="cover"]
-  .back-cover-mirror-content,
-.page-flip-host.is-back-cover-opening
-  .back-cover-physics-leaf[data-rear-bridge-page="cover"]
-  .back-cover-mirror-content {
-  -webkit-backface-visibility: visible !important;
-  backface-visibility: visible !important;
-}
-
-.page-flip-host.is-back-cover-closing
-  .back-cover-physics-leaf:is([data-rear-bridge-page="right"], [data-rear-bridge-page="left"]),
-.page-flip-host.is-back-cover-opening
-  .back-cover-physics-leaf:is([data-rear-bridge-page="right"], [data-rear-bridge-page="left"]) {
+/* StPageFlip draws the two faces with complementary hard angles, just as
+   it does for P1. Keep both front faces; never expose a mirrored back face.
+   The third leaf is only a calculation surface over the real P37|P38. */
+.back-cover-physics-leaf[data-rear-bridge-page="left"] {
   visibility: hidden;
   opacity: 0 !important;
 }
 
-/* En portrait, la reapertura nativa asigna el reverso visible al helper
-   `right`. Se rehabilita sólo esa cara neutra; su P38 permanece oculta. */
-@media (max-width: 760px) {
-  .page-flip-host.is-back-cover-opening
-    .back-cover-physics-leaf[data-rear-bridge-page="right"] {
-    visibility: visible;
-    opacity: 1 !important;
-  }
-
-  .page-flip-host.is-back-cover-opening
-    .back-cover-physics-leaf[data-rear-bridge-page="right"]
-    .back-cover-mirror-content {
-    background:
-      radial-gradient(circle at 44% 42%, rgba(255,255,255,0.055), transparent 34%),
-      radial-gradient(circle at 82% 88%, rgba(230,70,55,0.18), transparent 28%),
-      linear-gradient(145deg, #1a1b1e 0%, #090a0b 68%, #050607 100%);
-    box-shadow:
-      inset 0 0 0 1px rgba(255,255,255,0.04),
-      inset 0 0 70px rgba(0,0,0,0.32);
-  }
-
-  .page-flip-host.is-back-cover-opening
-    .back-cover-physics-leaf[data-rear-bridge-page="right"]
-    .back-cover-mirror-content > img {
-    visibility: hidden;
-    opacity: 0;
-  }
+.page-flip-host[data-orientation="landscape"] .back-cover-inner-surface > img {
+  opacity: 1;
 }
 
-/* Principio de composición de P1 aplicado a la contratapa: mientras P39 gira
-   en la capa superior (bridge aislado, z-index 300), el spread P37|P38 del
-   engine principal permanece visible debajo como capa pasiva. Solo cuando
-   P39 queda completamente cerrada (branding visible) se oculta el engine.
-   Los helpers del bridge siguen neutros/ocultos, así que no hay duplicados:
-   el bridge solo aporta la tapa en vuelo. */
+/* HTMLPage.drawHard anchors left faces at x=0. In the portrait bridge the
+   cached rect starts one page outside the viewport; align that face's hinge
+   with the native right face, retaining the original portrait dimensions. */
+.back-cover-physics-leaf.--left.--hard:not(.--simple) {
+  translate: var(--back-cover-left-offset, 0px) 0;
+}
+.page-flip-host.is-cover-opening .catalog-leaf.--left.--hard:not(.--simple) {
+  translate: var(--cover-left-offset, 0px) 0;
+}
+
+/* En landscape, P38 está montada en la cara interior hard del mismo sheet que
+   P39. La copia del spread principal cede su lugar durante el movimiento. */
+.page-flip-host[data-orientation="landscape"]:is(.is-back-cover-closing, .is-back-cover-opening) .catalog-leaf[data-rear-source] {
+  opacity: 0 !important;
+}
 .page-flip-host.is-back-cover-closing .catalog-leaf,
 .page-flip-host.is-back-cover-opening .catalog-leaf {
   pointer-events: none;
@@ -627,10 +581,9 @@ button { -webkit-tap-highlight-color: transparent; }
   position: absolute;
   inset: 0;
   z-index: 1;
-  opacity: 0;
+  opacity: 1;
   transform-origin: 50% 50%;
-  transform: translate3d(0, 2.25%, 0) scale(0.985);
-  filter: blur(0.75px);
+  transform: none;
   mix-blend-mode: screen;
   pointer-events: none;
   user-select: none;
@@ -661,8 +614,8 @@ button { -webkit-tap-highlight-color: transparent; }
   left: 50%;
   display: block;
   width: min(76%, 720px);
-  opacity: 0;
-  transform: translate3d(-50%, 10px, 0);
+  opacity: 1;
+  transform: translate3d(-50%, 0, 0);
 }
 
 .back-cover-live strong {
@@ -683,23 +636,6 @@ button { -webkit-tap-highlight-color: transparent; }
   font-size: clamp(0.58rem, 0.82vw, 0.78rem);
   font-weight: 450;
   letter-spacing: 0.1em;
-}
-
-.back-cover-bridge.is-live .back-cover-logo-overlay {
-  animation: cover-title-reveal 620ms cubic-bezier(.22,.72,.24,1) 190ms both;
-}
-
-.back-cover-bridge.is-live .back-cover-live strong {
-  animation: back-cover-copy-in 580ms cubic-bezier(.22,.72,.24,1) 370ms both;
-}
-
-.back-cover-bridge.is-live .back-cover-live small {
-  animation: back-cover-copy-in 520ms cubic-bezier(.22,.72,.24,1) 690ms both;
-}
-
-@keyframes back-cover-copy-in {
-  from { opacity: 0; transform: translate3d(-50%, 10px, 0); }
-  to { opacity: 1; transform: translate3d(-50%, 0, 0); }
 }
 
 .page-edge {
@@ -907,6 +843,7 @@ button { -webkit-tap-highlight-color: transparent; }
     linear-gradient(145deg, #151619 0%, #0b0c0e 100%);
 }
 .product-image-viewport {
+  position: relative;
   width: 100%;
   height: 100%;
   min-width: 0;
@@ -943,6 +880,25 @@ button { -webkit-tap-highlight-color: transparent; }
 .product-image-viewport.is-dragging > img {
   transition: none;
 }
+.product-image-viewport > .product-gallery-image {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+}
+.product-image-viewport > .product-gallery-image.is-pending { opacity: 0; }
+.product-image-viewport > .product-gallery-image.is-retained {
+  position: absolute;
+  inset: 0;
+  z-index: 0;
+}
+.product-gallery-image.is-entering { animation: product-gallery-in 160ms ease-out both; }
+.product-gallery-image.is-retiring { animation: product-gallery-out 160ms ease-out both; }
+@keyframes product-gallery-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes product-gallery-out { from { opacity: 1; } to { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) {
+  .product-gallery-image.is-entering,
+  .product-gallery-image.is-retiring { animation: none; }
+}
 .product-details { padding: 56px 44px 32px; background: linear-gradient(160deg, rgba(255,255,255,0.025), transparent 55%); }
 .product-range { margin: 0 0 8px; color: var(--accent); font-size: 0.75rem; font-weight: 750; letter-spacing: 0.1em; text-transform: uppercase; }
 .product-details h2 { margin: 0 0 28px; color: #fff; font-size: clamp(2.25rem, 4vw, 4rem); line-height: 0.95; letter-spacing: -0.05em; }
@@ -974,15 +930,14 @@ button { -webkit-tap-highlight-color: transparent; }
   .page-picker { left: auto; right: -42px; transform: none; }
   .magazine-stage { align-items: center; }
   .page-flip-host {
-    width: 100vw;
-    height: min(calc(100dvh - var(--toolbar-height) - 12px), 72vw);
+    width: min(100vw, calc((100dvh - var(--toolbar-height) - 20px) * 32 / 9));
     filter: drop-shadow(0 18px 23px rgba(0, 0, 0, 0.42));
   }
   .thumbnail-drawer { width: 108px; padding: 9px 7px; }
   .hotspot-marker { width: 29px; }
   .modal-backdrop { padding: 12px; }
   .product-modal { grid-template-columns: 1fr; max-height: calc(100dvh - 24px); border-radius: 16px; }
-  .product-visual { min-height: min(47dvh, 390px); border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .product-visual { height: min(47dvh, 390px); min-height: 0; border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
   .product-details { padding: 30px 22px 22px; }
   .product-details h2 { margin-bottom: 20px; font-size: 2.7rem; }
   .product-details dl { font-size: 0.86rem; }
@@ -991,15 +946,17 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .mobile-gesture-hint { display: none; pointer-events: none; }
 .catalog-app[data-orientation="portrait"] .magazine-stage { padding-bottom: 76px; }
-.catalog-app[data-orientation="portrait"] .page-flip-host {
-  height: min(calc(100dvh - var(--toolbar-height) - 88px), 72vw);
+@media (max-width: 599px) {
+  .page-flip-host {
+    width: min(100vw, calc((100dvh - var(--toolbar-height) - 88px) * 16 / 9));
+    aspect-ratio: 16 / 9;
+  }
 }
 .catalog-app[data-orientation="portrait"] .page-controls {
   bottom: max(16px, env(safe-area-inset-bottom));
   border-radius: 24px;
   border-color: rgba(255,255,255,.16);
 }
-.catalog-app[data-orientation="portrait"] .page-controls .page-jump { display: none; }
 .catalog-app[data-orientation="portrait"] .page-controls button { width: 58px; height: 48px; }
 .catalog-app[data-orientation="portrait"] .page-controls button:focus-visible { box-shadow: inset 0 0 0 2px var(--accent); }
 .catalog-app[data-orientation="portrait"] .mobile-gesture-hint {

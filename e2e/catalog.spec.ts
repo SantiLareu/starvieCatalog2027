@@ -207,7 +207,7 @@ test.describe("Catálogo StarVie 2027", () => {
     await page.mouse.up();
     await expect(page.getByTestId("page-indicator")).toContainText("4–5");
     await page.getByRole("button", { name: "Primera página", exact: true }).click();
-    await expect(page.getByTestId("page-indicator")).toContainText("2–3");
+    await expect(page.getByTestId("page-indicator")).toContainText("1 / 39");
     await page.getByRole("button", { name: "COLECCIÓN 2027", exact: true }).click();
     await expect(page.locator("main.catalog-app")).toHaveAttribute("data-transition-direction", "forward");
     await expect(page.getByTestId("page-indicator")).toContainText("14 · VIDEO / 39");
@@ -267,7 +267,7 @@ test.describe("Catálogo StarVie 2027", () => {
     else await page.getByRole("button", { name: "Página siguiente", exact: true }).click();
     await expect(page.locator("main.catalog-app")).toHaveAttribute("data-book-transition", "initial-cover-open");
     await expect(page.locator('[data-cover-bridge="lineup"]')).toBeVisible();
-    if (mobile) await expect(page.locator('[data-cover-bridge="video"]')).toHaveCount(1);
+    if (mobile) await expect(page.locator('[data-cover-bridge="portrait-lineup"]')).toHaveCount(1);
     else await expect(page.locator('[data-cover-bridge="video"]')).toBeVisible();
     if (mobile) {
       await expect(indicator).toContainText("14 / 39");
@@ -306,7 +306,9 @@ test.describe("Catálogo StarVie 2027", () => {
       await expect(indicator).toContainText("2 / 39");
     } else {
       await expect(page.getByRole("button", { name: "Página anterior", exact: true })).toBeEnabled();
-      await page.getByRole("button", { name: "Última página", exact: true }).click();
+      await indicator.click();
+      await page.getByRole("spinbutton", { name: "Ir a", exact: true }).fill("13");
+      await page.getByRole("button", { name: "Ir", exact: true }).click();
       await expect(indicator).toContainText("12–13 / 39");
       await expect(page.getByRole("button", { name: "Página siguiente", exact: true })).toBeEnabled();
     }
@@ -323,7 +325,8 @@ test.describe("Catálogo StarVie 2027", () => {
       await page.getByRole("button", { name: "Página anterior", exact: true }).click();
       await expect(indicator).toContainText("1 / 39");
       await page.getByRole("button", { name: "Última página", exact: true }).click();
-      await expect(indicator).toContainText("37–38 / 39");
+      await expect(indicator).toContainText("CONTRATAPA / 39");
+      await expect(page.locator("main")).toHaveAttribute("data-book-transition", "idle");
       await page.getByRole("button", { name: "Primera página", exact: true }).click();
       await expect(indicator).toContainText("1 / 39");
     }
@@ -511,13 +514,9 @@ test.describe("Catálogo StarVie 2027", () => {
       await waitIdle();
     };
     const goToStarLabEnd = async () => {
-      if (mobile) {
-        await indicator.click();
-        await page.getByRole("spinbutton", { name: "Ir a", exact: true }).fill("13");
-        await page.getByRole("button", { name: "Ir", exact: true }).click();
-      } else {
-        await page.getByRole("button", { name: "Última página", exact: true }).click();
-      }
+      await indicator.click();
+      await page.getByRole("spinbutton", { name: "Ir a", exact: true }).fill("13");
+      await page.getByRole("button", { name: "Ir", exact: true }).click();
       await expect(indicator).toContainText(starLabEndLabel);
     };
     const expectStable = async (label: string) => {
@@ -703,7 +702,7 @@ test.describe("Catálogo StarVie 2027", () => {
     await expect(page.locator('.catalog-leaf img[data-catalog-page="39"]')).toHaveCount(0);
   });
 
-  test("cierra y reabre la contratapa temporal sin drift y reproduce el cierre vivo", async ({ page }, testInfo) => {
+  test("cierra y reabre la contratapa sin drift y conserva su superficie exterior", async ({ page }, testInfo) => {
     const mobile = testInfo.project.name.includes("mobile");
     const app = page.locator("main.catalog-app");
     const engine = page.getByTestId("page-flip-engine");
@@ -717,16 +716,6 @@ test.describe("Catálogo StarVie 2027", () => {
     const rearLeftLeaf = page.locator('[data-rear-bridge-page="left"]');
     const lastOpenLabel = mobile ? "38 / 39" : "37–38 / 39";
     const opacityOf = (locator: Locator) => locator.evaluate((node) => Number.parseFloat(getComputedStyle(node).opacity));
-    const setLiveTimeline = async (time: number) => {
-      for (const layer of [logo, title, credit]) {
-        await layer.evaluate((node, currentTime) => {
-          for (const animation of node.getAnimations()) {
-            animation.pause();
-            animation.currentTime = currentTime;
-          }
-        }, time);
-      }
-    };
 
     const waitIdle = async () => expect(app).toHaveAttribute("data-book-transition", "idle");
     const goToLastPage = async () => {
@@ -736,31 +725,9 @@ test.describe("Catálogo StarVie 2027", () => {
       await expect(indicator).toContainText(lastOpenLabel);
       await waitIdle();
     };
-    const expectClosed = async (screenshotName: string, captureSequence = false) => {
+    const expectClosed = async (screenshotName: string) => {
       await expect(app).toHaveAttribute("data-back-cover-state", "closed");
       await waitIdle();
-      if (captureSequence) {
-        await expect.poll(() => logo.evaluate((node) => node.getAnimations().length)).toBeGreaterThan(0);
-        await setLiveTimeline(0);
-        expect(await opacityOf(logo)).toBeLessThan(0.2);
-        expect(await opacityOf(title)).toBeLessThan(0.2);
-        expect(await opacityOf(credit)).toBeLessThan(0.2);
-        await page.screenshot({ path: testInfo.outputPath("back-cover-closed-base.png") });
-        await setLiveTimeline(350);
-        expect(await opacityOf(logo)).toBeGreaterThan(0);
-        expect(await opacityOf(title)).toBeLessThan(0.15);
-        await page.screenshot({ path: testInfo.outputPath("back-cover-logo-entering.png") });
-        await setLiveTimeline(600);
-        expect(await opacityOf(title)).toBeGreaterThan(0);
-        expect(await opacityOf(credit)).toBeLessThan(0.15);
-        await page.screenshot({ path: testInfo.outputPath("back-cover-title-entering.png") });
-        await setLiveTimeline(850);
-        expect(await opacityOf(credit)).toBeGreaterThan(0);
-        await page.screenshot({ path: testInfo.outputPath("back-cover-credit-entering.png") });
-        await setLiveTimeline(1300);
-      } else {
-        await page.waitForTimeout(850);
-      }
       await expect(indicator).toContainText("CONTRATAPA / 39");
       await expect(backCover).toHaveAttribute("data-back-cover-live", "true");
       await expect(backCover).toHaveClass(/is-live/);
@@ -799,9 +766,12 @@ test.describe("Catálogo StarVie 2027", () => {
       await expect(page.locator(".catalog-leaf.back-cover-leaf")).toHaveCount(0);
       await expect(page.locator('.catalog-leaf img[data-catalog-page="39"]')).toHaveCount(0);
       await expect(page.locator(".catalog-leaf")).toHaveCount(39);
-      expect(await opacityOf(logo)).toBe(0);
-      expect(await opacityOf(title)).toBe(0);
-      expect(await opacityOf(credit)).toBe(0);
+      // Branding belongs to the physical outer face for the entire turn;
+      // the inactive renderer, rather than its contents, is hidden at rest.
+      await expect(backCover).toHaveCSS("visibility", "hidden");
+      expect(await opacityOf(logo)).toBe(1);
+      expect(await opacityOf(title)).toBe(1);
+      expect(await opacityOf(credit)).toBe(1);
       await page.screenshot({ path: testInfo.outputPath(screenshotName) });
       await page.waitForTimeout(500);
       await expect(indicator).toContainText(lastOpenLabel);
@@ -819,11 +789,11 @@ test.describe("Catálogo StarVie 2027", () => {
       // Composición P1: P39 viaja por encima y el spread P37–P38 del engine
       // queda visible debajo (sin P39 como hoja ni duplicados).
       await expect(page.locator('.catalog-leaf[data-book-index="38"]')).toHaveCSS("opacity", "1");
-      await expect(page.locator(".back-cover-surface > img")).toHaveCSS("opacity", "0");
-      // Los helpers del bridge son visualmente invisibles: opacity 0 es la
-      // garantía real (cubre subárbol e imágenes). visibility es un detalle
-      // interno: tras el cierre computa visible con display none de StPageFlip.
-      await expect(rearRightLeaf).toHaveCSS("opacity", "0");
+      await expect(page.locator('[data-rear-bridge-page="cover"] .back-cover-surface > img')).toHaveCSS("opacity", "0");
+      // The inner face participates in the native hard flip; its PDF image
+      // stays hidden. Only the unrelated calculation leaf is invisible.
+      await expect(rearRightLeaf).toHaveCSS("opacity", "1");
+      await expect(rearRightImage).toHaveCSS("visibility", "hidden");
       await expect(rearLeftLeaf).toHaveCSS("opacity", "0");
     };
     const startOpen = async (withButton = false) => {
@@ -838,15 +808,11 @@ test.describe("Catálogo StarVie 2027", () => {
       await expect(backCover).not.toHaveClass(/is-live/);
       // La inversa también viaja con P37–P38 visibles debajo desde el inicio.
       await expect(page.locator('.catalog-leaf[data-book-index="38"]')).toHaveCSS("opacity", "1");
-      await expect(page.locator(".back-cover-surface > img")).toHaveCSS("opacity", "0");
+      await expect(page.locator('[data-rear-bridge-page="cover"] .back-cover-surface > img')).toHaveCSS("opacity", "0");
       await expect(rearLeftLeaf).toHaveCSS("opacity", "0");
-      if (mobile) {
-        await expect(rearRightLeaf).toHaveCSS("visibility", "visible");
-        await expect(rearRightLeaf).toHaveCSS("opacity", "1");
-        await expect(rearRightImage).toHaveCSS("visibility", "hidden");
-      } else {
-        await expect(rearRightLeaf).toHaveCSS("opacity", "0");
-      }
+      await expect(rearRightLeaf).toHaveCSS("visibility", "visible");
+      await expect(rearRightLeaf).toHaveCSS("opacity", "1");
+      await expect(rearRightImage).toHaveCSS("visibility", "hidden");
     };
 
     await page.goto("/");
@@ -875,9 +841,10 @@ test.describe("Catálogo StarVie 2027", () => {
       await expect(indicator).toContainText(lastOpenLabel);
     }
 
-    // Ciclo vivo controlado desde su primer frame cerrado.
+    // La superficie exterior ya está lista durante el giro, sin sustituirla
+    // ni introducir una segunda animación al cerrar.
     await startClose();
-    await expectClosed("back-cover-closed.png", true);
+    await expectClosed("back-cover-closed.png");
     await startOpen();
     await page.waitForTimeout(300);
     await page.screenshot({ path: testInfo.outputPath("back-cover-opening.png") });
@@ -923,21 +890,33 @@ test.describe("Catálogo StarVie 2027", () => {
     await page.getByRole("button", { name: "Ir", exact: true }).click();
     await expect(indicator).toContainText(mobile ? "38 / 39" : "37–38 / 39");
 
+    // Observe transient states before the gesture: its animation may finish
+    // between two Playwright queries, especially while capturing traces.
+    const motionHistory = await app.evaluateHandle(appNode => {
+      const engineNode = appNode.querySelector<HTMLElement>('[data-testid="page-flip-engine"]')!;
+      const states: string[] = [];
+      const observer = new MutationObserver(() => {
+        states.push(`${(appNode as HTMLElement).dataset.bookTransition}:${engineNode.dataset.backCoverMotion}`);
+      });
+      observer.observe(appNode, { attributes: true, attributeFilter: ["data-book-transition"] });
+      observer.observe(engineNode, { attributes: true, attributeFilter: ["data-back-cover-motion"] });
+      return { states, stop: () => observer.disconnect() };
+    });
+
     await drag('img[data-catalog-page="38"]', "next");
-    await expect(app).toHaveAttribute("data-book-transition", "close-back-cover");
-    await expect(engine).toHaveAttribute("data-back-cover-motion", "closing");
     await expect(app).toHaveAttribute("data-back-cover-state", "closed");
+    expect(await motionHistory.evaluate(history => history.states.includes("close-back-cover:closing"))).toBe(true);
     await expect(app).toHaveAttribute("data-book-transition", "idle");
     await page.waitForTimeout(500);
     await expect(indicator).toContainText("CONTRATAPA / 39");
 
     await drag('[data-testid="back-cover"]', "previous");
-    await expect(app).toHaveAttribute("data-book-transition", "open-back-cover");
-    await expect(engine).toHaveAttribute("data-back-cover-motion", "opening");
     await expect(app).toHaveAttribute("data-back-cover-state", "open");
+    expect(await motionHistory.evaluate(history => history.states.includes("open-back-cover:opening"))).toBe(true);
     await expect(app).toHaveAttribute("data-book-transition", "idle");
     await page.waitForTimeout(500);
     await expect(indicator).toContainText(mobile ? "38 / 39" : "37–38 / 39");
+    await motionHistory.evaluate(history => history.stop());
   });
 
   test("la contratapa viva respeta reduced motion", async ({ page }) => {

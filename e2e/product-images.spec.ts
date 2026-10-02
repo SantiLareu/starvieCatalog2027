@@ -20,7 +20,7 @@ test("ficha en frío usa derivados; originales solo para zoom y fallback", async
   await page.evaluate(() => { performance.clearResourceTimings(); (window as any).imageAuditStart = performance.now(); });
   const hotspot = page.locator('.catalog-leaf[data-book-index="15"] [data-product-id="eternal"]').first();
   await hotspot.click();
-  const main = page.locator(".product-image-viewport img");
+  const main = page.locator('.product-image-viewport img:not([aria-hidden="true"])');
   await expect.poll(() => main.evaluate(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0)).toBe(true);
   await main.evaluate(img => (img as HTMLImageElement).decode());
   const result = await page.evaluate(() => ({

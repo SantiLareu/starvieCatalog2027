@@ -24,6 +24,8 @@ import {
 import type { PresentedLine } from "./types";
 import { TurnstileWidget, turnstileEnabled, turnstileSiteKey } from "./TurnstileWidget";
 
+export const CHECKOUT_HERO_SRC = "/checkout/checkout-hero-raptor.webp";
+
 type CheckoutModalProps = {
   open: boolean;
   onClose: () => void;
@@ -483,7 +485,7 @@ export function CheckoutModal({
             </div>
             <div className="checkout-visual" aria-hidden="true">
               <img
-                src="/checkout/checkout-hero-raptor.png"
+                src={CHECKOUT_HERO_SRC}
                 alt=""
                 loading="lazy"
                 decoding="async"
@@ -821,7 +823,7 @@ export function CheckoutModal({
           </div>
           <div className="checkout-visual" aria-hidden="true">
             <img
-              src="/checkout/checkout-hero-raptor.png"
+              src={CHECKOUT_HERO_SRC}
               alt=""
               loading="lazy"
               decoding="async"
