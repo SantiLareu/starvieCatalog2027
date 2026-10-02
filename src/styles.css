@@ -470,7 +470,7 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .back-cover-bridge.is-active { visibility: visible; }
 
-.back-cover-physics {
+.back-cover-bridge .back-cover-physics {
   position: relative;
   width: 100%;
   height: 100%;
