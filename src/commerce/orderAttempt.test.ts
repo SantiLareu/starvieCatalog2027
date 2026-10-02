@@ -2,6 +2,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   canRetryAttempt,
   clearAttempt,
+  finalizeCompletedAttempt,
   getAttempt,
   getAttemptSession,
   getStoredAttemptStatus,
@@ -91,6 +92,93 @@ afterEach(() => {
 
 const LOCAL_KEY = "starvie-order-attempt-v2";
 const SESSION_KEY = "starvie-order-attempt-v2-session";
+
+describe("finalizeCompletedAttempt", () => {
+  const fixture = () => {
+    const local = fakeStorage();
+    const session = fakeStorage();
+    const options = { storage: local as unknown as Storage, sessionStorage: session as unknown as Storage };
+    const prepared = prepareAttempt(fakeContact(), fakeCartLines(), options);
+    if (!prepared) throw new Error("fixture preparation failed");
+    return { local, session, options, key: prepared.idempotencyKey };
+  };
+
+  it("confirmación de la misma key elimina marcador y sesión", () => {
+    const { local, session, options, key } = fixture();
+    expect(finalizeCompletedAttempt(key, fakeOrderId, options)).toBe(true);
+    expect(local.getItem(LOCAL_KEY)).toBeNull();
+    expect(session.getItem(SESSION_KEY)).toBeNull();
+  });
+
+  it.each([true, false])("completed vencido se resuelve con sesión presente=%s", (withSession) => {
+    const { local, session, options, key } = fixture();
+    updateAttempt(fakeCartLines(), { storage: options.storage, orderId: fakeOrderId, status: "completed", completed: true });
+    for (const [store, storageKey] of [[local, LOCAL_KEY], [session, SESSION_KEY]] as const) {
+      const record = JSON.parse(store.getItem(storageKey)!);
+      record.createdAt = new Date(Date.now() - 24 * 3600_000).toISOString();
+      store.setItem(storageKey, JSON.stringify(record));
+    }
+    if (!withSession) session.removeItem(SESSION_KEY);
+    expect(getStoredAttemptStatus({ storage: options.storage }).kind).toBe("expired");
+    expect(finalizeCompletedAttempt(key, fakeOrderId, options)).toBe(true);
+    expect(local.getItem(LOCAL_KEY)).toBeNull();
+    expect(session.getItem(SESSION_KEY)).toBeNull();
+  });
+
+  it.each(["failed", "conflict", "validation", "corrupt", "missing"])("no elimina un marcador %s", (state) => {
+    const { local, session, options, key } = fixture();
+    if (state === "corrupt") local.setItem(LOCAL_KEY, "not-json");
+    else if (state === "missing") local.removeItem(LOCAL_KEY);
+    else local.setItem(LOCAL_KEY, JSON.stringify({ ...JSON.parse(local.getItem(LOCAL_KEY)!), status: state }));
+    const marker = local.getItem(LOCAL_KEY);
+    const payload = session.getItem(SESSION_KEY);
+    expect(finalizeCompletedAttempt(key, fakeOrderId, options)).toBe(false);
+    expect(local.getItem(LOCAL_KEY)).toBe(marker);
+    expect(session.getItem(SESSION_KEY)).toBe(payload);
+  });
+
+  it.each(["marker-key", "marker-order", "session-key", "session-corrupt"])("rechaza identidad distinta: %s", (change) => {
+    const { local, session, options, key } = fixture();
+    const store = change.startsWith("marker") ? local : session;
+    const storageKey = store === local ? LOCAL_KEY : SESSION_KEY;
+    const record = JSON.parse(store.getItem(storageKey)!);
+    if (change.endsWith("key")) record.idempotencyKey = crypto.randomUUID();
+    if (change === "marker-order") record.orderId = "RS-other";
+    store.setItem(storageKey, change === "session-corrupt" ? "not-json" : JSON.stringify(record));
+    const marker = local.getItem(LOCAL_KEY);
+    const payload = session.getItem(SESSION_KEY);
+    expect(finalizeCompletedAttempt(key, fakeOrderId, options)).toBe(false);
+    expect(local.getItem(LOCAL_KEY)).toBe(marker);
+    expect(session.getItem(SESSION_KEY)).toBe(payload);
+  });
+
+  it("un cambio concurrente durante la limpieza no borra otro marcador", () => {
+    const { local, session, options, key } = fixture();
+    const other = JSON.stringify({ ...JSON.parse(local.getItem(LOCAL_KEY)!), idempotencyKey: crypto.randomUUID(), status: "processing" });
+    const remove = session.removeItem.getMockImplementation()!;
+    session.removeItem.mockImplementation(item => { remove(item); local.setItem(LOCAL_KEY, other); });
+    expect(finalizeCompletedAttempt(key, fakeOrderId, options)).toBe(false);
+    expect(local.getItem(LOCAL_KEY)).toBe(other);
+    expect(local.removeItem).not.toHaveBeenCalled();
+  });
+
+  it.each(["session", "local"])("una eliminación silenciosa fallida en %s conserva completed", (target) => {
+    const { local, session, options, key } = fixture();
+    (target === "session" ? session : local).removeItem.mockImplementation(() => undefined);
+    expect(finalizeCompletedAttempt(key, fakeOrderId, options)).toBe(false);
+    expect(JSON.parse(local.getItem(LOCAL_KEY)!).status).toBe("completed");
+    if (target === "session") expect(local.removeItem).not.toHaveBeenCalled();
+  });
+
+  it.each(["read", "write"])("storage inaccesible durante %s no se considera limpiado", (operation) => {
+    const { local, session, options, key } = fixture();
+    if (operation === "read") local.getItem.mockImplementation(() => { throw new Error("denied"); });
+    else local.setItem.mockImplementation(() => { throw new Error("denied"); });
+    expect(finalizeCompletedAttempt(key, fakeOrderId, options)).toBe(false);
+    expect(local.removeItem).not.toHaveBeenCalled();
+    expect(session.removeItem).not.toHaveBeenCalled();
+  });
+});
 
 /* ══════════════════════════════════════════════════════════════════════
  * prepareAttempt — atomic two-write gate

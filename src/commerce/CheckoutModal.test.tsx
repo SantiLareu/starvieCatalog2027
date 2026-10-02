@@ -8,12 +8,13 @@ import {
 } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CheckoutModal } from "./CheckoutModal";
-import type { OrderPayload, SubmitResult } from "./orders";
+import { submitOrder, type OrderPayload, type SubmitResult } from "./orders";
 import * as orderAttempt from "./orderAttempt";
 import type { CommerceProduct, PresentedLine } from "./types";
 
 afterEach(() => {
   cleanup();
+  vi.restoreAllMocks();
   vi.unstubAllEnvs();
   delete window.turnstile;
   localStorage.clear();
@@ -625,7 +626,7 @@ describe("CheckoutModal", () => {
     localStorage.clear();
     sessionStorage.clear();
     const submitFn = vi.fn(async () => ({
-      kind: "completed" as const,
+      kind: "processing" as const,
       orderId: "ord-pii",
     }));
     const props = renderModal({ submitFn });
@@ -650,7 +651,7 @@ describe("CheckoutModal", () => {
     localStorage.clear();
     sessionStorage.clear();
     const submitFn = vi.fn(async () => ({
-      kind: "completed" as const,
+      kind: "processing" as const,
       orderId: "ord-sess",
     }));
     const props = renderModal({ submitFn });
@@ -780,7 +781,7 @@ describe("CheckoutModal", () => {
     expect(calls[1]).toEqual(calls[0]);
   });
 
-  it("completed exige acción explícita y la compra siguiente usa otra key", async () => {
+  it("completed limpia ambos storages y la compra siguiente usa otra key", async () => {
     const calls: OrderPayload[] = [];
     const submitFn = vi.fn(async (payload: OrderPayload) => {
       calls.push(payload);
@@ -790,7 +791,9 @@ describe("CheckoutModal", () => {
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     await screen.findByText("N° done-1");
-    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeTruthy();
+    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    expect(screen.getByText("Pedido enviado.")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: "Iniciar nueva compra" }));
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
     expect(calls).toHaveLength(1);
@@ -800,7 +803,7 @@ describe("CheckoutModal", () => {
     expect(calls[1].idempotencyKey).not.toBe(calls[0].idempotencyKey);
   });
 
-  it("reabre completed con carrito vacío y permite liberar su marcador", () => {
+  it.each([0, 24 * 3600_000])("resuelve completed histórico con edad %i sin borrar el carrito actual", (age) => {
     orderAttempt.prepareAttempt(
       { name: "Santiago", legalName: "StarVie", email: "santi@example.com" },
       [{ productId: "raptor+", qty: 2 }],
@@ -808,12 +811,103 @@ describe("CheckoutModal", () => {
     orderAttempt.updateAttempt([{ productId: "raptor+", qty: 2 }], {
       orderId: "done-reopen", status: "completed", completed: true,
     });
-    const props = renderModal({ presented: [], total: 0 });
-    expect(screen.getByText("N° done-reopen")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Iniciar nueva compra" }));
+    for (const [storage, key] of [[localStorage, "starvie-order-attempt-v2"], [sessionStorage, "starvie-order-attempt-v2-session"]] as const) {
+      const stored = JSON.parse(storage.getItem(key)!);
+      stored.createdAt = new Date(Date.now() - age).toISOString();
+      storage.setItem(key, JSON.stringify(stored));
+    }
+    const props = renderModal();
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
-    expect(props.onClose).toHaveBeenCalledOnce();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
+    expect(screen.queryByText(/Venció la ventana/)).toBeNull();
+    expect(props.clearCart).not.toHaveBeenCalled();
     expect(props.submitFn).not.toHaveBeenCalled();
+  });
+
+  it.each([201, 200])("HTTP %i completed conserva confirmación y cierra el intento", async (httpStatus) => {
+    const fetchImpl = vi.fn(async () => new Response(JSON.stringify({
+      ok: true, orderId: "RS-confirmed", status: "completed", duplicate: httpStatus === 200,
+    }), { status: httpStatus, headers: { "Content-Type": "application/json" } }));
+    const submitFn: typeof submitOrder = (payload) => submitOrder(payload, { fetchImpl });
+    const props = renderModal({ submitFn });
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await screen.findByText("N° RS-confirmed");
+    expect(screen.getByText("Pedido enviado.")).toBeVisible();
+    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    expect(props.clearCart).toHaveBeenCalledOnce();
+    cleanup();
+    renderModal();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
+    expect(screen.queryByText("N° RS-confirmed")).toBeNull();
+  });
+
+  it("HTTP 2xx malformado conserva key y payload para el reintento", async () => {
+    const sent: OrderPayload[] = [];
+    const fetchImpl = vi.fn(async (_input: RequestInfo | URL, init?: RequestInit) => {
+      sent.push(JSON.parse(init!.body as string));
+      return new Response("not-json", { status: 201 });
+    });
+    const props = renderModal({ submitFn: (payload: OrderPayload) => submitOrder(payload, { fetchImpl }) });
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await screen.findByText("Respuesta inválida del servidor.");
+    const marker = localStorage.getItem("starvie-order-attempt-v2");
+    const session = sessionStorage.getItem("starvie-order-attempt-v2-session");
+    expect(marker).toBeTruthy();
+    expect(session).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Reintentar envío" }));
+    await waitFor(() => expect(sent).toHaveLength(2));
+    expect(sent[1]).toEqual(sent[0]);
+    expect(localStorage.getItem("starvie-order-attempt-v2")).toBe(marker);
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBe(session);
+    expect(props.clearCart).not.toHaveBeenCalled();
+  });
+
+  it("una respuesta completed no modifica otro marcador concurrente", async () => {
+    let otherMarker = "";
+    const submitFn = vi.fn(async () => {
+      const current = JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!);
+      otherMarker = JSON.stringify({ ...current, idempotencyKey: crypto.randomUUID(), orderId: "RS-other", status: "processing" });
+      localStorage.setItem("starvie-order-attempt-v2", otherMarker);
+      return { kind: "completed" as const, orderId: "RS-original" };
+    });
+    renderModal({ submitFn });
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await screen.findByText("N° RS-original");
+    expect(localStorage.getItem("starvie-order-attempt-v2")).toBe(otherMarker);
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeTruthy();
+    expect(screen.getByRole("alert")).toHaveTextContent(/no se pudo limpiar/);
+    expect(screen.getByRole("button", { name: "Iniciar nueva compra" })).toBeDisabled();
+  });
+
+  it.each(["starvie-order-attempt-v2", "starvie-order-attempt-v2-session"])("fallo al limpiar %s conserva éxito y bloquea compra nueva", async (key) => {
+    const removeItem = Storage.prototype.removeItem;
+    vi.spyOn(Storage.prototype, "removeItem").mockImplementation(function (this: Storage, item) {
+      if (item === key) throw new Error("denied");
+      removeItem.call(this, item);
+    });
+    const props = renderModal();
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await screen.findByText("Pedido enviado.");
+    expect(screen.getByText("N° ord-1")).toBeVisible();
+    expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).status).toBe("completed");
+    expect(screen.getByRole("alert")).toHaveTextContent(/no se pudo limpiar/);
+    expect(screen.getByRole("button", { name: "Iniciar nueva compra" })).toBeDisabled();
+    expect(props.submitFn).toHaveBeenCalledOnce();
+    cleanup();
+    renderModal();
+    expect(screen.getByRole("button", { name: "Iniciar nueva compra" })).toBeDisabled();
+    vi.restoreAllMocks();
+    cleanup();
+    renderModal();
+    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
   });
 
   it("failed terminal conserva referencia y solo crea otra compra tras resolverlo", async () => {

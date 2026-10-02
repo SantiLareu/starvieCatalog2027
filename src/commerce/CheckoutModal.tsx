@@ -14,6 +14,7 @@ import {
   getAttemptSession,
   getStoredAttemptStatus,
   getStoredSessionPresence,
+  finalizeCompletedAttempt,
   prepareAttempt,
   resolveAttemptForNewPurchase,
   updateAttempt,
@@ -58,7 +59,7 @@ const EMPTY_CONTACT: CheckoutContact = {
  * 2. On submit: build the validated first payload, then persist it before POST.
  *    Later consultations use the stored contact, lines and key unchanged.
  * 3. On result:
- *    - completed → clearCart, preserve orderId, close modal.
+ *    - completed → close persisted attempt, clearCart, preserve orderId in confirmation.
  *    - processing → keep cart + key, show "received", modal stays open.
  *    - failed/conflict/validation → terminal, no retry offered.
  *    - rateLimited/unknown → keep key + payload, allow retry or status check.
@@ -82,6 +83,7 @@ export function CheckoutModal({
   const [serverError, setServerError] = useState<string | null>(null);
   const [observedAttempt, setObservedAttempt] = useState<OrderAttemptStatus>({ kind: "missing" });
   const [resolutionConfirmed, setResolutionConfirmed] = useState(false);
+  const [completedCleanupFailed, setCompletedCleanupFailed] = useState(false);
   const [rateLimitRemaining, setRateLimitRemaining] = useState<number>(0);
   const [retryUntil, setRetryUntil] = useState<number>(0);
   const [verificationNeeded, setVerificationNeeded] = useState(false);
@@ -108,6 +110,7 @@ export function CheckoutModal({
     setRateLimitRemaining(0);
     setRetryUntil(0);
     setResolutionConfirmed(false);
+    setCompletedCleanupFailed(false);
     tokenRef.current = null;
     setTokenReady(false);
     setVerificationNeeded(false);
@@ -116,6 +119,20 @@ export function CheckoutModal({
 
     const markerStatus: OrderAttemptStatus = getStoredAttemptStatus();
     setObservedAttempt(markerStatus);
+    if ((markerStatus.kind === "valid" || markerStatus.kind === "expired") &&
+        markerStatus.snapshot.status === "completed" && markerStatus.snapshot.orderId?.trim()) {
+      const marker = markerStatus.snapshot;
+      if (finalizeCompletedAttempt(marker.idempotencyKey, marker.orderId!)) {
+        setObservedAttempt({ kind: "missing" });
+        setContact(EMPTY_CONTACT);
+      } else {
+        setOrderId(marker.orderId);
+        setMode({ kind: "completed" });
+        setCompletedCleanupFailed(true);
+        setServerError("El pedido está confirmado, pero su referencia local cambió o no se pudo limpiar. Volvé a abrir el checkout o contactá a StarVie antes de iniciar otra compra.");
+      }
+      return;
+    }
     if (markerStatus.kind === "missing") {
       setContact(EMPTY_CONTACT);
       const sessionPresence = getStoredSessionPresence();
@@ -141,7 +158,8 @@ export function CheckoutModal({
     const marker = markerStatus.snapshot;
     setOrderId(marker.orderId);
     if (marker.status === "completed") {
-      setMode({ kind: "completed" });
+      setMode({ kind: "blocked" });
+      setServerError("La referencia del pedido completado está incompleta. Contactá a StarVie antes de iniciar otro.");
       return;
     }
     if (["failed", "conflict", "validation"].includes(marker.status ?? "")) {
@@ -267,15 +285,10 @@ export function CheckoutModal({
         case "completed": {
           setOrderId(result.orderId);
           setMode({ kind: "completed" });
-          /* Update marker with completed status (immutable contract). */
-          try {
-            updateAttempt(lines, {
-              orderId: result.orderId,
-              status: "completed",
-              completed: true,
-            });
-          } catch {
-            /* Storage unavailable — proceed anyway. */
+          const cleaned = finalizeCompletedAttempt(payload.idempotencyKey, result.orderId);
+          setCompletedCleanupFailed(!cleaned);
+          if (!cleaned) {
+            setServerError("El pedido está confirmado, pero su referencia local cambió o no se pudo limpiar. Volvé a abrir el checkout o contactá a StarVie antes de iniciar otra compra.");
           }
           setObservedAttempt(getStoredAttemptStatus());
           /* Clear cart after user sees the result. */
@@ -370,8 +383,12 @@ export function CheckoutModal({
 
   const startNewPurchase = () => {
     if (submittingRef.current || !["completed", "terminal", "blocked"].includes(mode.kind)) return;
+    if (mode.kind === "completed" && completedCleanupFailed) return;
     if (mode.kind === "blocked" && !resolutionConfirmed) return;
-    if (!resolveAttemptForNewPurchase(observedAttempt, mode.kind === "blocked" && resolutionConfirmed)) {
+    const resolved = mode.kind === "completed"
+      ? getStoredAttemptStatus().kind === "missing" && getStoredSessionPresence() === "missing"
+      : resolveAttemptForNewPurchase(observedAttempt, mode.kind === "blocked" && resolutionConfirmed);
+    if (!resolved) {
       setMode({ kind: "blocked" });
       setServerError("El estado local cambió o no se pudo liberar. Volvé a abrir el pedido o contactá a StarVie.");
       return;
@@ -478,7 +495,7 @@ export function CheckoutModal({
                   : "Consultar estado"}
               </button>
               {mode.kind === "completed" ? (
-                <button className="cart-retry" type="button" onClick={startNewPurchase} disabled={getStoredSessionPresence() === "unavailable"}>
+                <button className="cart-retry" type="button" onClick={startNewPurchase} disabled={completedCleanupFailed || getStoredSessionPresence() === "unavailable"}>
                   Iniciar nueva compra
                 </button>
               ) : null}

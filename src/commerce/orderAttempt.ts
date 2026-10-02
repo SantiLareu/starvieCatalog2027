@@ -813,6 +813,61 @@ export function clearAttempt(options?: {
 }
 
 /**
+ * Close only the attempt confirmed by the API (or a historical completed
+ * marker). Persist completion before removal so a failed cleanup cannot
+ * turn a confirmed order into a retry. Storage comparisons are best-effort:
+ * Web Storage provides no cross-tab compare-and-swap transaction.
+ */
+export function finalizeCompletedAttempt(
+  idempotencyKey: string,
+  orderId: string,
+  options?: { storage?: Storage; sessionStorage?: Storage },
+): boolean {
+  if (!orderId.trim()) return false;
+  const local = resolveStorage(options?.storage, safeGetGlobalStorage("localStorage"));
+  const session = resolveStorage(options?.sessionStorage, safeGetGlobalStorage("sessionStorage"));
+  if (!local || !session) return false;
+
+  try {
+    const originalRaw = local.getItem(LOCAL_KEY);
+    const current = getStoredAttemptStatus({ storage: local });
+    if (current.kind !== "valid" && current.kind !== "expired") return false;
+    const snapshot = current.snapshot;
+    if (snapshot.idempotencyKey !== idempotencyKey ||
+        (snapshot.orderId !== null && snapshot.orderId !== orderId) ||
+        ["failed", "conflict", "validation"].includes(snapshot.status ?? "")) return false;
+
+    const sessionRaw = session.getItem(SESSION_KEY);
+    if (sessionRaw !== null) {
+      const stored = JSON.parse(sessionRaw);
+      if (!stored || typeof stored !== "object" || !isValidSession(stored) ||
+          stored.idempotencyKey !== idempotencyKey || stored.createdAt !== snapshot.createdAt ||
+          !linesEqual(stored.lines, snapshot.lines) ||
+          (stored.orderId !== null && stored.orderId !== orderId)) return false;
+    }
+    if (local.getItem(LOCAL_KEY) !== originalRaw) return false;
+
+    let completedRaw = originalRaw;
+    if (snapshot.status !== "completed") {
+      completedRaw = JSON.stringify({
+        ...snapshot, orderId, status: "completed", completedAt: new Date().toISOString(),
+      });
+      local.setItem(LOCAL_KEY, completedRaw);
+    }
+    if (local.getItem(LOCAL_KEY) !== completedRaw || session.getItem(SESSION_KEY) !== sessionRaw) return false;
+
+    // Keep the completed marker if session removal fails. Check again before
+    // removing the marker so a different attempt is never intentionally cleared.
+    session.removeItem(SESSION_KEY);
+    if (session.getItem(SESSION_KEY) !== null || local.getItem(LOCAL_KEY) !== completedRaw) return false;
+    local.removeItem(LOCAL_KEY);
+    return local.getItem(LOCAL_KEY) === null && session.getItem(SESSION_KEY) === null;
+  } catch {
+    return false;
+  }
+}
+
+/**
  * Explicit local resolution before a separate purchase. The UI must first
  * show the previous result and obtain confirmation for uncertain attempts.
  * A changed marker is never cleared: another tab may have updated it.

@@ -108,7 +108,7 @@ describe("CartDrawer: banner de avisos", () => {
     expect(setQty).toHaveBeenCalledWith("raptor-plus", 11);
   });
 
-  it("con carrito vacío permite abrir la confirmación de un pedido completado", () => {
+  it("con carrito vacío resuelve el marcador completed al abrir checkout", () => {
     prepareAttempt(
       { name: "Santiago", legalName: "StarVie", email: "santi@example.com" },
       [{ productId: "raptor-plus", qty: 1 }],
@@ -119,7 +119,10 @@ describe("CartDrawer: banner de avisos", () => {
     mockCommerce();
     render(<CartDrawer />);
     fireEvent.click(screen.getByRole("button", { name: "Consultar pedido" }));
-    expect(screen.getByText("N° done-drawer")).toBeVisible();
-    expect(screen.getByRole("button", { name: "Iniciar nueva compra" })).toBeVisible();
+    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    expect(screen.queryByText("N° done-drawer")).not.toBeInTheDocument();
+    expect(screen.getByLabelText("Nombre y apellido *")).toBeEnabled();
+    expect(screen.getByLabelText("Nombre y apellido *")).toHaveValue("");
   });
 });

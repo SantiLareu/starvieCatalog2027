@@ -72,7 +72,7 @@ Implementado en `src/commerce/orderAttempt.ts` (marcador v2, sin PII):
 - `localStorage` (`starvie-order-attempt-v2`): `{ version, idempotencyKey, orderId?, lines, createdAt, completedAt?, status? }`. Sin contacto ni fingerprint.
 - `sessionStorage` (`starvie-order-attempt-v2-session`): `OrderPayload` completo + snapshot de líneas + ancla `createdAt`, solo misma pestaña.
 - `prepareAttempt` es el gate atómico previo al POST: si hay marcador válido solo permite reuso exacto (misma key + líneas + contacto); si no hay, escribe sesión + marcador con rollback; si está corrupto o expirado, falla cerrado sin recrear automáticamente.
-- Retención ≤ 23 h desde `createdAt`; el marcador expirado no se borra solo. Nunca hay auto-envío ni auto-reintento. Tras `completed`, el cliente puede iniciar explícitamente una compra nueva. Un intento terminal requiere resolución explícita antes de iniciar otra compra; si el estado está bloqueado, la interfaz exige que el cliente confirme que consultó a StarVie.
+- Retención ≤ 23 h desde `createdAt` para recuperar intentos pendientes o inciertos; el vencimiento no los borra. Nunca hay auto-envío ni auto-reintento. Una respuesta `completed` (201 nuevo o 200 duplicado) cierra automáticamente marcador y sesión, comprobando la key antes de limpiar; el número de pedido sigue visible en la confirmación. Un marcador histórico `completed` con número de pedido se resuelve al abrir, incluso vencido, sin vaciar el carrito actual. Si la limpieza falla o cambia el marcador, se muestra el problema y se bloquea iniciar otra compra desde la confirmación. Los demás intentos terminales siguen requiriendo resolución explícita; si el estado está bloqueado, la interfaz exige que el cliente confirme que consultó a StarVie.
 
 ## 10. Turnstile
 
