@@ -113,6 +113,7 @@ export function Magazine({ catalog }: MagazineProps) {
   const transitionRef = useRef<BookTransition | null>(null);
   const transitionSequenceRef = useRef(0);
   const startedTransitionRef = useRef<string | null>(null);
+  const warmedPagesRef = useRef(new Set<string>());
   const [activeIndex, setActiveIndex] = useState(0);
   const [orientation, setOrientation] = useState<"portrait" | "landscape">("landscape");
   const [experience, setExperience] = useState<ExperienceMode>("collection");
@@ -228,10 +229,14 @@ export function Magazine({ catalog }: MagazineProps) {
     const candidates = new Set([0, displayIndex - 2, displayIndex - 1, displayIndex, displayIndex + 1, displayIndex + 2]);
     for (const index of candidates) {
       const bookPage = bookPages[index];
-      if (bookPage?.kind === "pdf") {
+      if (bookPage?.kind === "pdf" && !warmedPagesRef.current.has(bookPage.page.src)) {
+        // Precargar y decodificar cada URL una vez; reintentar si falla la carga.
+        warmedPagesRef.current.add(bookPage.page.src);
         const image = new Image();
         image.decoding = "async";
+        image.onerror = () => warmedPagesRef.current.delete(bookPage.page.src);
         image.src = bookPage.page.src;
+        if (typeof image.decode === "function") void image.decode().catch(() => undefined);
       }
     }
   }, [bookPages, displayIndex]);

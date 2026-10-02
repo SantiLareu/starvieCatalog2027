@@ -118,7 +118,6 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
     const backCoverRef = useRef<BackCoverHandle>(null);
     const activeIndexRef = useRef(activeIndex);
     const sharpPagesRef = useRef(new Set([0, 1, 2, 3, 4]));
-    const decodeRequestedRef = useRef(new Set<string>());
     const transitionDurationRef = useRef<number | null>(null);
     const suppressCoverStartRef = useRef(false);
     const portraitCoverMotionRef = useRef(false);
@@ -615,25 +614,53 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
 
     // El último spread abierto conserva P37–P38 en el engine principal.
     // Durante el cierre, P38 participa también como cara interior de la tapa.
+    // Conservar el thumbnail hasta que decode() prepare la full para pintar.
+    // Sin decode() o ante un rechazo, aceptar sólo una imagen cargada utilizable.
     useEffect(() => {
       const host = hostRef.current;
       if (!host) return;
+      let cancelled = false;
+      const probes: HTMLImageElement[] = [];
       host.querySelectorAll<HTMLImageElement>("img[data-catalog-page]").forEach((image) => {
         const index = Number(image.closest<HTMLElement>(".catalog-leaf")?.dataset.bookIndex);
         if (!Number.isInteger(index)) return;
+        const fullSrc = image.dataset.fullSrc;
+        if (!fullSrc) return;
         const shouldBeSharp = index === 0 || Math.abs(index - activeIndex) <= 2;
         if (shouldBeSharp) sharpPagesRef.current.add(index);
-        const nextSrc = sharpPagesRef.current.has(index) ? image.dataset.fullSrc : image.dataset.thumbnailSrc;
-        if (nextSrc && image.getAttribute("src") !== nextSrc) image.src = nextSrc;
-
-        if (shouldBeSharp && image.dataset.fullSrc && !decodeRequestedRef.current.has(image.dataset.fullSrc)) {
-          decodeRequestedRef.current.add(image.dataset.fullSrc);
-          const probe = new Image();
-          probe.decoding = "async";
-          probe.src = image.dataset.fullSrc;
-          void probe.decode().catch(() => undefined);
+        if (!sharpPagesRef.current.has(index)) return;
+        if (image.getAttribute("src") === fullSrc) return;
+        const probe = new Image();
+        probes.push(probe);
+        probe.decoding = "async";
+        let swapped = false;
+        let loadFallback = typeof probe.decode !== "function";
+        const swap = () => {
+          if (swapped || cancelled || !image.isConnected ||
+              !probe.complete || probe.naturalWidth === 0 || probe.naturalHeight === 0) return;
+          swapped = true;
+          if (image.getAttribute("src") !== fullSrc) image.src = fullSrc;
+        };
+        const enableLoadFallback = () => {
+          loadFallback = true;
+          swap();
+        };
+        probe.onload = () => {
+          if (loadFallback) swap();
+        };
+        probe.src = fullSrc;
+        if (!loadFallback) {
+          try {
+            void probe.decode().then(swap).catch(enableLoadFallback);
+          } catch {
+            enableLoadFallback();
+          }
         }
       });
+      return () => {
+        cancelled = true;
+        for (const probe of probes) probe.onload = null;
+      };
     }, [activeIndex]);
 
     useEffect(() => {
