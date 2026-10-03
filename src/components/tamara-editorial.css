@@ -1,0 +1,39 @@
+/* Editorial Tamara: foto oficial 16:9 a sangre, sin recortes. */
+
+.tamara-editorial {
+  position: absolute;
+  inset: 0;
+  background: #fff;
+}
+
+.tamara-editorial__photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* El asset ya es 16:9 exacto: encaje completo sin recortes. */
+  object-fit: contain;
+  object-position: 50% 50%;
+  user-select: none;
+}
+
+/* Fundido suave solo presentada y estable; base visible en el flip. */
+.tamara-editorial[data-live="true"] .tamara-editorial__photo {
+  animation: tamara-editorial-in 450ms ease-out both;
+}
+
+@keyframes tamara-editorial-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Incluye las copias portrait que StPageFlip fotografía antes del giro. */
+.page-flip-host:not([data-flip-state="read"]) .tamara-editorial__photo {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tamara-editorial[data-live="true"] .tamara-editorial__photo {
+    animation: none;
+  }
+}

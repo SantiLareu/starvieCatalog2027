@@ -98,6 +98,49 @@ export const hotspotsForPage = (pageId: string) =>
   hotspots.filter((hotspot) => hotspot.pageId === pageId);
 
 /**
+ * Índice editorial de P27 (overview): zonas transparentes sobre los
+ * productos impresos que saltan a su página de detalle.
+ *
+ * Mapa P27 → página destino, independiente del catálogo comercial
+ * (los bolsos aún no existen en generated/products.json). Destinos
+ * deducidos por nombre impreso vs. página de detalle conocida:
+ * paleteros P28–P33, mochilas P34–P36, neceseres P37.
+ * Coordenadas medidas sobre el render 1920×1080 de P27 (%); cada
+ * zona cubre etiqueta + ilustración del producto.
+ */
+export type SectionIndexHotspot = {
+  id: string;
+  pageId: "page-27";
+  /** Nombre tal como está impreso en P27 (etiqueta, no dato comercial). */
+  label: string;
+  targetPage: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+export const sectionIndexHotspots: SectionIndexHotspot[] = [
+  // Paleteros (fila superior, etiquetas + ilustración).
+  { id: "p27-hard-eva-eternal", pageId: "page-27", label: "Padel Bag Hard Eva Eternal", targetPage: 29, x: 4, y: 22, width: 15.5, height: 28 },
+  { id: "p27-t-one-pro", pageId: "page-27", label: "Padel Bag T-One Pro", targetPage: 30, x: 20.5, y: 22, width: 14, height: 28 },
+  { id: "p27-hard-eva-black", pageId: "page-27", label: "Padel Bag Hard Eva Black", targetPage: 28, x: 35, y: 22, width: 15, height: 28 },
+  { id: "p27-pro-master", pageId: "page-27", label: "Padel Bag Pro Master", targetPage: 31, x: 52.5, y: 22, width: 15, height: 28 },
+  { id: "p27-star", pageId: "page-27", label: "Padel Bag Star", targetPage: 32, x: 69, y: 22, width: 14, height: 28 },
+  { id: "p27-neon-strike", pageId: "page-27", label: "Padel Bag Neon Strike", targetPage: 33, x: 84, y: 22, width: 12.5, height: 28 },
+  // Mochilas (fila inferior izquierda).
+  { id: "p27-back-pack-hard-eva-black", pageId: "page-27", label: "Back Pack Hard Eva Black", targetPage: 34, x: 6.5, y: 58, width: 9, height: 31 },
+  { id: "p27-back-pack-black-voltage", pageId: "page-27", label: "Back Pack Black Voltage", targetPage: 36, x: 20, y: 58, width: 10.5, height: 31 },
+  { id: "p27-back-pack-artic-sport", pageId: "page-27", label: "Back Pack Artic Sport", targetPage: 35, x: 34, y: 58, width: 10, height: 31 },
+  // Neceseres (fila inferior derecha; ambos comparten página de detalle).
+  { id: "p27-wash-bag-navy", pageId: "page-27", label: "Wash Bag Navy", targetPage: 37, x: 53.5, y: 58, width: 11, height: 22 },
+  { id: "p27-wash-bag-moss", pageId: "page-27", label: "Wash Bag Moss", targetPage: 37, x: 67.5, y: 58, width: 11.5, height: 22 },
+];
+
+export const sectionIndexForPage = (pageId: string) =>
+  sectionIndexHotspots.filter((hotspot) => hotspot.pageId === pageId);
+
+/**
  * Filtra hotspots manuales contra el catálogo comercial vigente.
  * Categoría-agnóstico: conserva el hotspot si y solo si su productId existe
  * en el catálogo (esté disponible o no; disponible=false sigue visible como

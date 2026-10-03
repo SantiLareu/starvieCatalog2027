@@ -1,0 +1,44 @@
+/* Editorial Sanyo: foto oficial a sangre, encuadre derecho por CSS. */
+
+.sanyo-editorial {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: #fff;
+}
+
+.sanyo-editorial__photo {
+  display: block;
+  width: 100%;
+  height: 100%;
+  /* Banner completo sin recortes: el blanco sobrante se funde con la
+     hoja (mismo fondo), sin barras ni letterboxing visible. */
+  object-fit: contain;
+  object-position: 50% 50%;
+  user-select: none;
+}
+
+/* Fundido suave solo presentada y estable; base visible en el flip. */
+.sanyo-editorial[data-live="true"] .sanyo-editorial__photo {
+  animation: sanyo-editorial-in 450ms ease-out both;
+}
+
+@keyframes sanyo-editorial-in {
+  from {
+    opacity: 0;
+  }
+}
+
+/* Las copias portrait de StPageFlip heredan data-live del original.
+   Toda superficie que participa en un giro permanece estática. */
+.page-flip-host:not([data-flip-state="read"]) .sanyo-editorial__photo {
+  animation: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sanyo-editorial[data-live="true"] .sanyo-editorial__photo {
+    animation: none;
+  }
+}

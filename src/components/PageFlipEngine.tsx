@@ -1,11 +1,15 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { PageFlip } from "page-flip";
-import { COLLECTION_LINEUP_PAGE, type BookPage } from "../data/bookFlow";
+import { COLLECTION_LINEUP_PAGE, SECTION_COVER_ORIGINAL_PAGE, TAMARA_EDITORIAL_ID, type BookPage } from "../data/bookFlow";
 import { createHardCoverPageFlipSettings } from "../data/hardCoverMotion";
 import type { CatalogPage } from "../types/catalog";
 import { PdfPage } from "./PdfPage";
 import { VideoPage } from "./VideoPage";
 import { Page14Coverflow } from "./Page14Coverflow";
+import { SectionIndexLayer } from "./SectionIndexLayer";
+import { SanyoEditorial } from "./SanyoEditorial";
+import { TamaraEditorial } from "./TamaraEditorial";
+import { sectionIndexForPage } from "../data/CatalogData";
 import { BackCover, type BackCoverHandle } from "./BackCover";
 
 type PageFlipRuntime = {
@@ -20,6 +24,7 @@ type PageFlipRuntime = {
     start: (point: { x: number; y: number }) => boolean;
     fold: (point: { x: number; y: number }) => void;
     stopMove: () => void;
+    showCorner: (point: { x: number; y: number }) => void;
   };
   getPageCollection: () => {
     getBottomPage: (direction: number) => { getElement: () => HTMLElement };
@@ -56,6 +61,9 @@ type PageFlipEngineProps = {
   productNames: Record<string, string>;
   onProductSelect: (productId: string) => void;
   onCoverflowProductSelect: (productId: string) => void;
+  onSectionNavigate: (targetPage: number) => void;
+  /** Prepara las imágenes editoriales antes de iniciar un salto físico. */
+  editorialLoadIndex: number | null;
   coverBridgeActive: boolean;
   coverMotionActive: boolean;
   backCoverState: "open" | "closing" | "closed" | "opening";
@@ -87,6 +95,8 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       productNames,
       onProductSelect,
       onCoverflowProductSelect,
+      onSectionNavigate,
+      editorialLoadIndex,
       coverBridgeActive,
       coverMotionActive,
       backCoverState,
@@ -122,6 +132,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
     const suppressCoverStartRef = useRef(false);
     const portraitCoverMotionRef = useRef(false);
     const onProductSelectRef = useRef(onProductSelect);
+    const onSectionNavigateRef = useRef(onSectionNavigate);
     const onPageSettledRef = useRef(onPageSettled);
     const onCoverTransitionStartRef = useRef(onCoverTransitionStart);
     const onManualNavigationIntentRef = useRef(onManualNavigationIntent);
@@ -129,6 +140,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
     const manualNavigationBoundaryRef = useRef(manualNavigationBoundary);
     activeIndexRef.current = activeIndex;
     onProductSelectRef.current = onProductSelect;
+    onSectionNavigateRef.current = onSectionNavigate;
     onPageSettledRef.current = onPageSettled;
     onCoverTransitionStartRef.current = onCoverTransitionStart;
     onManualNavigationIntentRef.current = onManualNavigationIntent;
@@ -236,6 +248,28 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       const host = hostRef.current;
       if (!host || pages.length === 0) return;
 
+      // StPageFlip clona hojas soft en portrait antes del commit de React.
+      // Las copias son fotografías: nunca deben heredar interacción/reveal.
+      // No tocar las hojas originales, cuyos atributos pertenecen a React.
+      const sourceLeaves = new Set(host.querySelectorAll<HTMLElement>(".catalog-leaf"));
+      const staticCopies = new MutationObserver(records => {
+        for (const record of records) {
+          for (const node of record.addedNodes) {
+            if (!(node instanceof HTMLElement)) continue;
+            const leaves = node.matches(".catalog-leaf") ? [node] : node.querySelectorAll<HTMLElement>(".catalog-leaf");
+            for (const leaf of leaves) {
+              if (sourceLeaves.has(leaf)) continue;
+              leaf.querySelectorAll<HTMLElement>(".section-index-layer, .sanyo-editorial, .tamara-editorial").forEach(layer => {
+                layer.dataset.live = "false";
+                layer.setAttribute("aria-hidden", "true");
+                layer.inert = true;
+              });
+            }
+          }
+        }
+      });
+      staticCopies.observe(host, { childList: true, subtree: true });
+
       const engine = new PageFlip(
         host,
         createHardCoverPageFlipSettings(
@@ -267,10 +301,11 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         target: EventTarget | null,
       ): PendingBoundaryGesture | false => {
         const portrait = engine.getOrientation() === "portrait";
-        const hotspot = target instanceof Element && target.closest("[data-product-id]") != null;
+        const sectionHotspot = target instanceof Element && target.closest("[data-section-target]") != null;
+        const hotspot = sectionHotspot || (target instanceof Element && target.closest("[data-product-id]") != null);
         if (
           interactionLockedRef.current ||
-          (!portrait && (!manualNavigationBoundaryRef.current || activeIndexRef.current === 0)) ||
+          (!portrait && !sectionHotspot && (!manualNavigationBoundaryRef.current || activeIndexRef.current === 0)) ||
           (target instanceof Element && (target.closest(".page14-coverflow__interactive, input, video") != null ||
             (!hotspot && target.closest("button, a") != null)))
         ) {
@@ -544,20 +579,102 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
 
       const handleDelegatedHotspot = (event: MouseEvent) => {
         const target = event.target as HTMLElement | null;
-        const hotspot = target?.closest<HTMLElement>("[data-product-id]");
-        if (interactionLockedRef.current || (suppressGestureClick && hotspot != null && event.detail !== 0)) {
+        const hotspot = target?.closest<HTMLElement>("[data-product-id], [data-section-target]");
+        if (interactionLockedRef.current ||
+            (hotspot?.hasAttribute("data-section-target") && isTurning()) ||
+            (suppressGestureClick && hotspot != null && event.detail !== 0)) {
           suppressGestureClick = false;
           event.preventDefault();
           event.stopPropagation();
           return;
         }
         const productId = hotspot?.dataset.productId;
+        const sectionTarget = hotspot?.dataset.sectionTarget;
+        if (sectionTarget) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (hotspot.closest<HTMLElement>(".section-index-layer")?.dataset.live === "true") {
+            onSectionNavigateRef.current(Number(sectionTarget));
+          }
+          return;
+        }
         if (productId) {
           event.preventDefault();
           event.stopPropagation();
           onProductSelectRef.current(productId);
         }
       };
+      // Excepción explícita para P27 (índice de Bolsos & Accesorios):
+      // mismo curl, misma física, pero activado en una zona rectangular
+      // calibrada en navegador (20.5% del ancho × 12.2% del alto de la
+      // hoja) en vez del cuadrado diagonal/5 de StPageFlip, que invadía
+      // sus hotspots. El resto del catálogo conserva el original, que no
+      // expone opción pública para esta zona. Este listener (host) corre
+      // antes que el mousemove de StPageFlip (window) en el mismo
+      // dispatch, así el flag ya está al día cuando userMove decide entre
+      // showCorner y fold. Solo mouse/pen (touch no tiene hover). Con el
+      // preview ya visible se usa la retracción nativa al salir del
+      // rectángulo, sin modificar el cálculo ni la física del curl.
+      const defaultCornerPreview = () =>
+        activeIndexRef.current !== 0 && !manualNavigationBoundaryRef.current;
+      // Proporciones medidas en P27 real (hoja 581×327: X=119px/20.5%,
+      // Y=40px/12.2%). Relativas a la hoja (.catalog-leaf), responsive.
+      const SECTION_COVER_ZONE_W = 0.205;
+      const SECTION_COVER_ZONE_H = 0.122;
+      const sectionCoverIndex = pages.findIndex(
+        (bookPage) => bookPage.kind === "pdf" && bookPage.originalNumber === SECTION_COVER_ORIGINAL_PAGE,
+      );
+      let sectionCoverRect: DOMRect | null = null;
+      let sectionCornerPreview = false;
+      const retractSectionPreview = () => {
+        if (sectionCornerPreview && flipStateRef.current === "fold_corner") {
+          const runtime = engine as unknown as PageFlipRuntime;
+          const bounds = runtime.getRender().getRect();
+          // Un punto central fuera de las esquinas solicita el cierre
+          // normal de showCorner, sin cambiar tiempos ni cálculos internos.
+          runtime.getFlipController().showCorner({
+            x: bounds.left + bounds.pageWidth,
+            y: bounds.top + bounds.height / 2,
+          });
+        }
+        sectionCornerPreview = false;
+      };
+      const handleSectionCoverZone = (event: PointerEvent) => {
+        if (event.pointerType !== "mouse" && event.pointerType !== "pen") return;
+        if (flipStateRef.current !== "read" && flipStateRef.current !== "fold_corner") return;
+        if (sectionCoverIndex < 0 || activeIndexRef.current !== sectionCoverIndex) {
+          sectionCornerPreview = false;
+          engine.getSettings().showPageCorners = defaultCornerPreview();
+          return;
+        }
+        const leaf = host.querySelector<HTMLElement>(`.catalog-leaf[data-book-index="${sectionCoverIndex}"]`);
+        if (!leaf) return;
+        // Durante el curl el rect transformado ya no es la hoja en reposo.
+        if (flipStateRef.current === "read" || !sectionCoverRect) sectionCoverRect = leaf.getBoundingClientRect();
+        const rect = sectionCoverRect;
+        const x = event.clientX - rect.left;
+        const y = event.clientY - rect.top;
+        const overSectionCover = x >= 0 && x <= rect.width && y >= 0 && y <= rect.height;
+        if (!overSectionCover && !sectionCornerPreview) {
+          engine.getSettings().showPageCorners = defaultCornerPreview();
+          return;
+        }
+        const zoneW = rect.width * SECTION_COVER_ZONE_W;
+        const zoneH = rect.height * SECTION_COVER_ZONE_H;
+        const nearCorner =
+          overSectionCover && (x <= zoneW || x >= rect.width - zoneW) &&
+          (y <= zoneH || y >= rect.height - zoneH);
+        if (!nearCorner) retractSectionPreview();
+        else sectionCornerPreview = true;
+        engine.getSettings().showPageCorners = nearCorner && defaultCornerPreview();
+      };
+      const restoreCornerZone = () => {
+        retractSectionPreview();
+        if (flipStateRef.current !== "read") return;
+        engine.getSettings().showPageCorners = defaultCornerPreview();
+      };
+      host.addEventListener("pointermove", handleSectionCoverZone);
+      host.addEventListener("pointerleave", restoreCornerZone);
       host.addEventListener("click", handleDelegatedHotspot, true);
       gestureSurface.addEventListener("mousedown", handleCoverMouseDown, true);
       gestureSurface.addEventListener("touchstart", handleLockedTouchStart, { capture: true, passive: false });
@@ -570,6 +687,9 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       window.addEventListener("touchcancel", handleCoverMouseUp, true);
 
       return () => {
+        staticCopies.disconnect();
+        host.removeEventListener("pointermove", handleSectionCoverZone);
+        host.removeEventListener("pointerleave", restoreCornerZone);
         host.removeEventListener("click", handleDelegatedHotspot, true);
         gestureSurface.removeEventListener("mousedown", handleCoverMouseDown, true);
         gestureSurface.removeEventListener("touchstart", handleLockedTouchStart, true);
@@ -700,6 +820,31 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
                 activeProductId={coverflowProductId}
                 onActiveProductChange={setCoverflowProductId}
                 onProductSelect={onCoverflowProductSelect}
+              />
+            ) : bookPage.kind === "pdf" && bookPage.originalNumber === SECTION_COVER_ORIGINAL_PAGE ? (
+              <>
+                <PdfPage
+                  page={bookPage.page}
+                  initiallySharp={index <= 4}
+                  onCoverReady={undefined}
+                  productNames={productNames}
+                  onProductSelect={onProductSelect}
+                />
+                <SectionIndexLayer
+                  hotspots={sectionIndexForPage(bookPage.page.id)}
+                  live={activeIndex === index && !flipInProgress && !interactionLocked && !productOpen && !cartOpen}
+                  onNavigate={onSectionNavigate}
+                />
+              </>
+            ) : bookPage.kind === "editorial" && bookPage.id === TAMARA_EDITORIAL_ID ? (
+              <TamaraEditorial
+                visible={(activeIndex === index || (orientation === "landscape" && activeIndex > 0 && activeIndex + 1 === index)) && !flipInProgress && !interactionLocked && !productOpen && !cartOpen}
+                load={Math.abs(index - activeIndex) <= (orientation === "landscape" ? 3 : 2) || (editorialLoadIndex != null && Math.abs(index - editorialLoadIndex) <= 1)}
+              />
+            ) : bookPage.kind === "editorial" ? (
+              <SanyoEditorial
+                visible={(activeIndex === index || (orientation === "landscape" && activeIndex > 0 && activeIndex + 1 === index)) && !flipInProgress && !interactionLocked && !productOpen && !cartOpen}
+                load={Math.abs(index - activeIndex) <= (orientation === "landscape" ? 3 : 2) || (editorialLoadIndex != null && Math.abs(index - editorialLoadIndex) <= 1)}
               />
             ) : bookPage.kind === "pdf" ? (
               <PdfPage

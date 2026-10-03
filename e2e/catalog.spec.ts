@@ -245,12 +245,12 @@ test.describe("Catálogo StarVie 2027", () => {
     const leaves = page.locator(".catalog-leaf");
     const physicalPages = page.locator('.catalog-leaf > .pdf-page > img[data-catalog-page]');
     const videoLeaves = page.locator('.catalog-leaf > .video-page[data-virtual-page="collection-2027-video"]');
-    await expect(leaves).toHaveCount(39);
+    await expect(leaves).toHaveCount(41);
     await expect(physicalPages).toHaveCount(37);
     await expect(page.locator('.catalog-leaf > [data-testid="page14-coverflow"]')).toHaveCount(1);
     await expect(videoLeaves).toHaveCount(1);
     expect(await leaves.evaluateAll((nodes) => nodes.map((node) => Number((node as HTMLElement).dataset.bookIndex)))).toEqual(
-      Array.from({ length: 39 }, (_, index) => index),
+      Array.from({ length: 41 }, (_, index) => index),
     );
     // P39 nunca es hoja del book: sólo existe como overlay de contratapa.
     await expect(page.locator(".catalog-leaf.back-cover-leaf")).toHaveCount(0);
@@ -687,7 +687,7 @@ test.describe("Catálogo StarVie 2027", () => {
     await expect(indicator).toContainText("CONTRATAPA / 39");
     // La contratapa cerrada mide exactamente lo mismo que una hoja real.
     const cardBox = await page.locator('[data-rear-bridge-page="cover"]').boundingBox();
-    const leafBox = await page.locator('.catalog-leaf[data-book-index="38"]').boundingBox();
+    const leafBox = await page.locator('.catalog-leaf[data-rear-source]').boundingBox();
     expect(cardBox).not.toBeNull();
     expect(leafBox).not.toBeNull();
     expect(Math.abs(cardBox!.width - leafBox!.width)).toBeLessThan(2);
@@ -695,7 +695,7 @@ test.describe("Catálogo StarVie 2027", () => {
     await page.screenshot({ path: testInfo.outputPath("C-back-cover-closed.png") });
 
     // El book conserva sus hojas normales: P39 sigue sin ser hoja.
-    await expect(page.locator(".catalog-leaf")).toHaveCount(39);
+    await expect(page.locator(".catalog-leaf")).toHaveCount(41);
     await expect(page.locator('.catalog-leaf > .pdf-page > img[data-catalog-page]')).toHaveCount(37);
     await expect(page.locator('.catalog-leaf > [data-testid="page14-coverflow"]')).toHaveCount(1);
     await expect(page.locator('.catalog-leaf > .video-page[data-virtual-page="collection-2027-video"]')).toHaveCount(1);
@@ -765,13 +765,13 @@ test.describe("Catálogo StarVie 2027", () => {
       await expect(backCover).not.toHaveClass(/is-live/);
       await expect(page.locator(".catalog-leaf.back-cover-leaf")).toHaveCount(0);
       await expect(page.locator('.catalog-leaf img[data-catalog-page="39"]')).toHaveCount(0);
-      await expect(page.locator(".catalog-leaf")).toHaveCount(39);
-      // Branding belongs to the physical outer face for the entire turn;
-      // the inactive renderer, rather than its contents, is hidden at rest.
+      await expect(page.locator(".catalog-leaf")).toHaveCount(41);
+      // El branding editorial sólo se revela en la contratapa cerrada.
+      // El renderer y el bloque live permanecen ocultos al reabrir.
       await expect(backCover).toHaveCSS("visibility", "hidden");
-      expect(await opacityOf(logo)).toBe(1);
-      expect(await opacityOf(title)).toBe(1);
-      expect(await opacityOf(credit)).toBe(1);
+      expect(await opacityOf(logo)).toBe(0);
+      expect(await opacityOf(title)).toBe(0);
+      expect(await opacityOf(credit)).toBe(0);
       await page.screenshot({ path: testInfo.outputPath(screenshotName) });
       await page.waitForTimeout(500);
       await expect(indicator).toContainText(lastOpenLabel);
@@ -786,14 +786,15 @@ test.describe("Catálogo StarVie 2027", () => {
       await expect(engine).toHaveAttribute("data-back-cover-motion", "closing");
       await expect(backCover).toHaveAttribute("data-back-cover-live", "false");
       await expect(backCover).not.toHaveClass(/is-live/);
-      // Composición P1: P39 viaja por encima y el spread P37–P38 del engine
-      // queda visible debajo (sin P39 como hoja ni duplicados).
-      await expect(page.locator('.catalog-leaf[data-book-index="38"]')).toHaveCSS("opacity", "1");
+      // P38 viaja en la cara interior hard; la fuente soft principal se
+      // oculta sólo en landscape para no duplicar la misma fotografía.
+      await expect(page.locator('.catalog-leaf[data-rear-source]')).toHaveCSS("opacity", mobile ? "1" : "0");
       await expect(page.locator('[data-rear-bridge-page="cover"] .back-cover-surface > img')).toHaveCSS("opacity", "0");
-      // The inner face participates in the native hard flip; its PDF image
-      // stays hidden. Only the unrelated calculation leaf is invisible.
+      // En desktop la foto de P38 se pinta en la cara interior hard;
+      // portrait conserva su foto principal y deja esta copia transparente.
       await expect(rearRightLeaf).toHaveCSS("opacity", "1");
-      await expect(rearRightImage).toHaveCSS("visibility", "hidden");
+      await expect(rearRightImage).toHaveCSS("visibility", "visible");
+      await expect(rearRightImage).toHaveCSS("opacity", mobile ? "0" : "1");
       await expect(rearLeftLeaf).toHaveCSS("opacity", "0");
     };
     const startOpen = async (withButton = false) => {
@@ -806,13 +807,14 @@ test.describe("Catálogo StarVie 2027", () => {
       await expect(engine).toHaveAttribute("data-back-cover-motion", "opening");
       await expect(backCover).toHaveAttribute("data-back-cover-live", "false");
       await expect(backCover).not.toHaveClass(/is-live/);
-      // La inversa también viaja con P37–P38 visibles debajo desde el inicio.
-      await expect(page.locator('.catalog-leaf[data-book-index="38"]')).toHaveCSS("opacity", "1");
+      // La reapertura conserva la misma composición física de P38.
+      await expect(page.locator('.catalog-leaf[data-rear-source]')).toHaveCSS("opacity", mobile ? "1" : "0");
       await expect(page.locator('[data-rear-bridge-page="cover"] .back-cover-surface > img')).toHaveCSS("opacity", "0");
       await expect(rearLeftLeaf).toHaveCSS("opacity", "0");
       await expect(rearRightLeaf).toHaveCSS("visibility", "visible");
       await expect(rearRightLeaf).toHaveCSS("opacity", "1");
-      await expect(rearRightImage).toHaveCSS("visibility", "hidden");
+      await expect(rearRightImage).toHaveCSS("visibility", "visible");
+      await expect(rearRightImage).toHaveCSS("opacity", mobile ? "0" : "1");
     };
 
     await page.goto("/");

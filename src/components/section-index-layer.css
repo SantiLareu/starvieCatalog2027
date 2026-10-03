@@ -1,0 +1,67 @@
+/* Índice P27: hotspots transparentes. Sin scrim, sin rellenos. */
+
+.section-index-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.section-index-layer[data-live="true"] {
+  pointer-events: auto;
+}
+
+.section-index-hotspot {
+  position: absolute;
+  padding: 0;
+  border: 0;
+  background: transparent;
+}
+
+.section-index-layer[data-live="true"] .section-index-hotspot {
+  cursor: pointer;
+}
+
+/* Sin recuadros: solo el indicador. Sin foco visible en la zona. */
+.section-index-hotspot:focus {
+  outline: none;
+}
+
+.section-index-hotspot:focus-visible {
+  outline: none;
+}
+
+.section-index-tag {
+  pointer-events: none;
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(10, 10, 11, 0.72);
+  color: #f3f3f4;
+  font-size: 0.6rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  opacity: 0;
+  white-space: nowrap;
+}
+
+.section-index-layer[data-live="true"] .section-index-hotspot:hover .section-index-tag {
+  opacity: 1;
+}
+
+/* Foco por teclado: el indicador aparece con contorno propio, sin
+   dibujar nada sobre el producto. */
+.section-index-layer[data-live="true"] .section-index-hotspot:focus-visible .section-index-tag {
+  opacity: 1;
+  outline: 2px solid var(--accent);
+  outline-offset: 1px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .section-index-hotspot,
+  .section-index-tag {
+    transition: none;
+  }
+}

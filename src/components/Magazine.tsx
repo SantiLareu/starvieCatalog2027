@@ -609,7 +609,7 @@ export function Magazine({ catalog }: MagazineProps) {
       const target = event.target as HTMLElement | null;
       if (target) {
         if (target.closest('[role="dialog"]')) return;
-        if (target.closest(".page14-coverflow__interactive")) return;
+        if (target.closest(".page14-coverflow__interactive, .section-index-layer")) return;
         const tag = target.tagName;
         if (
           tag === "INPUT" ||
@@ -752,14 +752,16 @@ export function Magazine({ catalog }: MagazineProps) {
                 else goToBookIndex(index, "collection");
                 setDrawerOpen(false);
               }}
-              aria-label={bookPage.kind === "pdf" ? `Ir a página ${bookPage.originalNumber}` : "Ir a página de video"}
+              aria-label={bookPage.kind === "pdf" ? `Ir a página ${bookPage.originalNumber}` : bookPage.kind === "editorial" ? `Ir a página ${bookPage.label}` : "Ir a página de video"}
             >
               {bookPage.kind === "pdf" ? (
                 <img src={bookPage.page.thumbnail} alt="" width="120" height="68" loading="lazy" decoding="async" />
+              ) : bookPage.kind === "editorial" ? (
+                <div className="video-thumbnail" aria-hidden="true"><strong>STARVIE</strong><small>{bookPage.label}</small></div>
               ) : (
                 <div className="video-thumbnail" aria-hidden="true"><strong>STARVIE</strong><small>VIDEO</small></div>
               )}
-              <span>{bookPage.kind === "pdf" ? bookPage.originalNumber : "VIDEO"}</span>
+              <span>{bookPage.kind === "pdf" ? bookPage.originalNumber : bookPage.kind === "editorial" ? bookPage.label : "VIDEO"}</span>
             </button>
           ))}
         </div>
@@ -781,6 +783,8 @@ export function Magazine({ catalog }: MagazineProps) {
           productNames={productNames}
           onProductSelect={handleProductSelect}
           onCoverflowProductSelect={handleCoverflowProductSelect}
+          onSectionNavigate={goToOriginalPage}
+          editorialLoadIndex={bookTransition && "targetIndex" in bookTransition ? bookTransition.targetIndex : null}
           coverBridgeActive={coverBridgeActive}
           coverMotionActive={bookTransition?.kind === "initial-cover-open" || bookTransition?.kind === "close-to-cover"}
           backCoverState={backCoverState}

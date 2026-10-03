@@ -3,6 +3,8 @@ import type { CatalogMetadata, CatalogPage } from "../types/catalog";
 export const STARLAB_FIRST_PAGE = 2;
 export const STARLAB_LAST_PAGE = 13;
 export const COLLECTION_LINEUP_PAGE = 14;
+/** P27: overview de "Bolsos & Accesorios" con índice clickeable (sin overlay). */
+export const SECTION_COVER_ORIGINAL_PAGE = 27;
 export const COLLECTION_VIDEO_ID = "collection-2027-video";
 export const COLLECTION_VIDEO_SRC = "/videos/news.mp4";
 /**
@@ -25,7 +27,24 @@ export type VideoBookPage = {
   src: typeof COLLECTION_VIDEO_SRC;
 };
 
-export type BookPage = PdfBookPage | VideoBookPage;
+export type EditorialBookPage = {
+  kind: "editorial";
+  id: string;
+  /** Etiqueta editorial (indicador, miniaturas): nunca número de PDF. */
+  label: string;
+};
+
+export type BookPage = PdfBookPage | VideoBookPage | EditorialBookPage;
+
+/** P29 (Hard Eva Eternal, modelo de Sanyo) y su página editorial. */
+export const SANYO_ORIGINAL_PAGE = 29;
+export const SANYO_EDITORIAL_ID = "sanyo-2027-editorial";
+export const SANYO_EDITORIAL_LABEL = "SANYO";
+
+/** P30 (T-One Pro, modelo de Tamara) y su página editorial. */
+export const TAMARA_ORIGINAL_PAGE = 30;
+export const TAMARA_EDITORIAL_ID = "tamara-2027-editorial";
+export const TAMARA_EDITORIAL_LABEL = "TAMARA";
 
 export function buildBookPages(catalog: CatalogMetadata): BookPage[] {
   // La contratapa (P39) queda fuera del recorrido abierto: sólo P1–P38
@@ -47,6 +66,33 @@ export function buildBookPages(catalog: CatalogMetadata): BookPage[] {
     id: COLLECTION_VIDEO_ID,
     src: COLLECTION_VIDEO_SRC,
   });
+  // Editorial Sanyo inmediatamente después de P29: en landscape forma el
+  // spread P29|SANYO por paridad (impar, par). P30+ se desplaza +1 hasta
+  // incorporar la virtual de Tamara. Sin P29 no se inserta nada.
+  const sanyoIndex = pages.findIndex(
+    (page) => page.kind === "pdf" && page.originalNumber === SANYO_ORIGINAL_PAGE,
+  );
+  if (sanyoIndex >= 0) {
+    pages.splice(sanyoIndex + 1, 0, {
+      kind: "editorial",
+      id: SANYO_EDITORIAL_ID,
+      label: SANYO_EDITORIAL_LABEL,
+    });
+  }
+  // Editorial Tamara inmediatamente después de P30: con Sanyo ya
+  // insertada, el desplazamiento total es +2 (par) y P31+ conserva su
+  // paridad. En landscape forma el spread P30|TAMARA. Sin P30 no se
+  // inserta nada.
+  const tamaraIndex = pages.findIndex(
+    (page) => page.kind === "pdf" && page.originalNumber === TAMARA_ORIGINAL_PAGE,
+  );
+  if (tamaraIndex >= 0) {
+    pages.splice(tamaraIndex + 1, 0, {
+      kind: "editorial",
+      id: TAMARA_EDITORIAL_ID,
+      label: TAMARA_EDITORIAL_LABEL,
+    });
+  }
   return pages;
 }
 
@@ -80,5 +126,7 @@ export function isStarLabOriginalPage(originalNumber: number): boolean {
 
 export function bookPageLabel(page: BookPage | undefined): string {
   if (!page) return "";
-  return page.kind === "video" ? "VIDEO" : String(page.originalNumber);
+  if (page.kind === "video") return "VIDEO";
+  if (page.kind === "editorial") return page.label;
+  return String(page.originalNumber);
 }
