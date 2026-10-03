@@ -9,3 +9,11 @@ __pycache__/
 # Local Pi runtime state
 .atl/
 /odd/tasks/
+# Preventiva de seguridad: secretos y estado local nunca al repo
+.env
+.env.*
+!.env.example
+*.log
+.dev.vars
+.dev.vars.*
+.wrangler/
