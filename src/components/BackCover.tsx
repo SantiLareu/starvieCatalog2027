@@ -160,6 +160,8 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
                 </div>
                 <div className="back-cover-live" aria-hidden={live ? undefined : "true"}>
                   <strong data-testid="back-cover-title">2027</strong>
+                  <span className="back-cover-collab" data-testid="back-cover-collab">StarVie x RealStep</span>
+                  <span className="back-cover-license" data-testid="back-cover-license">Licenciatario Oficial</span>
                   <small data-testid="back-cover-credit">By Santiago Lareu</small>
                 </div>
               </div>

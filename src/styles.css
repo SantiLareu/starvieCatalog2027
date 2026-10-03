@@ -581,7 +581,9 @@ button { -webkit-tap-highlight-color: transparent; }
   position: absolute;
   inset: 0;
   z-index: 1;
-  opacity: 1;
+  /* Oculto hasta .is-live: visible durante el giro + fill backwards de la
+     entrada producía el doble reveal (se veía, desaparecía y reaparecía). */
+  opacity: 0;
   transform-origin: 50% 50%;
   transform: none;
   mix-blend-mode: screen;
@@ -602,40 +604,98 @@ button { -webkit-tap-highlight-color: transparent; }
 
 .back-cover-live {
   position: absolute;
-  inset: 0;
+  top: 55%;
+  bottom: 11%;
+  left: 0;
+  right: 0;
   z-index: 2;
-  pointer-events: none;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12%;
+  gap: clamp(6px, 1.1vh, 11px);
   text-align: center;
+  pointer-events: none;
 }
 
-.back-cover-live strong,
-.back-cover-live small {
-  position: absolute;
-  left: 50%;
+.back-cover-live > * {
+  position: static;
+  left: auto;
   display: block;
-  width: min(76%, 720px);
-  opacity: 1;
-  transform: translate3d(-50%, 0, 0);
+  width: auto;
+  max-width: 100%;
+  /* Misma razón que el logo: la entrada con fill both parte de opacity 0,
+     así que la base ya es 0 y .is-live la lleva a 1 una sola vez. */
+  opacity: 0;
+  transform: none;
 }
 
 .back-cover-live strong {
-  top: 60%;
   color: var(--accent);
-  font-size: clamp(1rem, 1.9vw, 1.9rem);
+  font-size: clamp(0.85rem, 1.6vw, 1.5rem);
   font-style: normal;
-  font-weight: 780;
-  letter-spacing: 0.26em;
+  font-weight: 750;
+  letter-spacing: 0.3em;
+  text-indent: 0.3em;
   text-shadow: 0 0 18px rgba(230,70,55,0.18);
 }
 
 .back-cover-live strong span { color: var(--accent); }
 
+.back-cover-collab {
+  color: rgba(240,242,244,0.9);
+  font-size: clamp(0.6rem, 0.95vw, 0.85rem);
+  font-weight: 650;
+  letter-spacing: 0.24em;
+  text-indent: 0.24em;
+}
+
+.back-cover-license {
+  color: rgba(226,228,231,0.6);
+  font-size: clamp(0.52rem, 0.72vw, 0.66rem);
+  font-weight: 500;
+  letter-spacing: 0.2em;
+  text-indent: 0.2em;
+}
+
 .back-cover-live small {
-  top: 67.5%;
-  color: rgba(226,228,231,0.72);
-  font-size: clamp(0.58rem, 0.82vw, 0.78rem);
+  margin-top: clamp(4px, 0.8vh, 8px);
+  color: rgba(226,228,231,0.52);
+  font-size: clamp(0.5rem, 0.66vw, 0.62rem);
   font-weight: 450;
-  letter-spacing: 0.1em;
+  letter-spacing: 0.14em;
+  text-indent: 0.14em;
+}
+
+/* Entrada progresiva al presentar la contratapa. La física ya terminó en
+   ese punto: sólo se anima la composición editorial, con la misma curva de
+   movimiento que la portada P1. Durante el giro todo queda estático. */
+.back-cover-bridge.is-live .back-cover-logo-overlay {
+  animation: back-cover-logo-settle 1.2s ease-out both;
+}
+.back-cover-bridge.is-live .back-cover-live > * {
+  animation: back-cover-rise 0.85s cubic-bezier(.22,.72,.24,1) both;
+}
+.back-cover-bridge.is-live .back-cover-live strong { animation-delay: 0.12s; }
+.back-cover-bridge.is-live .back-cover-collab { animation-delay: 0.24s; }
+.back-cover-bridge.is-live .back-cover-license { animation-delay: 0.34s; }
+.back-cover-bridge.is-live .back-cover-live small { animation-delay: 0.44s; }
+
+@keyframes back-cover-logo-settle {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes back-cover-rise {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 7px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
 }
 
 .page-edge {
@@ -999,19 +1059,17 @@ button { -webkit-tap-highlight-color: transparent; }
     animation: none;
     opacity: 0;
   }
+  /* El override global de 1ms no debe retener el bloque al quitar .is-live. */
+  .back-cover-bridge .back-cover-logo-overlay,
+  .back-cover-bridge .back-cover-live > * {
+    transition: none !important;
+  }
   .back-cover-bridge.is-live .back-cover-logo-overlay,
-  .back-cover-bridge.is-live .back-cover-live strong,
-  .back-cover-bridge.is-live .back-cover-live small {
+  .back-cover-bridge.is-live .back-cover-live > * {
     animation: none;
     opacity: 1;
     filter: none;
-  }
-  .back-cover-bridge.is-live .back-cover-logo-overlay {
     transform: none;
-  }
-  .back-cover-bridge.is-live .back-cover-live strong,
-  .back-cover-bridge.is-live .back-cover-live small {
-    transform: translate3d(-50%, 0, 0);
   }
 }
 
