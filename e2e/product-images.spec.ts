@@ -1,5 +1,66 @@
 import { expect, test } from "@playwright/test";
 
+const newProducts = [
+  { id: "hard eva black bag", name: "Paletero Hard Eva Black", page: 28 },
+  { id: "hard eva eternal", name: "Paletero Hard Eva Eternal", page: 29 },
+  { id: "t-one pro", name: "Paletero T-One Pro", page: 30 },
+  { id: "m hard eva black", name: "Mochila Hard Eva Black", page: 34 },
+  { id: "black cap", name: "Black Cap", page: 38 },
+  { id: "muñequera Wristband white", name: "WristBand White", page: 38 },
+];
+
+for (const product of newProducts) {
+  test(`${product.name}: apertura en frío sin originales`, async ({ page }, testInfo) => {
+    const originals: string[] = [];
+    const requested: string[] = [];
+    page.on("request", request => {
+      const pathname = new URL(request.url()).pathname;
+      if (pathname.startsWith("/products/")) originals.push(request.url());
+      if (pathname.startsWith("/catalog/product-images/")) requested.push(request.url());
+    });
+    // These tests only view products; never allow commercial traffic.
+    await page.route("https://api.real-step.com.ar/**", route => route.abort());
+    await page.goto("/");
+    await page.getByTestId("page-indicator").click();
+    await page.locator("#page-number").fill(String(product.page));
+    await page.locator(".page-picker button[type='submit']").click();
+    await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+    const hotspot = page.locator(`[data-product-id="${product.id}"]:visible`).first();
+    const dialog = page.getByRole("dialog", { name: product.name, exact: true });
+    await page.evaluate(() => performance.clearResourceTimings());
+    await expect(async () => {
+      await hotspot.click();
+      await expect(dialog).toBeVisible({ timeout: 2_000 });
+    }).toPass({ timeout: 12_000 });
+    const main = dialog.locator('.product-image-viewport img:not([aria-hidden="true"])');
+    await expect.poll(() => main.evaluate(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0)).toBe(true);
+    await expect(main).toHaveAttribute("srcset", /-768\.webp 768w, .*?-1280\.webp 1280w/);
+    await expect.poll(() => dialog.locator(".gallery-thumbs img").evaluateAll(images => images.length > 0 && images.every(img => {
+      const image = img as HTMLImageElement;
+      return image.complete && image.naturalWidth > 0 && new URL(image.currentSrc).pathname.endsWith("-160.webp");
+    }))).toBe(true);
+    const resources = await page.evaluate(() => (performance.getEntriesByType("resource") as PerformanceResourceTiming[])
+      .filter(entry => new URL(entry.name).pathname.startsWith("/catalog/product-images/"))
+      .map(entry => ({ asset: new URL(entry.name).pathname.split("/").at(-1), bytes: entry.encodedBodySize, transfer: entry.transferSize })));
+    const initialBytes = resources.reduce((sum, resource) => sum + resource.bytes, 0);
+    console.log(`NEW PRODUCT IMAGE ${testInfo.project.name} ${product.name}: ${JSON.stringify({ initialBytes, resources })}`);
+    expect(resources.length).toBeGreaterThan(1);
+    expect(initialBytes).toBeGreaterThan(0);
+    expect(initialBytes).toBeLessThan(1_000_000);
+    expect(originals).toEqual([]);
+    expect(requested.filter(url => /-(768|1280)\.webp$/.test(url))).toHaveLength(1);
+    await expect.poll(() => main.evaluate(img => (img as HTMLImageElement).currentSrc)).toMatch(/-(768|1280)\.webp$/);
+    await dialog.screenshot({ path: testInfo.outputPath("new-product-derivatives.png") });
+
+    // Selecting a second view loads one more responsive image, not its original.
+    await dialog.getByRole("button", { name: "Ver imagen 2", exact: true }).click();
+    await expect(main).toHaveAttribute("alt", /imagen 2 de/);
+    await expect.poll(() => main.evaluate(img => (img as HTMLImageElement).complete && (img as HTMLImageElement).naturalWidth > 0)).toBe(true);
+    await expect.poll(() => requested.filter(url => /-(768|1280)\.webp$/.test(url)).length).toBe(2);
+    expect(originals).toEqual([]);
+  });
+}
+
 test("ficha en frío usa derivados; originales solo para zoom y fallback", async ({ page, context }, testInfo) => {
   const originalRequests: string[] = [];
   const errors: string[] = [];
