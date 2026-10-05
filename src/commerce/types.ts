@@ -2,14 +2,15 @@
 
 export type CommerceProduct = {
   id: string;
+  /** Referencia oficial; "" mientras no esté asignada. La identidad es id. */
   sku: string;
   nombre: string;
   categoria: string;
   subcategoria: string;
-  /** Precio comercial numérico; la moneda se aplica únicamente al presentarlo. */
-  precio: number;
+  /** Precio positivo, o null si está pendiente (Excel vacío/0). */
+  precio: number | null;
   /**
-   * Disponibilidad comercial: true = visible y comprable ("Con stock");
+   * Disponibilidad comercial: true = "Con stock" y puede pedirse, con o sin precio;
    * false = visible pero no comprable ("Sin stock", se retira del carrito).
    * No hay stock numérico ni bandera activo/inactivo.
    */
@@ -55,5 +56,6 @@ export type CartNotice =
 export type PresentedLine = {
   line: CartLine;
   product: CommerceProduct;
-  subtotal: number;
+  /** null si la línea todavía no tiene un importe monetario calculable. */
+  subtotal: number | null;
 };

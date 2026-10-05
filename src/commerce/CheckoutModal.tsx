@@ -23,6 +23,7 @@ import {
   type OrderAttemptStatus,
 } from "./orderAttempt";
 import type { PresentedLine } from "./types";
+import { hasPrice } from "./productEligibility";
 import { TurnstileWidget, turnstileEnabled, turnstileSiteKey } from "./TurnstileWidget";
 
 export const CHECKOUT_HERO_SRC = "/checkout/checkout-hero-raptor.webp";
@@ -31,7 +32,7 @@ type CheckoutModalProps = {
   open: boolean;
   onClose: () => void;
   presented: PresentedLine[];
-  total: number;
+  total: number | null;
   clearCart: () => void;
   submitFn?: typeof submitOrder;
 };
@@ -566,15 +567,15 @@ export function CheckoutModal({
                       {line.qty} {line.qty === 1 ? "unidad" : "unidades"}
                     </span>
                   </div>
-                  <span className="checkout-line-subtotal">
+                  {hasPrice(product) && subtotal != null ? <span className="checkout-line-subtotal">
                     {formatPrice(subtotal)}
-                  </span>
+                  </span> : null}
                 </li>
               ))}
             </ul>
-            <p className="checkout-total">
+            {total != null && presented.length > 0 && presented.every(({ product }) => hasPrice(product)) ? <p className="checkout-total">
               <span>Total</span> <strong>{formatPrice(total)}</strong>
-            </p>
+            </p> : null}
             <p className="future-note">
               Precio y stock se reconfirman al procesar el pedido.
             </p>

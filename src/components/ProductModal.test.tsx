@@ -34,6 +34,29 @@ const props = {
 };
 
 describe("ProductModal comercial", () => {
+  it.each([null, 0])("precio %s: muestra ficha sin precio/SKU pero permite pedir", precio => {
+    const onAdd = vi.fn();
+    render(<ProductModal {...props} product={{ ...raptor, precio, sku: "", ean: "" }} onAdd={onAdd} />);
+    const dialog = screen.getByRole("dialog", { name: "Raptor+" });
+    expect(dialog).toBeVisible();
+    expect(dialog).not.toHaveTextContent(/NaN|\$|SKU|Consultar precio/);
+    expect(screen.queryByText("Precio")).toBeNull();
+    expect(screen.queryByText("Referencia")).toBeNull();
+    expect(screen.getByRole("group", { name: "Cantidad" })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Agregar una unidad" }));
+    fireEvent.click(screen.getByRole("button", { name: "Agregar al pedido" }));
+    expect(onAdd).toHaveBeenCalledWith(2);
+  });
+
+  it("SKU pendiente no impide comprar si existe precio; EAN no lleva separador inicial", () => {
+    const onAdd = vi.fn();
+    render(<ProductModal {...props} product={{ ...raptor, sku: "" }} onAdd={onAdd} />);
+    expect(screen.queryByText("Referencia")).toBeNull();
+    expect(screen.queryByText(/SKU/)).toBeNull();
+    expect(screen.getByText(`EAN ${raptor.ean}`)).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "Agregar al pedido" }));
+    expect(onAdd).toHaveBeenCalledWith(1);
+  });
   it("muestra precio, disponibilidad e imágenes desde el catálogo y agrega al pedido", () => {
     const onAdd = vi.fn();
     const onClose = vi.fn();

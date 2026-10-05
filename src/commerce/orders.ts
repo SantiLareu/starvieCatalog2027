@@ -112,7 +112,8 @@ export function validateContact(contact: CheckoutContact): ContactErrors {
 
 /**
  * Construye el payload solo con líneas vigentes (presentadas: existen y
- * disponible=true) y cantidades enteras >= 1. Sin precio/subtotal/total.
+ * disponible=true, con o sin precio) y cantidades enteras >= 1.
+ * Sin precio/subtotal/total en el payload.
  */
 export function buildOrderPayload(
   presented: PresentedLine[],

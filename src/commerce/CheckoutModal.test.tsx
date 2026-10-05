@@ -102,7 +102,7 @@ function renderModal(overrides = {}) {
     presented,
     total: 1000,
     clearCart: vi.fn(),
-    submitFn: vi.fn(async () => ({
+    submitFn: vi.fn(async (_payload: OrderPayload) => ({
       kind: "completed" as const,
       orderId: "ord-1",
     })),
@@ -113,6 +113,37 @@ function renderModal(overrides = {}) {
 }
 
 describe("CheckoutModal", () => {
+  it("envía una línea sin precio, ocultando importes y preservando identidad/cantidad", async () => {
+    vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
+    const props = renderModal({ presented: [{ ...presented[0], product: { ...product, precio: null, sku: "" }, subtotal: null }], total: null });
+    fillValidForm();
+    const button = screen.getByRole("button", { name: "Enviar pedido" });
+    expect(button).toBeEnabled();
+    expect(document.querySelector(".checkout-total")).toBeNull();
+    expect(document.querySelector(".checkout-line-subtotal")).toBeNull();
+    expect(screen.getByRole("dialog")).not.toHaveTextContent(/NaN|\$/);
+    fireEvent.click(button);
+    await waitFor(() => expect(props.submitFn).toHaveBeenCalledOnce());
+    expect(vi.mocked(props.submitFn).mock.calls[0][0].lines).toEqual([presented[0].line]);
+    expect(JSON.stringify(vi.mocked(props.submitFn).mock.calls[0][0])).not.toMatch(/precio|subtotal|total/);
+  });
+
+  it("un intento previo puede consultarse aunque el precio haya sido retirado", async () => {
+    vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
+    orderAttempt.prepareAttempt({ name: "Cliente", legalName: "Empresa", email: "test@example.com" }, [presented[0].line]);
+    const original = orderAttempt.getAttemptSession();
+    const submitFn = vi.fn(async (_payload: OrderPayload) => ({ kind: "unknown" as const, message: "Sin confirmar" }));
+    const props = renderModal({ presented: [{ ...presented[0], product: { ...product, precio: null }, subtotal: null }], total: null, submitFn });
+    const button = screen.getByRole("button", { name: "Reintentar envío" });
+    expect(button).toBeEnabled();
+    fireEvent.click(button);
+    await waitFor(() => expect(props.submitFn).toHaveBeenCalledOnce());
+    expect(submitFn.mock.calls[0]).toBeDefined();
+    const sent = vi.mocked(props.submitFn).mock.calls[0][0];
+    expect(sent.idempotencyKey).toBe(original?.idempotencyKey);
+    expect(sent.lines).toEqual(original?.lines);
+    expect(sent.contact).toEqual(original?.contact);
+  });
   /* Ensure clean storage before each test (parallel tests share localStorage). */
   beforeEach(() => {
     vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
@@ -811,9 +842,10 @@ describe("CheckoutModal", () => {
     orderAttempt.updateAttempt([{ productId: "raptor+", qty: 2 }], {
       orderId: "done-reopen", status: "completed", completed: true,
     });
+    const historicalCreatedAt = new Date(Date.now() - age).toISOString();
     for (const [storage, key] of [[localStorage, "starvie-order-attempt-v2"], [sessionStorage, "starvie-order-attempt-v2-session"]] as const) {
       const stored = JSON.parse(storage.getItem(key)!);
-      stored.createdAt = new Date(Date.now() - age).toISOString();
+      stored.createdAt = historicalCreatedAt;
       storage.setItem(key, JSON.stringify(stored));
     }
     const props = renderModal();

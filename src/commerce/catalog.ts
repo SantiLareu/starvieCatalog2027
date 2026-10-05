@@ -15,10 +15,12 @@ function isValidProduct(value: unknown): value is CommerceProduct {
   if (!isRecord(value)) return false;
   return (
     typeof value.id === "string" &&
+    value.id.trim() !== "" &&
     typeof value.sku === "string" &&
     typeof value.nombre === "string" &&
-    typeof value.precio === "number" &&
-    Number.isFinite(value.precio) &&
+    value.nombre.trim() !== "" &&
+    (value.precio === null || (typeof value.precio === "number" &&
+      Number.isFinite(value.precio) && value.precio >= 0)) &&
     typeof value.disponible === "boolean" &&
     Array.isArray(value.imagenes) &&
     (value.imagenes as unknown[]).every((i) => typeof i === "string")
@@ -29,7 +31,9 @@ export function isValidCatalog(data: unknown): data is CommerceCatalog {
   if (!isRecord(data)) return false;
   if (data.schemaVersion !== COMMERCE_SCHEMA_VERSION) return false;
   if (!Array.isArray(data.products)) return false;
-  return (data.products as unknown[]).every(isValidProduct);
+  if (!(data.products as unknown[]).every(isValidProduct)) return false;
+  const ids = (data.products as CommerceProduct[]).map(product => product.id);
+  return new Set(ids).size === ids.length;
 }
 
 export function isValidVersionManifest(data: unknown): data is ProductsVersionManifest {

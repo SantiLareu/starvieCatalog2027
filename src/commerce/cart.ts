@@ -4,10 +4,11 @@
  *
  * El precio y la disponibilidad NUNCA se leen de localStorage: siempre del
  * catálogo en memoria, que es la copia vigente de generated/products.json.
- * Una línea es válida si el producto existe y disponible === true.
+ * Una línea es válida si existe y disponible === true, con o sin precio.
  * La cantidad no tiene máximo asociado a inventario (mínimo 1).
  */
 import type { CartLine, CartNotice, CommerceProduct, PresentedLine } from "./types";
+import { hasPrice, isPurchasable } from "./productEligibility";
 
 export const CART_STORAGE_KEY = "starvie-cart-v1";
 
@@ -83,11 +84,15 @@ export function cartUnits(lines: CartLine[]): number {
   return lines.reduce((sum, line) => sum + line.qty, 0);
 }
 
-export function cartTotal(lines: CartLine[], byId: Map<string, CommerceProduct>): number {
-  return lines.reduce((sum, line) => {
+export function cartTotal(lines: CartLine[], byId: Map<string, CommerceProduct>): number | null {
+  let total = 0;
+  for (const line of lines) {
     const product = byId.get(line.productId);
-    return sum + (product ? product.precio * line.qty : 0);
-  }, 0);
+    if (!product || !isPurchasable(product)) continue;
+    if (!hasPrice(product)) return null;
+    total += product.precio * line.qty;
+  }
+  return Number.isFinite(total) ? total : null;
 }
 
 /** Enriquece líneas con producto vigente y subtotal (precio ACTUAL). */
@@ -95,8 +100,9 @@ export function presentLines(lines: CartLine[], byId: Map<string, CommerceProduc
   const out: PresentedLine[] = [];
   for (const line of lines) {
     const product = byId.get(line.productId);
-    if (!product || !product.disponible) continue;
-    out.push({ line, product, subtotal: product.precio * line.qty });
+    if (!product || !isPurchasable(product)) continue;
+    const subtotal = hasPrice(product) ? product.precio * line.qty : null;
+    out.push({ line, product, subtotal: subtotal != null && Number.isFinite(subtotal) ? subtotal : null });
   }
   return out;
 }
@@ -105,8 +111,7 @@ export function presentLines(lines: CartLine[], byId: Map<string, CommerceProduc
  * Reconcilia el carrito contra un catálogo nuevo:
  * - producto inexistente → se retira (aviso "removed");
  * - disponible false → se retira (aviso "out-of-stock");
- * - el precio nuevo siempre gana (se usa el vigente, sin snapshots),
- *   en silencio: los cambios de precio no generan avisos.
+ * - precio informado o pendiente se actualiza en silencio, sin snapshots.
  * La cantidad nunca se reduce: no hay tope de inventario.
  */
 export function reconcileLines(
@@ -132,7 +137,7 @@ export function reconcileLines(
 
 /**
  * Redacción visible de un aviso de carrito (banner + toast).
- * Solo disponibilidad: no existen cantidades de inventario ni avisos de precio.
+ * Avisos de disponibilidad; los cambios de precio no generan avisos.
  */
 export function formatNotice(notice: CartNotice): string {
   switch (notice.type) {

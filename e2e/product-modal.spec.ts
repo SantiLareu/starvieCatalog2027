@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { formatPrice } from "../src/commerce/money";
 
 async function openRaptor(page: import("@playwright/test").Page) {
   await page.goto("/");
@@ -19,7 +20,10 @@ async function openRaptor(page: import("@playwright/test").Page) {
 test("la ficha usa paleta StarVie oscura, pesos y miniaturas sin superposición", async ({ page }, testInfo) => {
   const dialog = await openRaptor(page);
   await expect(dialog).toBeVisible();
-  await expect(dialog).toContainText("500,00 $");
+  const catalog = await (await page.request.get("/products.json")).json();
+  const product = catalog.products.find((candidate: { id: string }) => candidate.id === "raptor+");
+  if (product.precio != null && product.precio > 0) await expect(dialog).toContainText(formatPrice(product.precio));
+  else await expect(dialog.locator(".product-prices small", { hasText: "Precio" })).toHaveCount(0);
   await expect(dialog).not.toContainText("€");
   await expect(dialog).not.toContainText(/Pág\.\s*17/);
 

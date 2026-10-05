@@ -30,6 +30,7 @@ import { byId, loadPublishedCommerce } from "./catalog";
 import { APP_POLL_INTERVAL_MS, COMMERCE_POLL_INTERVAL_MS, createAppChecker, createCatalogChecker, startPolling } from "./polling";
 import type { CartLine, CartNotice, CommerceCatalog, CommerceProduct, PresentedLine } from "./types";
 import { presentLines } from "./cart";
+import { isPurchasable } from "./productEligibility";
 
 declare const __STARVIE_APP_VERSION__: string | undefined;
 
@@ -47,7 +48,7 @@ type CommerceContextValue = {
   lines: CartLine[];
   presented: PresentedLine[];
   units: number;
-  total: number;
+  total: number | null;
   addToCart: (productId: string, qty: number) => void;
   setQty: (productId: string, qty: number) => void;
   removeFromCart: (productId: string) => void;
@@ -184,7 +185,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
   const addToCart = useCallback(
     (productId: string, qty: number) => {
       const product = map.get(productId);
-      if (!product || !product.disponible) {
+      if (!product || !isPurchasable(product)) {
         showToast("Este producto no está disponible ahora.");
         return;
       }

@@ -5,6 +5,7 @@ import { formatNotice } from "./cart";
 import { CHECKOUT_HERO_SRC, CheckoutModal } from "./CheckoutModal";
 import { formatPrice } from "./money";
 import { getStoredAttemptStatus, getStoredSessionPresence } from "./orderAttempt";
+import { hasPrice } from "./productEligibility";
 
 export function CartDrawer() {
   const {
@@ -129,10 +130,10 @@ export function CartDrawer() {
                 <li key={line.productId} className="cart-line">
                   <div className="cart-line-info">
                     <strong>{product.nombre}</strong>
-                    <small>SKU {product.sku}</small>
-                    <span className="cart-line-price">
+                    {product.sku ? <small>SKU {product.sku}</small> : null}
+                    {hasPrice(product) ? <span className="cart-line-price">
                       {formatPrice(product.precio)} c/u
-                    </span>
+                    </span> : null}
                   </div>
                   <div className="cart-line-controls">
                     <div
@@ -156,9 +157,9 @@ export function CartDrawer() {
                         +
                       </button>
                     </div>
-                    <span className="cart-line-subtotal">
+                    {hasPrice(product) && subtotal != null ? <span className="cart-line-subtotal">
                       {formatPrice(subtotal)}
-                    </span>
+                    </span> : null}
                     <button
                       className="cart-line-remove"
                       type="button"
@@ -172,10 +173,10 @@ export function CartDrawer() {
               ))}
             </ul>
             <footer className="cart-footer">
-              <div className="cart-total">
+              {total != null && presented.every(({ product }) => hasPrice(product)) ? <div className="cart-total">
                 <span>Total</span>
                 <strong>{formatPrice(total)}</strong>
-              </div>
+              </div> : null}
               <button
                 className="order-button is-active"
                 type="button"

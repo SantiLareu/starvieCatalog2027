@@ -52,6 +52,27 @@ function mockCommerce(overrides: Record<string, unknown> = {}) {
 }
 
 describe("CartDrawer: banner de avisos", () => {
+  it("conserva cantidades y finalizar pedido sin mostrar total parcial ni SKU vacío", () => {
+    const setQty = vi.fn();
+    mockCommerce({ presented: [
+      { line: { productId: raptor.id, qty: 2 }, product: { ...raptor, precio: null, sku: "" }, subtotal: null },
+      { line: { productId: "otro", qty: 1 }, product: { ...raptor, id: "otro", nombre: "Otro" }, subtotal: 345 },
+    ], total: null, units: 3, setQty });
+    render(<CartDrawer />);
+    expect(document.querySelectorAll(".cart-line")).toHaveLength(2);
+    expect(document.querySelector(".cart-total")).toBeNull();
+    expect(document.querySelectorAll(".cart-line-subtotal")).toHaveLength(1);
+    expect(screen.getByRole("dialog", { name: "Pedido" })).not.toHaveTextContent("NaN");
+    expect(screen.getByRole("button", { name: "Finalizar pedido" })).toBeEnabled();
+    fireEvent.click(screen.getAllByRole("button", { name: "Agregar una unidad" })[0]);
+    expect(setQty).toHaveBeenCalledWith(raptor.id, 3);
+  });
+  it("no muestra una fila SKU vacía para productos con precio", () => {
+    mockCommerce({ presented: [{ line: { productId: raptor.id, qty: 1 }, product: { ...raptor, sku: "" }, subtotal: 345 }], total: 345, units: 1 });
+    render(<CartDrawer />);
+    expect(screen.getByRole("dialog", { name: "Pedido" })).not.toHaveTextContent("SKU");
+    expect(screen.getByRole("button", { name: "Finalizar pedido" })).toBeEnabled();
+  });
   it("agrupa varios cambios con título y detalle legible", () => {
     mockCommerce({
       cartNotices: [

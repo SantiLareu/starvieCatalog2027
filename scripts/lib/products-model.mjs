@@ -36,7 +36,9 @@ export const HEADERS = [
 
 /**
  * Columnas obligatorias del Excel (deben existir como encabezados).
- * Valores obligatorios por fila: id, sku, nombre, precio, disponible.
+ * Valores obligatorios por fila: id, nombre, disponible.
+ * precio vacío o 0 = null (pendiente); sku vacío = "" (pendiente).
+ * Los SKU informados siguen siendo únicos; los vacíos no se comparan.
  * Valores opcionales (pueden quedar vacíos para cualquier categoría, p. ej.
  * productos que no sean palas): categoria, subcategoria, gama, tipoJuego,
  * forma, plano, peso, balance, ean y pagina (vacía = null, sin hotspot
@@ -143,11 +145,19 @@ export function parseDisponible(raw) {
 }
 
 function parsePrecio(raw) {
-  if (isEmpty(raw)) return { error: "precio faltante (es obligatorio)" };
+  if (raw === null || raw === undefined || raw === "") return { value: null };
+  // No aceptar coerciones de booleanos, objetos, whitespace o notación hexadecimal.
+  if (typeof raw !== "number" && (typeof raw !== "string" ||
+      !/^[+-]?(?:\d+(?:[.,]\d*)?|[.,]\d+)(?:[eE][+-]?\d+)?$/.test(raw.trim()))) {
+    return { error: `precio inválido: ${JSON.stringify(raw)}` };
+  }
   const value = Number(String(raw).replace(",", "."));
   if (!Number.isFinite(value)) return { error: `precio inválido: ${JSON.stringify(raw)}` };
-  if (value <= 0) return { error: `precio no positivo: ${JSON.stringify(raw)}` };
-  return { value: Math.round(value * 100) / 100 };
+  if (value < 0) return { error: `precio negativo: ${JSON.stringify(raw)}` };
+  if (value === 0) return { value: null };
+  const rounded = Math.round(value * 100) / 100;
+  // Conservar cualquier positivo; no convertir subcentavos en ausencia ni desbordar.
+  return { value: Number.isFinite(rounded) && rounded > 0 ? rounded : value };
 }
 
 function parsePagina(raw) {
@@ -190,15 +200,11 @@ export function validateRows(rows, options = {}) {
       return;
     }
     seenIds.set(id, line);
-    if (!sku) {
-      fail(`"${id}": sku faltante`);
-      return;
-    }
-    if (seenSkus.has(sku)) {
+    if (sku && seenSkus.has(sku)) {
       fail(`"${id}": sku duplicado: "${sku}" (también en fila ${seenSkus.get(sku)})`);
       return;
     }
-    seenSkus.set(sku, line);
+    if (sku) seenSkus.set(sku, line);
     if (!nombre) {
       fail(`"${id}": nombre faltante`);
       return;

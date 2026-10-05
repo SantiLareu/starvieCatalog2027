@@ -3,6 +3,7 @@ import {
   addLine,
   cartTotal,
   cartUnits,
+  presentLines,
   formatNotice,
   loadCart,
   reconcileLines,
@@ -36,6 +37,19 @@ const raptor = (overrides = {}) => ({
 const byId = (products: CommerceProduct[]) => new Map(products.map((p) => [p.id, p]));
 
 describe("carrito: operaciones", () => {
+  it.each([null, 0])("conserva líneas con precio %s al hidratar/actualizar y deja el total incompleto", precio => {
+    const map = byId([raptor({ precio }), raptor({ id: "otro", sku: "", precio: 100 })]);
+    const lines = [{ productId: "raptor-plus", qty: 2 }, { productId: "otro", qty: 1 }];
+    expect(reconcileLines(lines, map)).toEqual({
+      lines,
+      notices: [],
+    });
+    expect(presentLines(lines, map).map(({ line }) => line)).toEqual(lines);
+    expect(presentLines(lines, map).map(({ subtotal }) => subtotal)).toEqual([null, 100]);
+    expect(cartTotal(lines, map)).toBeNull();
+    const updated = byId([raptor({ precio: 320 }), raptor({ id: "otro", precio: 100 })]);
+    expect(cartTotal(lines, updated)).toBe(740);
+  });
   it("agrega, incrementa, decrementa vía setQty, elimina y vacía", () => {
     let lines = addLine([], "raptor-plus", 1);
     expect(lines).toEqual([{ productId: "raptor-plus", qty: 1 }]);

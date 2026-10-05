@@ -128,6 +128,18 @@ describe("checkout: validación del formulario", () => {
 
 /* ── checkout: payload ─────────────────────────────────────────────── */
 describe("checkout: payload", () => {
+  it.each([null, 0, 500])("envía identidad y cantidad con precio %s sin añadir importes al payload", precio => {
+    const pending = presented({ product: product({ precio }) });
+    const payload = buildOrderPayload(pending, contact(), "key");
+    expect(payload?.lines).toEqual([{ productId: "raptor+", qty: 2 }]);
+    expect(JSON.stringify(payload)).not.toMatch(/precio|subtotal|total/);
+    expect(buildOrderPayload([...presented(), ...pending], contact(), "key")?.lines).toHaveLength(2);
+  });
+
+  it("SKU vacío no afecta la identidad ni el payload de un producto con precio", () => {
+    expect(buildOrderPayload(presented({ product: product({ sku: "" }) }), contact(), "key")?.lines)
+      .toEqual([{ productId: "raptor+", qty: 2 }]);
+  });
   it("manda identidad + cantidad, sin precios ni totales", () => {
     const payload = buildOrderPayload(presented(), contact(), "key-1");
     expect(payload).toMatchObject({

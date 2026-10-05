@@ -105,9 +105,35 @@ describe("importador: validaciones", () => {
   it("rechaza nombre faltante, precio inválido y disponible inválido", () => {
     expect(validateRows([{ ...baseRow(), nombre: " " }]).errors.some((e) => e.includes("nombre"))).toBe(true);
     expect(validateRows([{ ...baseRow(), precio: "caro" }]).errors.some((e) => e.includes("precio"))).toBe(true);
-    expect(validateRows([{ ...baseRow(), precio: 0 }]).errors.some((e) => e.includes("precio"))).toBe(true);
+    expect(validateRows([{ ...baseRow(), precio: -1 }]).errors.some((e) => e.includes("precio"))).toBe(true);
     expect(validateRows([{ ...baseRow(), disponible: "quizás" }]).errors.some((e) => e.includes("disponible"))).toBe(true);
     expect(validateRows([{ ...baseRow(), disponible: "" }]).errors.some((e) => e.includes("disponible"))).toBe(true);
+  });
+
+  it.each([null, undefined, "", 0, "0", "0,00"])("normaliza precio %s a null y lo serializa", precio => {
+    const result = validateRows([{ ...baseRow(), precio, sku: "" }]);
+    expect(result.errors).toEqual([]);
+    expect(result.products[0]).toMatchObject({ precio: null, sku: "" });
+    expect(JSON.parse(serializeCatalog(result.products)).products[0].precio).toBeNull();
+  });
+
+  it.each([-1, "-0,01", "basura", " ", false, true, [], {}, "0x20", Infinity, NaN])("rechaza precio inválido %s sin convertirlo en cero", precio => {
+    expect(validateRows([{ ...baseRow(), precio }]).errors.some(error => error.includes("precio"))).toBe(true);
+  });
+
+  it.each([320, "320,50", 0.001])("acepta precio positivo %s", precio => {
+    const result = validateRows([{ ...baseRow(), precio }]);
+    expect(result.errors).toEqual([]);
+    expect(result.products[0].precio).toBeGreaterThan(0);
+  });
+
+  it("permite múltiples SKU vacíos sin relajar id/nombre ni inventar referencias", () => {
+    const result = validateRows([baseRow(), { ...baseRow(), id: "a", sku: "" }, { ...baseRow(), id: "b", sku: null }]);
+    expect(result.errors).toEqual([]);
+    expect(result.products.filter(product => product.sku === "")).toHaveLength(2);
+    expect(validateRows([{ ...baseRow(), id: "", sku: "" }]).errors[0]).toContain("id faltante");
+    expect(validateRows([{ ...baseRow(), sku: "" }, { ...baseRow(), sku: "" }]).errors[0]).toContain("id duplicado");
+    expect(validateRows([{ ...baseRow(), nombre: "", sku: "" }]).errors[0]).toContain("nombre faltante");
   });
 
   it("acepta el formato natural de Excel VERDADERO/FALSO y variantes", () => {

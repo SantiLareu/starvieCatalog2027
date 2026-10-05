@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { hotspots, hotspotsForPage, products, selectLiveHotspots } from "./CatalogData";
+import commerceCatalog from "../../generated/products.json";
 
 const EXPECTED_BY_PRODUCT: Record<string, string> = {
   eternal: "page-15",
@@ -14,13 +15,13 @@ const EXPECTED_BY_PRODUCT: Record<string, string> = {
   "drax+": "page-24",
   shade: "page-25",
   kyra: "page-26",
-  "hard eva black": "page-28",
+  "hard eva black bag": "page-28",
   "hard eva eternal": "page-29",
   "t-one pro": "page-30",
   "pro master": "page-31",
   star: "page-32",
   "neon strike": "page-33",
-  "hard eva black bag": "page-34",
+  "m hard eva black": "page-34",
   "artic sport": "page-35",
   "black voltage": "page-36",
   "neceser navy": "page-37",
@@ -29,9 +30,9 @@ const EXPECTED_BY_PRODUCT: Record<string, string> = {
   "power balance": "page-38",
   "overgrip premier soft": "page-38",
   "overgrip tacky touch": "page-38",
-  "muñequera wristband white": "page-38",
-  "muñequera wristband blue": "page-38",
-  "muñequera wristband black 2 pack": "page-38",
+  "muñequera Wristband white": "page-38",
+  "muñequera Wristband blue": "page-38",
+  "muñequera Wristband black x2": "page-38",
   "protector transparent carbon": "page-38",
   "key ring": "page-38",
 };
@@ -46,6 +47,14 @@ function overlaps(a: (typeof hotspots)[number], b: (typeof hotspots)[number]) {
 }
 
 describe("CatalogData", () => {
+  it("resuelve los productos actuales de P28/P34 y muñequeras en su página exacta", () => {
+    for (const id of ["hard eva black bag", "m hard eva black", "muñequera Wristband white", "muñequera Wristband blue", "muñequera Wristband black x2"]) {
+      const product = commerceCatalog.products.find(candidate => candidate.id === id);
+      expect(product).toBeDefined();
+      expect(hotspots.filter(hotspot => hotspot.productId === id).map(hotspot => hotspot.pageId))
+        .toEqual([`page-${product!.pagina}`]);
+    }
+  });
   it("mantiene los hotspots dentro de coordenadas porcentuales válidas", () => {
     for (const hotspot of hotspots) {
       expect(hotspot.x).toBeGreaterThanOrEqual(0);

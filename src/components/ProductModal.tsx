@@ -11,6 +11,7 @@ import {
 import { createPortal } from "react-dom";
 import type { CommerceProduct } from "../commerce/types";
 import { formatPrice } from "../commerce/money";
+import { hasPrice, isPurchasable } from "../commerce/productEligibility";
 import { ProductImage, assetUrl } from "./ProductImage";
 import { ProductGalleryImage } from "./ProductGalleryImage";
 export { assetUrl } from "./ProductImage";
@@ -337,7 +338,7 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
     setIsDragging(false);
   }, [startPinchGesture]);
 
-  const purchasable = product.disponible;
+  const purchasable = isPurchasable(product);
   const safeQty = Math.max(1, qty);
 
   // Ficha categoría-agnóstica: los campos técnicos de pala (gama, tipoJuego,
@@ -478,13 +479,13 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
         <div className="product-details">
           {product.gama ? <p className="product-range">{product.gama}</p> : null}
           <h2 id="product-modal-title">{product.nombre}</h2>
-          <dl>
+          {specs.length > 0 ? <dl>
             {specs.map(([label, value]) => (
               <div key={label}><dt>{label}</dt><dd>{value}</dd></div>
             ))}
-          </dl>
+          </dl> : null}
           <div className="product-prices">
-            <span><small>Precio</small>{formatPrice(product.precio)}</span>
+            {hasPrice(product) ? <span><small>Precio</small>{formatPrice(product.precio)}</span> : null}
             <span className="stock-line">
               <small>Disponibilidad</small>
               {product.disponible ? (
@@ -525,13 +526,13 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
                 Agregar al pedido
               </button>
             </div>
-          ) : (
+          ) : !product.disponible ? (
             <button className="order-button" type="button" disabled title="Sin stock disponible">
               Sin stock
             </button>
-          )}
+          ) : null}
           {cartQty > 0 ? <p className="future-note">Ya tenés {cartQty} u. en el pedido.</p> : null}
-          <p className="future-note">SKU {product.sku}{product.ean ? ` · EAN ${product.ean}` : ""}</p>
+          {product.sku || product.ean ? <p className="future-note">{[product.sku ? `SKU ${product.sku}` : "", product.ean ? `EAN ${product.ean}` : ""].filter(Boolean).join(" · ")}</p> : null}
         </div>
       </section>
     </div>,
