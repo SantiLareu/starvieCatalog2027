@@ -10,6 +10,32 @@
   pointer-events: auto;
 }
 
+/* Espacio libre entre el logo y Paleteros; fuera de las esquinas de giro. */
+.section-index-instruction {
+  position: absolute;
+  left: 7.5%;
+  top: 16.5%;
+  transform: translateY(-50%);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 0;
+  color: #383838;
+  font-size: clamp(.625rem, 1vw, .8125rem);
+  font-weight: 500;
+  line-height: 1.2;
+  letter-spacing: .02em;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+.section-index-instruction svg {
+  flex: none;
+  width: 1.15em;
+  height: 1.15em;
+  color: #c9211f;
+}
+
 .section-index-hotspot {
   position: absolute;
   padding: 0;

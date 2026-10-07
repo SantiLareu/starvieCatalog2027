@@ -23,12 +23,28 @@ async function swipe(page: Page, context: BrowserContext, index: number) {
   await cdp.detach();
 }
 
-test("P27 conserva el PDF, muestra sólo Ver y navega por mouse/touch y teclado", async ({ page, isMobile }) => {
+test("P27 conserva el PDF, explica el índice y navega por mouse/touch y teclado", async ({ page, isMobile }, testInfo) => {
   await page.goto("/");
   await goToPage(page, 27);
   const layer = page.locator('.catalog-leaf[data-book-index="27"] .section-index-layer');
   await expect(layer).toHaveAttribute("data-live", "true");
   await expect(page.locator('.catalog-leaf[data-book-index="27"] img[data-catalog-page="27"]')).toBeVisible();
+  const instruction = layer.locator(".section-index-instruction");
+  await expect(instruction).toHaveText("Seleccioná un producto para verlo");
+  await expect(instruction).toBeVisible();
+  await expect(instruction).toHaveCSS("pointer-events", "none");
+  await expect(layer.getByRole("button")).toHaveCount(11);
+  const instructionBox = (await instruction.boundingBox())!;
+  const leafBox = (await layer.boundingBox())!;
+  expect(instructionBox.x).toBeGreaterThan(leafBox.x + leafBox.width * .07);
+  expect(instructionBox.y + instructionBox.height).toBeLessThan(leafBox.y + leafBox.height * .212);
+  const hitInstruction = await page.evaluate(({ x, y }) =>
+    !!document.elementFromPoint(x, y)?.closest(".section-index-instruction"),
+  { x: instructionBox.x + instructionBox.width / 2, y: instructionBox.y + instructionBox.height / 2 });
+  expect(hitInstruction).toBe(false);
+  if (!isMobile) await expect(page.locator(".mobile-gesture-hint")).toHaveCount(0);
+  else await expect(page.locator(".mobile-gesture-hint")).toBeVisible();
+  await page.screenshot({ path: testInfo.outputPath("p27-ux.png") });
   const eternal = layer.getByRole("button", { name: /hard eva eternal:/i });
   if (!isMobile) {
     await eternal.hover();

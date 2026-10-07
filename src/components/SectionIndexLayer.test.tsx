@@ -27,6 +27,7 @@ describe("SectionIndexLayer", () => {
     render(<SectionIndexLayer hotspots={sectionIndexForPage("page-27")} live onNavigate={onNavigate} />);
     const buttons = screen.getAllByRole("button");
     expect(buttons).toHaveLength(11);
+    expect(screen.getByText("Seleccioná un producto para verlo")).toBeVisible();
     fireEvent.click(screen.getByRole("button", { name: /hard eva eternal: ver en página 29/i }));
     expect(onNavigate).toHaveBeenCalledWith(29);
     fireEvent.click(screen.getByRole("button", { name: /wash bag moss: ver en página 37/i }));

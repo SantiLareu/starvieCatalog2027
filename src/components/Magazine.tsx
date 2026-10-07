@@ -124,20 +124,6 @@ export function Magazine({ catalog }: MagazineProps) {
   const [pagePickerOpen, setPagePickerOpen] = useState(false);
   const [pageInput, setPageInput] = useState("1");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const [gestureHintDismissed, setGestureHintDismissed] = useState(() => {
-    try { return sessionStorage.getItem("starvie-mobile-gesture-seen") === "1"; }
-    catch { return false; }
-  });
-  const dismissGestureHint = useCallback(() => {
-    setGestureHintDismissed(true);
-    try { sessionStorage.setItem("starvie-mobile-gesture-seen", "1"); } catch { /* Storage can be unavailable. */ }
-  }, []);
-  useEffect(() => {
-    if (orientation !== "portrait" || !coverReady || gestureHintDismissed) return;
-    // This timeout only limits the onboarding hint; navigation has no timer.
-    const timeout = window.setTimeout(dismissGestureHint, 4500);
-    return () => window.clearTimeout(timeout);
-  }, [orientation, coverReady, gestureHintDismissed, dismissGestureHint]);
   const {
     catalogError,
     productNames,
@@ -410,7 +396,6 @@ export function Magazine({ catalog }: MagazineProps) {
     // A turn owns the physical spread until "read". Discard new requests
     // instead of resolving them against the old index or queueing more turns.
     if (transitionRef.current || engineRef.current?.isTurning() || selectedProductId != null || cartOpen) return false;
-    if (orientation === "portrait" && !gestureHintDismissed) dismissGestureHint();
     if (request.kind === "jump") {
       if (request.index < 0 || request.index >= bookPages.length) return false;
       const sameSpread = request.index === activeIndexRef.current ||
@@ -474,8 +459,6 @@ export function Magazine({ catalog }: MagazineProps) {
     cartOpen,
     setExperienceMode,
     orientation,
-    gestureHintDismissed,
-    dismissGestureHint,
     backCoverState,
     collectionStartIndex,
     backCoverOpenIndex,
@@ -767,8 +750,7 @@ export function Magazine({ catalog }: MagazineProps) {
         </div>
       </aside>
 
-      <section className="magazine-stage" aria-label="Catálogo StarVie 2027"
-        onPointerDownCapture={() => { if (orientation === "portrait" && !gestureHintDismissed) dismissGestureHint(); }}>
+      <section className="magazine-stage" aria-label="Catálogo StarVie 2027">
         <div className="stage-glow" aria-hidden="true" />
         <PageFlipEngine
           ref={engineRef}
@@ -815,7 +797,7 @@ export function Magazine({ catalog }: MagazineProps) {
           </button>
         </nav>
 
-        {orientation === "portrait" && coverReady && !gestureHintDismissed && !isBookTransitioning && !selectedProductId && !cartOpen && !drawerOpen && !pagePickerOpen ? (
+        {orientation === "portrait" && coverReady && !selectedProductId && !cartOpen && !drawerOpen && !pagePickerOpen ? (
           <div className="mobile-gesture-hint" role="status">
             <svg className="mobile-gesture-hint__hand" viewBox="0 0 32 32" width="30" height="30" aria-hidden="true">
               <path d="M13 17V7a2 2 0 0 1 4 0v8l2-1 3 1 3 2v7c0 4-3 6-7 6h-2l-8-9a2 2 0 0 1 3-3l2 2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />

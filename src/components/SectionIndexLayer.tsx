@@ -21,6 +21,12 @@ export function SectionIndexLayer({ hotspots, live, onNavigate }: SectionIndexLa
       aria-hidden={!live}
       inert={!live}
     >
+      <p className="section-index-instruction">
+        <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+          <path d="m5 3 13 9-6 1-3 6-4-16Zm7 10 4 7" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span>Seleccioná un producto para verlo</span>
+      </p>
       {hotspots.map((hotspot) => (
         <button
           key={hotspot.id}
