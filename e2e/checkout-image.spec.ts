@@ -62,10 +62,50 @@ test("el checkout usa el WebP precargado desde el carrito solo en desktop", asyn
     await expect(page.locator(".checkout-visual")).toBeHidden();
     expect(heroRequests).toHaveLength(0);
   } else {
+    await expect(image).toHaveCSS("object-fit", "cover");
+    await expect(image).toHaveCSS("object-position", "15% 50%");
     await expect.poll(() => image.evaluate(el => (el as HTMLImageElement).complete && (el as HTMLImageElement).naturalWidth > 0)).toBe(true);
     expect(heroRequests).toHaveLength(1);
     const loadedFrame = await page.locator(".checkout-modal").evaluate(el => [el.clientWidth, el.clientHeight]);
     expect(loadedFrame).toEqual(initialFrame);
   }
   await expect(page.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
+});
+
+test("el drawer conserva scroll y los cierres claros funcionan en carrito y checkout", async ({ page }, testInfo) => {
+  await page.route("**/api/orders", route => route.abort());
+  const catalog = await (await page.request.get("/products.json")).json();
+  const lines = catalog.products.filter((product: { disponible: boolean }) => product.disponible)
+    .slice(0, 12).map((product: { id: string }) => ({ productId: product.id, qty: 1 }));
+  await page.addInitScript(lines => localStorage.setItem("starvie-cart-v1", JSON.stringify(lines)), lines);
+  await page.goto("/");
+  await page.getByRole("button", { name: /Abrir pedido/ }).first().click();
+  const drawer = page.getByRole("dialog", { name: "Pedido", exact: true });
+  const list = drawer.locator(".cart-lines");
+  await expect(drawer).toHaveCSS("color-scheme", "light");
+  expect(await list.evaluate(el => el.scrollHeight > el.clientHeight)).toBe(true);
+  await list.hover();
+  await page.mouse.wheel(0, 400);
+  await expect.poll(() => list.evaluate(el => el.scrollTop)).toBeGreaterThan(0);
+  const close = drawer.getByRole("button", { name: "Cerrar pedido", exact: true });
+  await page.keyboard.press("Tab");
+  await close.focus();
+  await expect(close).toHaveCSS("outline-style", "solid");
+  const assertLightClose = async (button: typeof close) => {
+    const colors = await button.evaluate(el => {
+      const css = getComputedStyle(el);
+      return [css.backgroundColor, css.color].map(color => color.match(/\d+/g)!.slice(0, 3).map(Number));
+    });
+    expect(Math.min(...colors[0])).toBeGreaterThan(200);
+    expect(Math.max(...colors[1])).toBeLessThan(80);
+  };
+  await assertLightClose(close);
+  await drawer.screenshot({ path: testInfo.outputPath("cart-light-controls.png") });
+  await drawer.getByRole("button", { name: "Finalizar pedido", exact: true }).click();
+  const checkoutClose = page.getByRole("button", { name: "Cerrar checkout", exact: true });
+  await assertLightClose(checkoutClose);
+  await checkoutClose.click();
+  await expect(drawer).toBeVisible();
+  await close.click();
+  await expect(drawer).toHaveCount(0);
 });
