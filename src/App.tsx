@@ -3,6 +3,7 @@ import { CommerceProvider } from "./commerce/CommerceContext";
 import { Magazine } from "./components/Magazine";
 import { PadelViewerLab } from "./components/PadelViewerLab";
 import type { CatalogMetadata } from "./types/catalog";
+import { pilotPageFromSearch } from "./components/mobile/mobilePilot";
 
 export default function App() {
   const isViewerLab = window.location.pathname === "/viewer-lab"
@@ -11,6 +12,7 @@ export default function App() {
 }
 
 function CatalogApp() {
+  const pilotPage = pilotPageFromSearch(window.location.search);
   const [catalog, setCatalog] = useState<CatalogMetadata | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -43,7 +45,7 @@ function CatalogApp() {
 
   return (
     <CommerceProvider>
-      <Magazine catalog={catalog} />
+      <Magazine catalog={catalog} initialOriginalPage={pilotPage ?? 1} mobileP17Pilot={pilotPage === 17} />
     </CommerceProvider>
   );
 }

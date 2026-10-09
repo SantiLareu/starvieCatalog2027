@@ -1,4 +1,4 @@
-import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PageFlip } from "page-flip";
 import { COLLECTION_LINEUP_PAGE, SECTION_COVER_ORIGINAL_PAGE, TAMARA_EDITORIAL_ID, type BookPage } from "../data/bookFlow";
 import { createHardCoverPageFlipSettings } from "../data/hardCoverMotion";
@@ -13,6 +13,8 @@ import { sectionIndexForPage } from "../data/CatalogData";
 import { BackCover, type BackCoverHandle } from "./BackCover";
 
 type PageFlipRuntime = {
+  update: () => void;
+  getUI: () => { getWrapper: () => HTMLElement };
   getOrientation: () => "portrait" | "landscape";
   getRender: () => {
     orientation: "portrait" | "landscape";
@@ -49,6 +51,9 @@ export type PageFlipHandle = {
 };
 
 type PageFlipEngineProps = {
+  initialIndex?: number;
+  /** Optional P17 leaf content. No alternative engine or gesture handlers. */
+  mobileP17Content?: ReactNode;
   pages: BookPage[];
   /** P39 como superficie visual: nunca es .catalog-leaf ni tiene índice. */
   backCoverPage: CatalogPage | undefined;
@@ -84,6 +89,8 @@ type PageFlipEngineProps = {
 export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
   function PageFlipEngine(
     {
+      initialIndex = 0,
+      mobileP17Content,
       pages,
       backCoverPage,
       activeIndex,
@@ -122,6 +129,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
     const [coverVideoRevealed, setCoverVideoRevealed] = useState(false);
     const [coverflowProductId, setCoverflowProductId] = useState<string | null>(null);
     const engineRef = useRef<PageFlip | null>(null);
+    const mobileGeometryRef = useRef(false);
     // changeState is emitted before StPageFlip updates getState(). Keep the
     // event value synchronously so input guards also work before React commits.
     const flipStateRef = useRef("read");
@@ -272,9 +280,9 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
 
       const engine = new PageFlip(
         host,
-        createHardCoverPageFlipSettings(
+        { ...createHardCoverPageFlipSettings(
           window.matchMedia("(prefers-reduced-motion: reduce)").matches,
-        ),
+        ), startPage: initialIndex },
       );
 
       // The cover is intentionally quiet at rest. PageFlip uses this setting
@@ -707,6 +715,38 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       };
     }, [isTurning, onOrientationChange, onPageChange, pages]);
 
+    useEffect(() => {
+      const engine = engineRef.current;
+      const host = hostRef.current;
+      if (!engine || !host || isTurning()) return;
+      const page = pages[activeIndex];
+      const vertical = mobileP17Content != null && page?.kind === "pdf" && page.originalNumber === 17;
+      if (!vertical && !mobileGeometryRef.current) return;
+      mobileGeometryRef.current = vertical;
+      // Only the custom P17 leaf follows its responsive frame. Native physics
+      // and gestures are unchanged; freeze geometry while turning and restore
+      // the approved dimensions at read on any other page/device.
+      const settings = engine.getSettings();
+      host.classList.toggle("mobile-p17-frame", vertical);
+      const runtime = engine as unknown as PageFlipRuntime;
+      const updateGeometry = () => {
+        if (isTurning()) return;
+        const width = host.clientWidth, height = host.clientHeight;
+        if (vertical && (!width || !height)) return;
+        settings.width = 960;
+        settings.height = vertical ? 960 * height / width : 540;
+        runtime.getUI().getWrapper().style.paddingBottom = vertical ? "0" : `${settings.height / settings.width * (engine.getOrientation() === "portrait" ? 100 : 50)}%`;
+        runtime.update();
+      };
+      updateGeometry();
+      if (!vertical) return;
+      // CSS owns the reading band. Observe it because dvh/safe-area changes
+      // must also update native hit testing and fold bounds, not just the DOM.
+      const observer = new ResizeObserver(updateGeometry);
+      observer.observe(host);
+      return () => observer.disconnect();
+    }, [activeIndex, flipInProgress, mobileP17Content != null, pages, isTurning]);
+
     useLayoutEffect(() => {
       setCoverVideoRevealed(false);
       // En portrait el bridge de P3 muestra las palas, no el video.
@@ -781,7 +821,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         cancelled = true;
         for (const probe of probes) probe.onload = null;
       };
-    }, [activeIndex]);
+    }, [activeIndex, mobileP17Content != null]);
 
     useEffect(() => {
       const engine = engineRef.current;
@@ -814,7 +854,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
             data-density={index === 0 ? "hard" : "soft"}
             key={bookPage.id}
           >
-            {bookPage.kind === "pdf" && bookPage.originalNumber === 14 ? (
+            {bookPage.kind === "pdf" && bookPage.originalNumber === 17 && mobileP17Content != null ? mobileP17Content : bookPage.kind === "pdf" && bookPage.originalNumber === 14 ? (
               <Page14Coverflow
                 visible={activeIndex === index && !flipInProgress && !interactionLocked && !productOpen && !cartOpen}
                 activeProductId={coverflowProductId}

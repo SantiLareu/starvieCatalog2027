@@ -4,6 +4,8 @@ import { CartDrawer } from "../commerce/CartDrawer";
 import { useCommerce } from "../commerce/CommerceContext";
 import { PageFlipEngine, type PageFlipHandle } from "./PageFlipEngine";
 import { ProductModal } from "./ProductModal";
+import { MobileP17Page } from "./mobile/MobileP17Page";
+import { usePilotViewport } from "./mobile/mobilePilot";
 import {
   BACK_COVER_ORIGINAL_PAGE,
   COLLECTION_LINEUP_PAGE,
@@ -19,6 +21,9 @@ import {
 
 type MagazineProps = {
   catalog: CatalogMetadata;
+  /** Direct entry for the opt-in P17 leaf experiment; normal entry remains P1. */
+  initialOriginalPage?: number;
+  mobileP17Pilot?: boolean;
 };
 
 type ExperienceMode = "collection" | "starlab";
@@ -106,24 +111,30 @@ type BookTransition =
       rearCover?: boolean;
     };
 
-export function Magazine({ catalog }: MagazineProps) {
+export function Magazine({ catalog, initialOriginalPage = 1, mobileP17Pilot = false }: MagazineProps) {
+  const bookPages = useMemo(() => buildBookPages(catalog), [catalog]);
+  const initialIndex = Math.max(0, bookIndexForOriginalPage(bookPages, initialOriginalPage));
+  const initialExperience: ExperienceMode = isStarLabOriginalPage(initialOriginalPage) ? "starlab" : "collection";
   const engineRef = useRef<PageFlipHandle>(null);
-  const activeIndexRef = useRef(0);
-  const experienceRef = useRef<ExperienceMode>("collection");
+  const activeIndexRef = useRef(initialIndex);
+  const experienceRef = useRef<ExperienceMode>(initialExperience);
   const transitionRef = useRef<BookTransition | null>(null);
   const transitionSequenceRef = useRef(0);
   const startedTransitionRef = useRef<string | null>(null);
   const warmedPagesRef = useRef(new Set<string>());
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeIndex, setActiveIndex] = useState(initialIndex);
   const [orientation, setOrientation] = useState<"portrait" | "landscape">("landscape");
-  const [experience, setExperience] = useState<ExperienceMode>("collection");
+  const [experience, setExperience] = useState<ExperienceMode>(initialExperience);
   const [bookTransition, setBookTransition] = useState<BookTransition | null>(null);
   const [backCoverState, setBackCoverState] = useState<BackCoverState>("open");
-  const [coverReady, setCoverReady] = useState(false);
+  const [coverReady, setCoverReady] = useState(initialIndex !== 0);
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [pagePickerOpen, setPagePickerOpen] = useState(false);
   const [pageInput, setPageInput] = useState("1");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const portraitPhone = usePilotViewport();
+  const customP17 = mobileP17Pilot && portraitPhone;
+  const p17Index = useMemo(() => bookIndexForOriginalPage(bookPages, 17), [bookPages]);
   const {
     catalogError,
     productNames,
@@ -138,7 +149,6 @@ export function Magazine({ catalog }: MagazineProps) {
     showToast,
   } = useCommerce();
 
-  const bookPages = useMemo(() => buildBookPages(catalog), [catalog]);
   // P39 no pertenece al flujo normal: es sólo la superficie visual del
   // overlay de contratapa dura y nunca recibe índice de book.
   const backCoverPage = useMemo(() => backCoverPageForCatalog(catalog), [catalog]);
@@ -215,6 +225,9 @@ export function Magazine({ catalog }: MagazineProps) {
     const candidates = new Set([0, displayIndex - 2, displayIndex - 1, displayIndex, displayIndex + 1, displayIndex + 2]);
     for (const index of candidates) {
       const bookPage = bookPages[index];
+      // P17's custom leaf does not display the original full bitmap. Returning
+      // to another device presentation runs this same decoded preloader again.
+      if (customP17 && bookPage?.kind === "pdf" && bookPage.originalNumber === 17) continue;
       if (bookPage?.kind === "pdf" && !warmedPagesRef.current.has(bookPage.page.src)) {
         // Precargar y decodificar cada URL una vez; reintentar si falla la carga.
         warmedPagesRef.current.add(bookPage.page.src);
@@ -225,7 +238,7 @@ export function Magazine({ catalog }: MagazineProps) {
         if (typeof image.decode === "function") void image.decode().catch(() => undefined);
       }
     }
-  }, [bookPages, displayIndex]);
+  }, [bookPages, displayIndex, customP17]);
 
   const currentLabel = useMemo(() => {
     if (backCoverState === "closed") return `CONTRATAPA / ${catalog.pageCount}`;
@@ -575,6 +588,7 @@ export function Magazine({ catalog }: MagazineProps) {
     modalProduct != null
       ? lines.find((line) => line.productId === modalProduct.id)?.qty ?? 0
       : 0;
+  const resolvedP17 = customP17 ? resolveProduct("raptor+") : null;
 
   useEffect(() => {
     setUiBusy(selectedProductId != null || cartOpen || isBookTransitioning);
@@ -754,6 +768,12 @@ export function Magazine({ catalog }: MagazineProps) {
         <div className="stage-glow" aria-hidden="true" />
         <PageFlipEngine
           ref={engineRef}
+          initialIndex={initialIndex}
+          mobileP17Content={customP17 ? <MobileP17Page
+            product={resolvedP17?.kind === "ok" ? resolvedP17.product : null}
+            load={Math.abs(activeIndex - p17Index) <= 1 ||
+              (bookTransition != null && "targetIndex" in bookTransition && bookTransition.targetIndex === p17Index)}
+            live={!isBookTransitioning && !selectedProductId && !cartOpen} /> : undefined}
           pages={bookPages}
           backCoverPage={backCoverPage}
           activeIndex={activeIndex}

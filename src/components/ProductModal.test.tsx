@@ -34,6 +34,29 @@ const props = {
 };
 
 describe("ProductModal comercial", () => {
+  it.each([true, false])("aísla eventos globales del libro sólo en portrait phone (matches=%s)", matches => {
+    const media = vi.spyOn(window, "matchMedia").mockReturnValue({ matches, addEventListener: vi.fn(), removeEventListener: vi.fn() } as unknown as MediaQueryList);
+    const bookMouseMove = vi.fn();
+    const bookTouchMove = vi.fn((event: Event) => event.preventDefault());
+    window.addEventListener("mousemove", bookMouseMove);
+    window.addEventListener("touchmove", bookTouchMove, { passive: false });
+    try {
+      render(<ProductModal {...props} />);
+      const spec = screen.getByText("Tipo de juego");
+      fireEvent.mouseMove(spec);
+      const touchMove = new Event("touchmove", { bubbles: true, cancelable: true });
+      fireEvent(spec, touchMove);
+      expect(bookMouseMove).toHaveBeenCalledTimes(matches ? 0 : 1);
+      expect(bookTouchMove).toHaveBeenCalledTimes(matches ? 0 : 1);
+      expect(touchMove.defaultPrevented).toBe(!matches);
+      expect(media).toHaveBeenCalledWith("(max-width: 599px) and (orientation: portrait)");
+    } finally {
+      window.removeEventListener("mousemove", bookMouseMove);
+      window.removeEventListener("touchmove", bookTouchMove);
+      media.mockRestore();
+    }
+  });
+
   it.each([null, 0])("precio %s: muestra ficha sin precio/SKU pero permite pedir", precio => {
     const onAdd = vi.fn();
     render(<ProductModal {...props} product={{ ...raptor, precio, sku: "", ean: "" }} onAdd={onAdd} />);

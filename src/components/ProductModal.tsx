@@ -6,6 +6,7 @@ import {
   useState,
   type MouseEvent as ReactMouseEvent,
   type PointerEvent as ReactPointerEvent,
+  type SyntheticEvent,
   type WheelEvent as ReactWheelEvent,
 } from "react";
 import { createPortal } from "react-dom";
@@ -14,6 +15,8 @@ import { formatPrice } from "../commerce/money";
 import { hasPrice, isPurchasable } from "../commerce/productEligibility";
 import { ProductImage, assetUrl } from "./ProductImage";
 import { ProductGalleryImage } from "./ProductGalleryImage";
+import { MOBILE_PILOT_QUERY } from "./mobile/mobilePilot";
+import "./product-modal-mobile.css";
 export { assetUrl } from "./ProductImage";
 
 type ProductModalProps = {
@@ -36,6 +39,14 @@ const MAX_ZOOM = 4;
 const BUTTON_ZOOM_STEP = 0.5;
 const WHEEL_ZOOM_STEP = 0.2;
 const CLICK_ZOOM = 2;
+
+function isolatePortraitModalEvent(event: SyntheticEvent) {
+  // StPageFlip listens on window: compatibility mousemove can start a corner
+  // preview behind the modal, whose global touchmove then cancels scrolling.
+  // Keep these events inside portrait-phone dialogs without cancelling their
+  // native scroll or changing the image's independent pointer gestures.
+  if (window.matchMedia(MOBILE_PILOT_QUERY).matches) event.stopPropagation();
+}
 
 type ImageView = { zoom: number; x: number; y: number };
 type PointerPosition = { x: number; y: number };
@@ -362,6 +373,8 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
         aria-modal="true"
         aria-labelledby="product-modal-title"
         onMouseDown={(event) => event.stopPropagation()}
+        onMouseMove={isolatePortraitModalEvent}
+        onTouchMove={isolatePortraitModalEvent}
       >
         <button ref={closeRef} className="modal-close" type="button" onClick={onClose} aria-label="Cerrar ficha">
           <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden="true">

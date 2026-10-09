@@ -1,0 +1,15 @@
+/* Only the large-image area of the original modal, on portrait phones.
+   The original image transforms, gestures, gallery and commerce are unchanged. */
+@media (max-width: 599px) and (orientation: portrait) {
+  .product-modal .product-visual { height: min(55dvh, 480px); }
+  .product-modal .product-main-image {
+    padding: 6px 4px;
+    background: radial-gradient(ellipse at 50% 42%, #ffffff10, transparent 68%), linear-gradient(145deg, #17181b, #090a0c);
+  }
+  .product-modal .product-image-viewport { background: transparent; border-radius: 0; box-shadow: none; }
+  .product-modal .zoom-controls { top: 12px; left: 12px; transform: none; }
+  .product-modal .gallery-arrow { width: 44px; height: 44px; }
+  .product-modal .gallery-arrow-previous { left: 8px; }
+  .product-modal .gallery-arrow-next { right: 8px; }
+  .product-modal .gallery-position { z-index: 2; pointer-events: none; right: 12px; bottom: 12px; padding: 3px 7px; font-size: .58rem; background: #0c0d0fbf; }
+}

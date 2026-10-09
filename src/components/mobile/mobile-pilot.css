@@ -1,0 +1,82 @@
+/* P17 only. Viewer chrome, native physics and other device presentations are unchanged. */
+.mobile-p17-frame {
+  --p17-margin: 0px;
+  --p17-safe-top: env(safe-area-inset-top, 0px);
+  --p17-safe-bottom: env(safe-area-inset-bottom, 0px);
+  --p17-safe-left: env(safe-area-inset-left, 0px);
+  --p17-safe-right: env(safe-area-inset-right, 0px);
+  --p17-top: max(var(--toolbar-height), var(--p17-safe-top));
+  /* Approved guide: 30px icon + 8px padding above/below. Its original bottom
+     offset and the stage's 76px padding are reflected here, never changed. */
+  --p17-guide-height: 46px;
+  --p17-guide-bottom: max(80px, calc(var(--p17-safe-bottom) + 64px));
+  --p17-available-height: calc(100dvh - var(--p17-top) - var(--p17-guide-bottom) - var(--p17-guide-height) - 2 * var(--p17-margin));
+  --p17-available-width: calc(100vw - var(--p17-safe-left) - var(--p17-safe-right) - 2 * var(--p17-margin));
+  width: var(--p17-available-width) !important;
+  min-width: 0 !important; min-height: 0 !important; aspect-ratio: auto;
+  height: var(--p17-available-height) !important;
+  /* Centre in the actual reading band, rather than in the whole stage. */
+  translate: calc((var(--p17-safe-left) - var(--p17-safe-right)) / 2)
+    calc((var(--p17-top) - var(--toolbar-height) + 76px - var(--p17-guide-bottom) - var(--p17-guide-height)) / 2);
+}
+.mobile-p17-frame > .stf__wrapper { height: 100%; padding-bottom: 0 !important; }
+.mobile-p17-page { position: absolute; inset: 0; overflow: hidden; container-type: size; color: #eee7e0;
+  /* Size individual elements against both axes; never stretch the composition
+     or its assets. Short reading bands need smaller type/icons and gaps. */
+  --p17-unit: min(1cqw, .65cqh);
+  background: radial-gradient(ellipse at 78% 46%, #64181150, transparent 62%), linear-gradient(130deg, #232326, #09090a 52%, #1a0909);
+  box-shadow: inset 3px 0 9px #0006, inset -1px 0 1px #ffffff12;
+}
+.mobile-p17-page::after { content: ''; position: absolute; inset: 0; background: linear-gradient(90deg, #0004, transparent 5%, transparent 98%, #0004); pointer-events: none; }
+.mobile-p17-page .mobile-p17-page__masthead { position: absolute; top: 3%; left: 5%; right: 5%; display: flex; align-items: center; justify-content: space-between; gap: calc(3 * var(--p17-unit)); text-transform: uppercase; font-size: calc(2.25 * var(--p17-unit)); letter-spacing: .1em; color: #bcb4ae; }
+.mobile-p17-page .mobile-p17-page__masthead strong { color: #efe9e2; font-size: calc(2.3 * var(--p17-unit)); font-weight: 650; white-space: nowrap; }
+.mobile-p17-page .mobile-p17-page__masthead > span { border-left: 1px solid #ffffff36; padding-left: calc(3 * var(--p17-unit)); }
+.mobile-p17-page .mobile-p17-page__intro { position: absolute; top: 7%; left: 5%; right: 5%; z-index: 2; pointer-events: none; }
+.mobile-p17-page .mobile-p17-page__intro p { margin: 0 0 calc(1.5 * var(--p17-unit)); color: #c7a99e; font-size: calc(2.45 * var(--p17-unit)); letter-spacing: .2em; text-transform: uppercase; }
+.mobile-p17-page .mobile-p17-page__intro h1 { margin: 0; font-size: calc(13 * var(--p17-unit)); line-height: .95; letter-spacing: -.05em; font-weight: 800; text-transform: uppercase; }
+.mobile-p17-page .mobile-p17-page__intro > span { display: block; margin-top: calc(1.9 * var(--p17-unit)); font-size: calc(3 * var(--p17-unit)); letter-spacing: .14em; color: #d4c6bd; }
+.mobile-p17-page .mobile-p17-page__hero { position: absolute; top: 18%; left: 0; width: 100%; height: 63%; padding: 0; border: 0; background: transparent; color: inherit; display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.mobile-p17-page .mobile-p17-page__hero img { width: auto; max-width: 100%; height: 100%; object-fit: contain; object-position: center; transform: scale(var(--asset-scale, 1)); user-select: none; pointer-events: none;
+  mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent), linear-gradient(0deg, transparent, #000 3%, #000 97%, transparent); mask-composite: intersect; }
+.mobile-p17-page .mobile-p17-page__hero:focus-visible { outline: 1px solid #e54034; outline-offset: -8px; }
+.mobile-p17-page .mobile-p17-page__product-button { position: absolute; top: min(20%, calc(30% - 56px)); right: calc(22% - 22px); width: 44px; height: 44px; padding: 0; display: grid; place-items: center; z-index: 3;
+  border: 1px solid #df514599; border-radius: 50%; background: linear-gradient(145deg, #311512, #101012); color: #f5eee8; cursor: pointer; }
+.mobile-p17-page .mobile-p17-page__product-button svg { width: 23px; height: 23px; pointer-events: none; }
+.mobile-p17-page .mobile-p17-page__product-button:focus-visible { outline: 2px solid #f5eee8; outline-offset: 3px; }
+.mobile-p17-page .mobile-p17-page__product-button:active:not(:disabled) { background: #701d18; border-color: #ff8172; transform: scale(.96); }
+.mobile-p17-page .mobile-p17-page__product-button:disabled { opacity: .4; cursor: default; }
+.mobile-p17-page .mobile-p17-page__technologies { position: absolute; top: 27%; bottom: 23.5%; left: 5%; width: 21%; z-index: 2; }
+.mobile-p17-page .mobile-p17-page__technology-arc { position: absolute; left: calc(-3.5 * var(--p17-unit)); top: -2%; width: calc(8 * var(--p17-unit)); height: 107%; color: #e6d9ce96; filter: drop-shadow(0 0 2px #fff4); }
+.mobile-p17-page .mobile-p17-page__technologies h2 { position: absolute; left: calc(-3.2 * var(--p17-unit)); top: 17%; margin: 0; writing-mode: vertical-rl; transform: rotate(180deg); font-size: calc(1.9 * var(--p17-unit)); font-weight: 500; letter-spacing: .14em; color: #d0beb2; }
+.mobile-p17-page .mobile-p17-page__technologies ul { position: relative; height: 100%; margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; justify-content: space-between; }
+.mobile-p17-page .mobile-p17-page__technologies li { display: grid; grid-template-columns: calc(4.4 * var(--p17-unit)) minmax(0, 1fr); align-items: center; gap: calc(1 * var(--p17-unit)); font-size: calc(2.35 * var(--p17-unit)); line-height: 1.12; color: #ded5cd; text-shadow: 0 1px 3px #000; }
+.mobile-p17-page .mobile-p17-page__technology-icon { --icon-size: calc(4.4 * var(--p17-unit)); width: var(--icon-size); height: var(--icon-size); display: block;
+  background-repeat: no-repeat; background-size: calc(var(--icon-size) * 38.4) calc(var(--icon-size) * 21.6);
+  background-position: calc(-1 * var(--source-x) * var(--icon-size) / 50) calc(-1 * var(--source-y) * var(--icon-size) / 50);
+  filter: grayscale(1) contrast(2.2); mix-blend-mode: screen; }
+.mobile-p17-page .mobile-p17-page__technical { position: absolute; right: 4.5%; top: 30%; width: 23%; z-index: 2; }
+.mobile-p17-page .mobile-p17-page__sweet-spot-block { display: flex; align-items: center; flex-direction: column; }
+.mobile-p17-page .mobile-p17-page__sweet-spot { width: calc(12.2 * var(--p17-unit)); height: auto; }
+.mobile-p17-page .mobile-p17-page__sweet-spot-block h2 { font-size: calc(2.15 * var(--p17-unit)); font-weight: 600; letter-spacing: .04em; margin: calc(1.5 * var(--p17-unit)) 0 0; }
+.mobile-p17-page .mobile-p17-page__playstyle { margin: calc(3.5 * var(--p17-unit)) 0 calc(3 * var(--p17-unit)); text-align: right; }
+.mobile-p17-page .mobile-p17-page__playstyle span { display: block; color: #b8aca1; font-size: calc(1.9 * var(--p17-unit)); letter-spacing: .03em; }
+.mobile-p17-page .mobile-p17-page__playstyle strong { display: block; margin-top: calc(1.1 * var(--p17-unit)); color: #eee5dd; font-size: calc(2.4 * var(--p17-unit)); font-weight: 650; font-style: italic; text-transform: uppercase; }
+.mobile-p17-page .mobile-p17-page__technical dl { margin: 0; font-size: calc(1.95 * var(--p17-unit)); line-height: 1.25; text-transform: uppercase; background: #11111378; border: 1px solid #ddd1c344; }
+.mobile-p17-page .mobile-p17-page__technical dl > div { display: grid; grid-template-columns: 48% 52%; border-bottom: 1px solid #ddd1c32c; padding: calc(1.4 * var(--p17-unit)) calc(.7 * var(--p17-unit)); }
+.mobile-p17-page .mobile-p17-page__technical dl > div:last-child { border-bottom: 0; }
+.mobile-p17-page .mobile-p17-page__technical dt { font-weight: 700; }
+.mobile-p17-page .mobile-p17-page__technical dd { margin: 0; font-style: italic; white-space: nowrap; }
+.mobile-p17-page .mobile-p17-page__features { position: absolute; bottom: max(12%, calc(44px + 2.5% + 3 * var(--p17-unit))); left: 5%; right: 5%; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(2 * var(--p17-unit)); pointer-events: none; }
+.mobile-p17-page .mobile-p17-page__features > div { display: flex; flex-direction: column; gap: calc(1.5 * var(--p17-unit)); }
+.mobile-p17-page .mobile-p17-page__features svg { width: calc(4 * var(--p17-unit)); height: calc(4 * var(--p17-unit)); color: #cfafa1; }
+.mobile-p17-page .mobile-p17-page__features dt { font-size: calc(2.3 * var(--p17-unit)); color: #b3a49b; }
+.mobile-p17-page .mobile-p17-page__features dd { margin: calc(1 * var(--p17-unit)) 0 0; font-size: calc(3 * var(--p17-unit)); line-height: 1.2; }
+.mobile-p17-page .mobile-p17-page__explore { position: absolute; bottom: 2.5%; left: 29%; width: 42%; min-height: 44px; padding: 0 calc(4 * var(--p17-unit)); display: flex; align-items: center; justify-content: center; gap: calc(3 * var(--p17-unit));
+  border: 1px solid #e84b3e99; background: linear-gradient(120deg, #811c16b3, #37110ed9); color: #f7eee7; border-radius: 0; font-size: calc(2.8 * var(--p17-unit)); letter-spacing: .15em; cursor: pointer; z-index: 3; }
+.mobile-p17-page .mobile-p17-page__explore > span { font-size: calc(5 * var(--p17-unit)); line-height: 1; }
+.mobile-p17-page .mobile-p17-page__explore:focus-visible { outline: 2px solid #ff7865; outline-offset: 3px; }
+.mobile-p17-page .mobile-p17-page__explore:disabled { opacity: .4; cursor: default; }
+.mobile-p17-page .mobile-p17-page__folio { position: absolute; bottom: 4.3%; left: 5%; right: 5%; display: flex; justify-content: space-between; color: #93877e; font-size: calc(1.8 * var(--p17-unit)); letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
+.mobile-p17-page .mobile-p17-page__folio > span:last-child { font-size: calc(2.7 * var(--p17-unit)); color: #d4c7be; }
+.mobile-p17-page .mobile-p17-page__placeholder { font-size: calc(3 * var(--p17-unit)); color: #a99b91; }
+.mobile-p17-page .mobile-p17-page__asset-note { position: absolute; bottom: .7%; left: 5%; font-size: calc(1.7 * var(--p17-unit)); color: #9a8f88; }
