@@ -1,28 +1,31 @@
-# P17 experimental: hoja propia dentro del visor aprobado
+# P15 / P17 experimental: hojas propias dentro del visor aprobado
 
-El piloto se abre con `/?mobile-pilot=17`. La entrada habitual `/` sigue siendo
+El piloto se abre con `/?mobile-pilot=15` (Eternal) o `/?mobile-pilot=17` (Raptor+).
+Ambas entradas habilitan únicamente P15/P17. La entrada habitual `/` sigue siendo
 el catálogo aprobado. En ambas entradas hay un único `Magazine` y un único
 StPageFlip; no existe un shell ni un sistema de navegación mobile paralelo.
 
 Sólo `(max-width: 599px) and (orientation: portrait)` sustituye el contenido de
-P17 por `MobileP17Page`. Desktop, tablet y teléfono landscape muestran el PDF
+P15/P17 por `MobilePremiumProductPage`. Desktop, tablet y teléfono landscape muestran el PDF
 original. P27/P28 y las demás páginas conservan sus componentes y assets.
 
 ## Arquitectura y geometría autorizada
 
 - `App.tsx` monta siempre Magazine. El parámetro experimental permite entrar
-  directamente en P17 y habilita la sustitución de esa hoja.
-- Magazine resuelve Raptor+ mediante CommerceContext y entrega la hoja al slot
-  `mobileP17Content` del engine. No hay copia de catálogo, carrito ni precios.
-- `MobileP17Page` compone encabezado GAMA SUPER PRO / PROFESIONAL Y SEMI PRO,
+  directamente en P15 o P17 y habilita la sustitución de esas dos hojas.
+- Magazine resuelve cada productId mediante CommerceContext y entrega las hojas
+  al mapa `mobilePremiumContent` del adaptador, por número original del PDF.
+  La lista explícita `MOBILE_PREMIUM_PAGES` evita activar futuros perfiles por
+  registrarlos. No hay copia de catálogo, carrito ni precios.
+- `MobilePremiumProductPage` compone encabezado GAMA SUPER PRO / PROFESIONAL Y SEMI PRO,
   título, claim real, hero completa, resumen de cuatro specs y CTA EXPLORAR.
-  `MobileP17Technical` aporta las nueve tecnologías, arco, iconos del arte
+  `MobilePremiumProductTechnical` aporta las nueve tecnologías, arco, iconos del arte
   original, punto dulce vectorial con rojo elevado y tabla de datos vivos.
   Su botón declara `data-product-id`: el delegado y el árbitro de gestos
   **originales** de StPageFlip distinguen tap/drag y suprimen click residual.
-- El usuario autorizó cambiar exclusivamente la geometría de P17 portrait.
+- El marco responsive aprobado de P17 se aplica también a P15 por autorización.
   En reposo llena los dos ejes de la banda entre header y guía, sin ratio fijo.
-  CSS calcula esa banda con dvh/safe areas; un ResizeObserver local a P17
+  CSS calcula esa banda con dvh/safe areas; un ResizeObserver local al marco
   sincroniza su ratio actual con las dimensiones que recibe StPageFlip.
   Se conservan tiempos, sombras, cálculo del curl,
   tapas y handlers originales. No se recrea el engine al navegar o rotar.
@@ -30,7 +33,8 @@ original. P27/P28 y las demás páginas conservan sus componentes y assets.
   en otra hoja. Durante el giro, la vecina original se contiene en el marco
   vertical; al asentarse recupera su formato horizontal. Esta adaptación
   del marco entre formatos es una limitación visual del piloto para evaluar.
-- CSS aislado en `.mobile-p17-page` y `.mobile-p17-frame`.
+- CSS de la composición aislado en `.mobile-premium-product-page`; el marco
+  conserva `.mobile-p17-frame` y su geometría exclusiva del piloto.
   No se editaron styles.css, hardCoverMotion, ni las reglas globales del visor.
   El marco reserva espacio para la guía y botones actuales sin moverlos.
 - Pala, Explorar y el botón circular de bolsa abren el ProductModal original.
@@ -363,3 +367,195 @@ y references/mobile/raptor.png como fuente original con SHA-256 intacto.
 Se excluyen tmp, dist, test-results, screenshots y referencias WhatsApp.
 Se autoriza el commit feat(mobile): add opt-in premium P17 portrait pilot;
 push y deploy quedan pendientes de autorización.
+
+## Plantilla premium reutilizable (2026-10-09)
+
+MobilePremiumProductPage y MobilePremiumProductTechnical sustituyen los dos
+componentes específicos de Raptor+. Su estructura y todas las posiciones,
+tipografías, tamaños, gestos y botones se conservan. mobile-premium-product.css
+contiene la composición; mobile-pilot.css conserva sólo el marco P17 original.
+ProductModal, PageFlipEngine, detección portrait y assets no se modifican.
+
+Cada entrada de src/data/mobileProductPresentation.ts declara:
+
+- pageId y productId reales;
+- mobileHero (se conserva el contrato existente source/role/scale);
+- rangeLabel, audienceLabel y claim;
+- backgroundTheme.background y, opcionalmente, un asset decorativo con cover;
+- technologies: etiqueta e icono, independiente o ventana crop de arte existente;
+- sweetSpot: vector configurable (silueta, cuello, área roja, perforaciones)
+  o asset con sus dimensiones originales;
+- gameType y specs.shape/surface/weight/balance.
+
+Los textos pueden ser editoriales explícitos o referencias a campos vivos del
+producto. Raptor+ usa { field: "gama", part: 0/1 }, { field: "tipoJuego" } y
+refs forma/plano/peso/balance: no se crea una segunda copia comercial ni se
+congelan sus datos. Nombre, precio, disponibilidad, galería, carrito y checkout
+siguen perteneciendo al catálogo comercial original. Valores técnicos ausentes
+se omiten, y una identidad de producto incompatible deja las aperturas inactivas.
+
+Magazine obtiene el perfil mediante mobilePresentationForPage(17) y resuelve
+su productId vivo; ya no contiene la identidad Raptor+ hardcodeada. Pala, bolsa
+y Explorar siguen declarando el mismo data-product-id para el delegado nativo.
+No hay renderer de ficha nuevo ni callback comercial paralelo.
+
+Para reutilizar la composición, añadir el perfil del producto real y pasar
+product, presentation, load y live a MobilePremiumProductPage. No hay que
+editar la maquetación. El routing experimental sigue limitado a P17 con
+?mobile-pilot=17 y teléfonos portrait: registrar otros perfiles no los activa
+automáticamente ni adapta otras páginas del catálogo.
+
+Comparación contra capturas tomadas antes de refactorizar: 0 píxeles distintos
+en 360×780, 390×844 y 412×915 (DPR3), con geometría, textos e identidades iguales.
+Evidencia local en tmp/p17-template-review/comparison.json y before/after.
+Los unitarios incluyen otro producto ficticio sólo de prueba para verificar
+contenido/hero/fondo/iconos/punto dulce configurables, datos vivos y aislamiento
+de identidad. No se registra ese producto ni se extiende el piloto en runtime.
+
+Validación del refactor: 418 unitarios aprobados y 9 omitidos del harness WSL;
+31 E2E aprobados y 21 omitidos por dispositivo en mobile-pilot, product-modal
+y mobile-navigation. Se comprueban apertura/retorno, galería real, pinch/pan,
+scroll antes/después de zoom, carrito/checkout, swipe sin click residual,
+fallback de hero, rotación y presentación original fuera de portrait.
+Build y git diff --check aprobados. Sin nuevos assets ni dependencias;
+sin commit, push, deploy ni pedidos reales en esta iteración.
+
+## Activación de Eternal / P15
+
+Eternal usa `productId: "eternal"`, `pageId: 15` y la hero existente
+`/hero/eternal-mobile.png`, sin modificar sus bytes. Gama SUPER PRO, público
+PROFESIONAL Y SEMI PRO, claim BREAK THE RULES, juego VERSÁTIL; forma HÍBRIDA,
+plano 18K CARBON, peso 350–370 GR y balance MEDIO son los valores editoriales
+proporcionados por el usuario. Las diez tecnologías conservan el orden pedido
+y sus iconos provienen de ventanas del arte original de page-15.webp.
+
+El punto dulce usa el mecanismo `sweetSpot.kind: "asset"` ya existente, con
+`public/mobile/eternal-sweetspot.png` (162×255, 34.725 bytes). Es una copia
+byte por byte de `references/mobile/eternal-sweetspot.png`, SHA-256
+`e1badc461ba4045a6e75b9121aee1cb9206492e45b28e32a9afe61649517e5e0`.
+No se trazó una silueta nueva ni se reinterpretó la zona roja. El vector de
+Raptor+ queda intacto; tampoco cambia la plantilla ni su CSS.
+
+`?mobile-pilot=15` entra en Eternal y `?mobile-pilot=17` en Raptor+. Dentro
+de cualquiera de esas entradas, P15 y P17 usan la misma plantilla sólo con
+viewport ≤599px y portrait. El adaptador sustituye el slot y reutiliza su
+marco responsive; no modifica navegación, física, handlers ni settings base
+de StPageFlip. En otras hojas/dispositivos restaura la presentación original.
+La clase histórica `mobile-p17-frame` se conserva para reutilizar exactamente
+el CSS aprobado. Las secciones anteriores documentan etapas previas del piloto.
+
+Cada hero/punto dulce/iconos sólo se solicita al mostrar su hoja, al preparar
+un salto hacia ella o desde un vecino inmediato. P16 puede preparar ambas
+hojas; P17 no precarga Eternal, ni P15 precarga Raptor+. Las tres aperturas
+siguen delegadas por data-product-id al ProductModal original; Eternal usa sus
+cinco imágenes comerciales reales, no la hero. No se cambia comercio ni ficha.
+
+Validación de esta activación: 422 unitarios aprobados, 9 omitidos del harness
+WSL; regresión E2E de mobile-pilot, product-modal, mobile-navigation y
+video-reveal, con 51 comprobaciones aprobadas entre la ejecución amplia y
+la revalidación específica. La comparación de la hoja normaliza el orden de
+atributos y declaraciones CSS tras carga diferida, sin omitir sus valores.
+Incluye P15→P16→P17, las tres aperturas de Eternal, galería original de cinco
+imágenes, retorno exacto, ausencia de agregado directo, transición P15↔VIDEO,
+scroll/zoom/pinch/pan, carrito/checkout, rotación y aislamiento por dispositivo.
+Capturas de Eternal en tmp/eternal-activation-review para 360×780, 390×844 y
+412×915. P17 mantiene 0 píxeles diferentes frente al baseline aprobado en
+esos tres tamaños, con contenido y geometría idénticos. Hero de Eternal y
+perfil completo de Raptor+ verificados sin cambios; build y diff --check OK.
+
+## Ambiente full-bleed y acento por producto (2026-10-09)
+
+La plantilla mantiene todas las posiciones, dimensiones, tipografía, hero
+central en contain y sus tres aperturas. Sólo cambia la presentación de fondo,
+el contraste y los colores de sus controles. No se editaron visor, navegación,
+StPageFlip, ProductModal ni comercio en esta iteración.
+
+Cada perfil declara `themeAccent` explícitamente: Eternal `#e8b957` (dorado
+cálido), Raptor+ `#e84b3e` (rojo). No hay extracción automática ni inferencia
+del color de futuros productos. `heroBackgroundMode: "full-bleed"` habilita
+el ambiente; es también el default para perfiles nuevos. `"contained"` permite
+mantener la presentación contenida. `backgroundTheme.readabilityOverlay` es
+un override opcional de los gradientes de lectura; normalmente se omite.
+
+Las capas locales a `.mobile-premium-product-page` son:
+
+1. Escena decorativa full-bleed: dos bandas de los extremos de la misma hero
+   (12,5% de cada borde), extendidas y suavizadas sobre toda la hoja. No se
+   reproduce una segunda pala ampliada detrás del producto. Las bandas son
+   fondos CSS, no imágenes de contenido ni targets táctiles.
+2. Gradientes oscuros encima de la escena/hero y debajo de los textos, con la
+   zona central despejada para la pala. Protegen columnas, header de la hoja
+   y franja inferior sin introducir tarjetas nuevas ni mover contenido.
+3. Acento local: tint suave, CTA, bolsa, focus/pressed/hover, arco decorativo,
+   contorno de tabla e iconos inferiores. Los textos siguen claros/neutros;
+   el punto dulce conserva su referencia roja original, sin recolorearla.
+
+La imagen protagonista conserva source, proporción, posición, escala y máscara.
+Los archivos originales no se modifican y no se crean derivados. El fondo
+reutiliza la misma URL/caché de la hero, sin solicitudes nuevas por producto;
+se omite al estar lejos o tras un error, y nunca usa una foto comercial como
+escena. No se agregan preloads, animaciones, will-change ni dependencias; el
+suavizado es estático y está limitado al rectángulo de la hoja.
+
+Comparación local before/after: P15 y P17 mantienen idénticas medidas de hero,
+tecnologías, punto dulce, specs, botones y visor exterior en 360×780, 390×844
+y 412×915 (DPR3), además de los mismos textos e identidades. Capturas y métricas
+en `tmp/premium-theme-review`, fuera del versionado. El cambio de apariencia
+del fondo/acentos es deliberado; no se espera igualdad de píxeles del diseño.
+
+Validación final de esta iteración: 425 unitarios aprobados (9 omitidos del
+harness WSL), 41 E2E aprobados en mobile-pilot/product-modal/mobile-navigation
+(29 omisiones por dispositivo), build y git diff --check OK. Incluye foco,
+pressed con mouse y apertura táctil, una única solicitud de hero, retorno,
+swipe sin click residual, scroll después del zoom, pinch/pan, galería real,
+carrito/checkout, aislamiento fuera de portrait y P15↔video. Los dos originales
+hero mantienen sus bytes/hash. Sin commit, push, deploy ni pedidos reales.
+
+## Pinch/pan de la hoja premium (2026-10-09)
+
+`usePremiumPageZoom` encapsula los gestos de todas las hojas premium. El
+viewport fijo recorta la composición HTML completa, que se transforma sin
+modificar su layout ni sus assets. `premiumPageZoom.ts` define rango 1×–2,5×,
+anclaje al punto medio y límites de traslación que impiden vacíos alrededor.
+La transformación se pinta con requestAnimationFrame sólo durante el gesto.
+No usa zoom global del navegador, pointer capture, zoom del ProductModal,
+animaciones de inercia ni dependencias nuevas.
+
+- A 1×, un dedo pasa íntegramente al árbitro nativo del libro.
+- Dos dedos iniciados en la hoja reclaman pinch; ampliada, un dedo reclama
+  pan. El último dedo de un pinch queda reservado hasta levantarlo, aunque
+  se alcance 1×, para que su movimiento final no se convierta en un flip.
+- Pinch/pan anulan los clicks residuales. Un tap real sin desplazamiento
+  significativo sobre pala, bolsa o Explorar ejecuta su mismo delegado
+  original, sin duplicar lógica comercial. Los eventos del modal son ajenos
+  al viewport de hoja, y además el hook se desactiva al abrirlo.
+- La única integración con PageFlipEngine es un evento local de ownership:
+  limpia el gesto pendiente y retrae un fold iniciado al rincón original,
+  con fold/stopMove/finishAnimation nativos, antes de aplicar zoom. No cambia
+  página, settings, tiempos ni física. También reconoce un segundo dedo que
+  cae sobre la copia temporal de un fold iniciado por el primero.
+- Un evento de inicio de giro resetea la hoja y las copias temporales del
+  engine. Magazine pasa la elegibilidad activa por índice; salir, cambiar de
+  producto, abrir/cerrar modal o carrito, rotar, redimensionar, ocultar la
+  pestaña y cancelar el gesto dejan escala 1× y desplazamiento cero.
+
+El botón local "Volver a 1×" sólo aparece ampliada y no se escala ni mueve
+con el contenido. Los controles externos permanecen idénticos. Los listeners
+y ResizeObserver se instalan sólo para la hoja activa en teléfono portrait y
+se retiran al abandonarla; no quedan RAFs activos en reposo.
+
+Comparación de P15/P17 a 1× con el diseño previo: 0 píxeles diferentes y
+misma geometría/textos/visor en 360×780, 390×844 y 412×915 (DPR3), registrada
+en tmp/premium-theme-review/zoom-comparison.json. Capturas ampliadas en
+tmp/premium-zoom-review. Ambas carpetas siguen fuera del versionado.
+
+Validación final: 433 unitarios aprobados (9 omisiones WSL), 48 E2E aprobados
+en premium-page-zoom/mobile-pilot/product-modal/mobile-navigation (36 omisiones
+por dispositivo), build y git diff --check OK. Incluye transferencia de un
+fold ya iniciado, midpoint/clamps, pan sin flip, finger-tail después de volver
+a 1×, retorno a navegación, reset entre páginas/giro/copias/rotación, las tres
+aperturas mientras está ampliada, galería real y zoom/scroll originales de la
+ficha. La protección final comprueba también el desplazamiento en touchend
+si no llegó touchmove, con unitario específico y cuatro E2E de revalidación.
+Sin cambios en assets, datos/accent, ProductModal o comercio; sin commit,
+push, deploy ni pedidos reales.

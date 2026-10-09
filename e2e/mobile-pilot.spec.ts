@@ -6,9 +6,9 @@ async function settled(page: Page, number = 17) {
   await expect(page.getByTestId("page-indicator")).toHaveText(`${number} / 39`);
   await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
 }
-async function ready(page: Page) {
-  await settled(page);
-  const image = page.locator(".mobile-p17-page__hero img");
+async function ready(page: Page, number = 17) {
+  await settled(page, number);
+  const image = page.locator(".mobile-premium-product-page__hero:visible img");
   await expect.poll(() => image.evaluate(node => (node as HTMLImageElement).complete && (node as HTMLImageElement).naturalWidth > 0)).toBe(true);
   await expect(page.locator(".mobile-p17-frame")).toBeVisible();
 }
@@ -31,7 +31,7 @@ async function swipe(page: Page, context: BrowserContext, target: Locator, dx: n
   await cdp.detach();
 }
 async function openProduct(page: Page, explore = false) {
-  await page.locator(explore ? ".mobile-p17-page__explore" : ".mobile-p17-page__hero").tap();
+  await page.locator(explore ? ".mobile-premium-product-page__explore:visible" : ".mobile-premium-product-page__hero:visible").tap();
   const dialog = page.getByRole("dialog", { name: "Raptor+", exact: true });
   await expect(dialog).toBeVisible();
   await expect(dialog).toHaveClass("product-modal");
@@ -84,6 +84,27 @@ async function originalDialogFingerprint(dialog: Locator) {
   });
 }
 
+async function premiumLeafFingerprint(leaf: Locator) {
+  // React can reinsert deferred attributes in a different order after a turn.
+  // Compare the same markup/values, without making attribute order significant.
+  return leaf.evaluate(el => {
+    const clone = el.cloneNode(true) as HTMLElement;
+    for (const node of [clone, ...clone.querySelectorAll("*")]) {
+      if (node instanceof HTMLElement || node instanceof SVGElement) {
+        const styles = [...node.style].sort().map(name => [name, node.style.getPropertyValue(name), node.style.getPropertyPriority(name)] as const);
+        if (styles.length) {
+          node.style.cssText = "";
+          styles.forEach(([name, value, priority]) => node.style.setProperty(name, value, priority));
+        }
+      }
+      const attributes = [...node.attributes].map(attribute => [attribute.name, attribute.value] as const).sort(([a], [b]) => a.localeCompare(b));
+      attributes.forEach(([name]) => node.removeAttribute(name));
+      attributes.forEach(([name, value]) => node.setAttribute(name, value));
+    }
+    return clone.outerHTML;
+  });
+}
+
 async function originalEntryProduct(page: Page) {
   await page.goto("/");
   await page.getByTestId("page-indicator").click();
@@ -96,6 +117,218 @@ async function originalEntryProduct(page: Page) {
   return dialog;
 }
 
+test("Eternal remains the original PDF outside the opt-in portrait pilot", async ({ page }) => {
+  const heroes: string[] = [];
+  page.on("request", request => { if (new URL(request.url()).pathname.startsWith("/hero/")) heroes.push(request.url()); });
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto("/"); await goTo(page, 15);
+  await expect(page.getByTestId("mobile-editorial-page")).toHaveCount(0);
+  await expect(page.locator('img[data-catalog-page="15"]')).toHaveAttribute("data-full-src", "/catalog/pages/page-15.webp");
+  for (const viewport of [{ width: 1440, height: 900 }, { width: 800, height: 1000 }, { width: 600, height: 900 }, { width: 844, height: 390 }]) {
+    await page.setViewportSize(viewport); await page.goto("/?mobile-pilot=15");
+    await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+    await expect(page.getByTestId("mobile-editorial-page")).toHaveCount(0);
+    await expect(page.locator(".mobile-p17-frame")).toHaveCount(0);
+    await expect(page.locator('img[data-catalog-page="15"]')).toHaveAttribute("data-full-src", "/catalog/pages/page-15.webp");
+  }
+  expect(heroes).toEqual([]);
+});
+
+test.describe("Premium mobile scene and explicit product accents", () => {
+  test.use({ deviceScaleFactor: 3 });
+  test.beforeEach(({ isMobile }) => { test.skip(!isMobile, "Portrait phones only"); });
+  for (const product of [{ number: 15, name: "Eternal", id: "eternal", accent: "#e8b957", hero: "/hero/eternal-mobile.png" },
+    { number: 17, name: "Raptor+", id: "raptor+", accent: "#e84b3e", hero: "/hero/raptor-mobile.webp" }]) {
+    test(`${product.name}: full-bleed scene, readable unchanged layout and matching control/focus/pressed accents`, async ({ page, context }) => {
+      await page.setViewportSize({ width: 390, height: 844 });
+      const heroes: string[] = [];
+      page.on("request", request => { const path = new URL(request.url()).pathname; if (path.startsWith("/hero/")) heroes.push(path); });
+      await page.goto(`/?mobile-pilot=${product.number}`); await ready(page, product.number);
+      const leaf = page.getByRole("article", { name: `Página ${product.number}, edición vertical StarVie`, exact: true });
+      const leafBox = (await leaf.boundingBox())!;
+      const scene = leaf.locator(".mobile-premium-product-page__scene");
+      const overlay = leaf.locator(".mobile-premium-product-page__readability");
+      await expect(scene).toHaveAttribute("aria-hidden", "true");
+      await expect(overlay).toHaveAttribute("aria-hidden", "true");
+      const sceneBox = (await scene.boundingBox())!, overlayBox = (await overlay.boundingBox())!;
+      expect(sceneBox.x).toBeLessThanOrEqual(leafBox.x); expect(sceneBox.y).toBeLessThanOrEqual(leafBox.y);
+      expect(sceneBox.x + sceneBox.width).toBeGreaterThanOrEqual(leafBox.x + leafBox.width);
+      expect(sceneBox.y + sceneBox.height).toBeGreaterThanOrEqual(leafBox.y + leafBox.height);
+      expect(overlayBox).toEqual(leafBox);
+      await expect(scene.locator("img")).toHaveCount(0); // No duplicate accessible/product image.
+      const heroUrl = new URL(product.hero, page.url()).href;
+      expect(await scene.locator("span").evaluateAll(nodes => nodes.map(el => ({ image: getComputedStyle(el).backgroundImage, size: getComputedStyle(el).backgroundSize }))))
+        .toEqual(Array(2).fill({ image: `url("${heroUrl}")`, size: "800% 100%" }));
+      expect(await leaf.evaluate(el => getComputedStyle(el).getPropertyValue("--mobile-premium-accent").trim())).toBe(product.accent);
+      const bag = leaf.getByRole("button", { name: `Ver ficha y opciones de pedido de ${product.name}`, exact: true });
+      const cta = leaf.getByRole("button", { name: `Explorar ${product.name}`, exact: true });
+      const colors = await leaf.evaluate(el => {
+        const bag = el.querySelector(".mobile-premium-product-page__product-button")!, cta = el.querySelector(".mobile-premium-product-page__explore")!;
+        const overlay = el.querySelector(".mobile-premium-product-page__readability")!, hero = el.querySelector(".mobile-premium-product-page__hero")!, rail = el.querySelector(".mobile-premium-product-page__technologies")!;
+        return { bag: getComputedStyle(bag).borderColor, cta: getComputedStyle(cta).borderColor,
+          sceneEvents: getComputedStyle(el.querySelector(".mobile-premium-product-page__scene")!).pointerEvents,
+          overlayEvents: getComputedStyle(overlay).pointerEvents, overlayImage: getComputedStyle(overlay).backgroundImage,
+          heroZ: Number(getComputedStyle(hero).zIndex), overlayZ: Number(getComputedStyle(overlay).zIndex), dataZ: Number(getComputedStyle(rail).zIndex) };
+      });
+      expect(colors.cta).toBe(colors.bag); expect(colors.cta).not.toBe("rgba(0, 0, 0, 0)");
+      expect(colors.sceneEvents).toBe("none"); expect(colors.overlayEvents).toBe("none");
+      expect(colors.overlayImage).toContain("linear-gradient");
+      expect(colors.heroZ).toBeLessThan(colors.overlayZ); expect(colors.dataZ).toBeGreaterThan(colors.overlayZ);
+      const hero = leaf.getByRole("button", { name: `Abrir ficha de ${product.name}`, exact: true });
+      const heroBox = (await hero.boundingBox())!;
+      expect(heroBox.y - leafBox.y).toBeCloseTo(leafBox.height * .18, 0);
+      expect(heroBox.height).toBeCloseTo(leafBox.height * .63, 0);
+      expect(await hero.locator("img").evaluate(el => ({ fit: getComputedStyle(el).objectFit, transform: getComputedStyle(el).transform })))
+        .toEqual({ fit: "contain", transform: "matrix(1, 0, 0, 1, 0, 0)" });
+      expect((await bag.boundingBox())!.width).toBe(44); expect((await bag.boundingBox())!.height).toBe(44);
+      await expect(cta).toBeInViewport();
+      await page.keyboard.press("Tab"); await bag.focus();
+      const focusColor = await bag.evaluate(el => getComputedStyle(el).outlineColor);
+      expect(await bag.evaluate(el => getComputedStyle(el).outlineWidth)).toBe("2px");
+      await cta.focus();
+      expect(await cta.evaluate(el => getComputedStyle(el).outlineColor)).toBe(focusColor);
+      const expectedPressed = await leaf.evaluate((el, accent) => {
+        const probe = document.createElement("span"); probe.style.color = accent; el.append(probe);
+        const value = getComputedStyle(probe).color; probe.remove(); return value;
+      }, product.accent);
+      const cartBefore = await page.evaluate(() => localStorage.getItem("starvie-cart-v1"));
+      // Native book touch handlers own touch activation. Exercise CSS :active
+      // with a real mouse down, then separately verify the original touch tap.
+      const box = (await bag.boundingBox())!;
+      await page.mouse.move(box.x + 22, box.y + 22);
+      try {
+        await page.mouse.down();
+        await expect(bag).toHaveCSS("border-color", expectedPressed);
+      } finally { await page.mouse.up(); }
+      const dialog = page.getByRole("dialog", { name: product.name, exact: true });
+      await expect(dialog).toHaveClass("product-modal");
+      await expect(dialog.locator('img[src*="/hero/"]')).toHaveCount(0);
+      await dialog.getByRole("button", { name: "Cerrar ficha", exact: true }).tap(); await settled(page, product.number);
+      await bag.tap(); await expect(dialog).toHaveClass("product-modal");
+      await dialog.getByRole("button", { name: "Cerrar ficha", exact: true }).tap(); await settled(page, product.number);
+      expect(await page.evaluate(() => localStorage.getItem("starvie-cart-v1"))).toBe(cartBefore);
+      expect(heroes).toEqual([product.hero]); // Foreground + two scene strips share one resource.
+      await swipe(page, context, hero, -145); await settled(page, product.number + 1);
+      await expect(page.getByRole("dialog")).toHaveCount(0);
+    });
+  }
+});
+
+test.describe("Eternal / P15 activated premium leaf", () => {
+  test.use({ deviceScaleFactor: 3 });
+  test.beforeEach(({ isMobile }) => { test.skip(!isMobile, "Portrait phones only"); });
+
+  for (const viewport of [{ width: 360, height: 780 }, { width: 390, height: 844 }, { width: 412, height: 915 }]) {
+    test(`Eternal uses exact content/reference and fills the approved template at ${viewport.width}x${viewport.height}`, async ({ page }, testInfo) => {
+      const heroes: string[] = [];
+      page.on("request", request => { const path = new URL(request.url()).pathname; if (path.startsWith("/hero/")) heroes.push(path); });
+      await page.setViewportSize(viewport);
+      await page.goto("/?mobile-pilot=15"); await ready(page, 15);
+      const leaf = page.getByRole("article", { name: "Página 15, edición vertical StarVie", exact: true });
+      await expect(leaf).toHaveText(/SUPER PRO.*PROFESIONAL Y SEMI PRO.*Eternal.*BREAK THE RULES/);
+      await expect(leaf).not.toContainText("TODO_");
+      await expect(leaf.locator(".mobile-premium-product-page__technologies li")).toHaveText([
+        "18K Carbon Hybrid", "M-Eva Balance", "Aero Drive", "V-Force Bridge", "Hexa Cell",
+        "Power Balance", "A-Shock", "Spin Boost Tech", "Longer Handgrip", "Z-Shock",
+      ]);
+      await expect(leaf.getByRole("complementary", { name: "Datos técnicos de Eternal" })).toContainText(/VERSÁTIL.*HÍBRIDA.*18K CARBON.*350–370 GR.*MEDIO/);
+      const sweetSpot = leaf.getByRole("img", { name: "Punto dulce de Eternal", exact: true });
+      await expect(sweetSpot).toHaveAttribute("src", /\/mobile\/eternal-sweetspot.png$/);
+      await expect.poll(() => sweetSpot.evaluate(el => {
+        const image = el as HTMLImageElement;
+        return image.complete ? [image.naturalWidth, image.naturalHeight] : [];
+      })).toEqual([162, 255]);
+      const box = (await leaf.boundingBox())!, header = (await page.locator(".catalog-toolbar").boundingBox())!, guide = (await page.locator(".mobile-gesture-hint").boundingBox())!;
+      expect(box.width).toBeCloseTo(viewport.width, 0);
+      expect(box.y).toBeCloseTo(header.y + header.height, 0);
+      expect(box.y + box.height).toBeCloseTo(guide.y, 0);
+      expect(await leaf.evaluate(el => {
+        const rect = el.getBoundingClientRect();
+        return [...el.querySelectorAll("h1, header, aside, li, dl, button, footer")].every(node => {
+          const b = node.getBoundingClientRect(); return b.left >= rect.left && b.right <= rect.right + 1 && b.top >= rect.top && b.bottom <= rect.bottom + 1;
+        });
+      })).toBe(true);
+      expect(heroes).toEqual(["/hero/eternal-mobile.png"]);
+      await leaf.evaluate(async el => {
+        await Promise.all([...el.querySelectorAll("img")].map(image => image.decode()));
+        await Promise.all([...el.querySelectorAll<HTMLElement>(".mobile-premium-product-page__technology-icon")].map(async icon => {
+          const image = new Image(); image.src = getComputedStyle(icon).backgroundImage.slice(5, -2); await image.decode();
+        }));
+        await document.fonts.ready;
+      });
+      mkdirSync("tmp/eternal-activation-review", { recursive: true });
+      const path = `tmp/eternal-activation-review/p15-${viewport.width}x${viewport.height}.png`;
+      await page.screenshot({ path, animations: "disabled" });
+      await testInfo.attach("Eternal premium P15", { path, contentType: "image/png" });
+    });
+  }
+
+  test("all three Eternal actions open the original real gallery and return to the same leaf without adding", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/"); await goTo(page, 15);
+    await page.locator('[data-product-id="eternal"]:visible').first().tap();
+    const dialog = page.getByRole("dialog", { name: "Eternal", exact: true });
+    const original = await originalDialogFingerprint(dialog);
+    await page.goto("/?mobile-pilot=15"); await ready(page, 15);
+    const leaf = page.getByRole("article", { name: "Página 15, edición vertical StarVie", exact: true });
+    const before = await leaf.evaluate(el => el.outerHTML);
+    const initialCart = await page.evaluate(() => localStorage.getItem("starvie-cart-v1"));
+    for (const name of ["Abrir ficha de Eternal", "Explorar Eternal", "Ver ficha y opciones de pedido de Eternal"]) {
+      const action = leaf.getByRole("button", { name, exact: true });
+      await expect(action).toHaveAttribute("data-product-id", "eternal");
+      await action.tap(); await expect(dialog).toHaveClass("product-modal");
+      expect(await originalDialogFingerprint(dialog)).toEqual(original);
+      await expect(dialog.getByRole("button", { name: /Ver imagen/ })).toHaveCount(5);
+      await expect(dialog.locator('img[src*="/hero/"]')).toHaveCount(0);
+      await dialog.getByRole("button", { name: "Ver imagen 5", exact: true }).tap();
+      await expect(dialog.getByRole("img", { name: "Eternal, imagen 5 de 5", exact: true })).toBeVisible();
+      await expect(dialog.getByRole("img", { name: "Eternal, imagen 5 de 5", exact: true })).not.toHaveClass(/is-pending/);
+      await dialog.getByRole("button", { name: "Cerrar ficha", exact: true }).tap(); await settled(page, 15);
+      expect(await leaf.evaluate(el => el.outerHTML)).toBe(before);
+      expect(await page.evaluate(() => localStorage.getItem("starvie-cart-v1"))).toBe(initialCart);
+    }
+  });
+
+  test("both pilot entries share P15/P17 slots, native swipe and geometry restoration without residual click", async ({ page, context }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/?mobile-pilot=17"); await ready(page);
+    const raptorLeaf = page.getByRole("article", { name: "Página 17, edición vertical StarVie", exact: true });
+    const raptor = await premiumLeafFingerprint(raptorLeaf);
+    const engine = page.getByTestId("page-flip-engine");
+    await engine.evaluate(el => el.setAttribute("data-instance-probe", "same"));
+    await goTo(page, 15); await ready(page, 15);
+    await swipe(page, context, page.getByRole("button", { name: "Abrir ficha de Eternal", exact: true }), -180);
+    await settled(page, 16); await expect(page.getByRole("dialog")).toHaveCount(0);
+    await expect(page.locator(".mobile-p17-frame")).toHaveCount(0);
+    await expect(page.locator('img[data-catalog-page="16"]')).toHaveAttribute("data-full-src", "/catalog/pages/page-16.webp");
+    await goTo(page, 17); await ready(page);
+    expect(await premiumLeafFingerprint(raptorLeaf)).toBe(raptor);
+    await expect(engine).toHaveAttribute("data-instance-probe", "same");
+    await page.goto("/?mobile-pilot=15"); await ready(page, 15);
+    await goTo(page, 17); await ready(page);
+    await page.setViewportSize({ width: 844, height: 390 });
+    await expect(page.getByTestId("mobile-editorial-page")).toHaveCount(0);
+    await expect(page.locator(".mobile-p17-frame")).toHaveCount(0);
+  });
+
+  test("Eternal leaves and returns from the adjacent video using the original playback lifecycle", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/?mobile-pilot=15"); await ready(page, 15);
+    await page.getByRole("button", { name: "Página anterior", exact: true }).tap();
+    await expect(page.getByTestId("page-indicator")).toHaveText("VIDEO / 39");
+    await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+    await expect(page.locator(".mobile-p17-frame")).toHaveCount(0);
+    const video = await page.locator('.catalog-leaf > .video-page video').elementHandle();
+    expect(video).not.toBeNull();
+    await expect.poll(() => video!.evaluate(el => !(el as HTMLVideoElement).paused)).toBe(true);
+    await page.getByRole("button", { name: "Página siguiente", exact: true }).tap();
+    await expect.poll(() => video!.evaluate(el => (el as HTMLVideoElement).paused && (el as HTMLVideoElement).muted)).toBe(true);
+    await ready(page, 15);
+    await expect(page.locator("video")).toHaveCount(0);
+    await expect(page.getByRole("button", { name: "Explorar Eternal", exact: true })).toBeEnabled();
+  });
+});
+
 test("same native viewer; custom P17 only on portrait phones, rotation without remount", async ({ page, isMobile }) => {
   await page.goto("/?mobile-pilot=17");
   await expect(page.getByTestId("page-flip-engine")).toBeVisible();
@@ -104,14 +337,14 @@ test("same native viewer; custom P17 only on portrait phones, rotation without r
     await ready(page);
     await expect(page.locator(".catalog-toolbar, .experience-nav, .page-controls, .mobile-gesture-hint")).toHaveCount(4);
     await page.setViewportSize({ width: 844, height: 390 });
-    await expect(page.getByTestId("mobile-editorial-page")).toHaveCount(0);
+    await expect(page.locator('[data-testid="mobile-editorial-page"]:visible')).toHaveCount(0);
     await expect(page.locator(".mobile-p17-frame")).toHaveCount(0);
     await expect(page.locator('img[data-catalog-page="17"]')).toHaveCount(1);
     await expect(page.locator('img[data-catalog-page="17"]')).toHaveAttribute("src", "/catalog/pages/page-17.webp");
     await page.setViewportSize({ width: 390, height: 844 }); await ready(page);
     await page.setViewportSize({ width: 600, height: 900 });
   }
-  await expect(page.getByTestId("mobile-editorial-page")).toHaveCount(0);
+  await expect(page.locator('[data-testid="mobile-editorial-page"]:visible')).toHaveCount(0);
   await expect(page.locator('img[data-catalog-page="17"]')).toHaveAttribute("data-full-src", "/catalog/pages/page-17.webp");
   await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-instance-probe", "same");
   await page.goto("/?mobile-pilot=27");
@@ -126,12 +359,12 @@ test("no hero request on approved entry, tablet, desktop or phone landscape", as
   await page.locator("#page-number").fill("17");
   await page.locator(".page-picker button").click();
   await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
-  await expect(page.getByTestId("mobile-editorial-page")).toHaveCount(0);
+  await expect(page.locator('[data-testid="mobile-editorial-page"]:visible')).toHaveCount(0);
   await expect(page.locator('img[data-catalog-page="17"]')).toHaveAttribute("data-full-src", "/catalog/pages/page-17.webp");
   for (const viewport of [{ width: 844, height: 390 }, { width: 800, height: 1000 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport); await page.goto("/?mobile-pilot=17");
     await expect(page.getByTestId("page-flip-engine")).toBeVisible();
-    await expect(page.getByTestId("mobile-editorial-page")).toHaveCount(0);
+    await expect(page.locator('[data-testid="mobile-editorial-page"]:visible')).toHaveCount(0);
   }
   expect(heroes).toEqual([]);
 });
@@ -142,7 +375,7 @@ test("desktop, tablet and landscape keep the original product markup and geometr
     const original = await originalDialogFingerprint(await originalEntryProduct(page));
     await page.goto("/?mobile-pilot=17");
     await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
-    await expect(page.getByTestId("mobile-editorial-page")).toHaveCount(0);
+    await expect(page.locator('[data-testid="mobile-editorial-page"]:visible')).toHaveCount(0);
     await page.locator('[data-product-id="raptor+"]:visible').first().click();
     const dialog = page.getByRole("dialog", { name: "Raptor+", exact: true });
     await expect(dialog).toHaveClass("product-modal");
@@ -167,7 +400,7 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
       const guide = (await page.locator(".mobile-gesture-hint").boundingBox())!;
       // Both axes independently fill the measured viewer, regardless of ratio.
       const maximumHeight = guide.y - header.y - header.height;
-      const leaf = page.getByTestId("mobile-editorial-page");
+      const leaf = page.locator('[data-testid="mobile-editorial-page"]:visible');
       await expect.poll(async () => Math.abs((await leaf.boundingBox())!.height - maximumHeight)).toBeLessThan(1.1);
       const box = (await leaf.boundingBox())!;
       expect(Math.abs(box.x)).toBeLessThan(1.1);
@@ -178,20 +411,20 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
       // inside the leaf and the technical rows do not overlap the footer.
       const content = await leaf.evaluate(el => {
         const rect = el.getBoundingClientRect();
-        return [...el.querySelectorAll<HTMLElement>("h1, .mobile-p17-page__masthead, .mobile-p17-page__technologies li, .mobile-p17-page__technical, .mobile-p17-page__features, .mobile-p17-page__explore, .mobile-p17-page__folio")]
+        return [...el.querySelectorAll<HTMLElement>("h1, .mobile-premium-product-page__masthead, .mobile-premium-product-page__technologies li, .mobile-premium-product-page__technical, .mobile-premium-product-page__features, .mobile-premium-product-page__explore, .mobile-premium-product-page__folio")]
           .every(node => { const b = node.getBoundingClientRect(); return b.left >= rect.left && b.right <= rect.right + 1 && b.top >= rect.top && b.bottom <= rect.bottom + 1; });
       });
       expect(content).toBe(true);
-      const technical = (await leaf.locator(".mobile-p17-page__technical").boundingBox())!;
-      const features = (await leaf.locator(".mobile-p17-page__features").boundingBox())!;
-      const explore = (await leaf.locator(".mobile-p17-page__explore").boundingBox())!;
+      const technical = (await leaf.locator(".mobile-premium-product-page__technical").boundingBox())!;
+      const features = (await leaf.locator(".mobile-premium-product-page__features").boundingBox())!;
+      const explore = (await leaf.locator(".mobile-premium-product-page__explore").boundingBox())!;
       expect(technical.y + technical.height).toBeLessThanOrEqual(features.y);
       expect(features.y + features.height).toBeLessThanOrEqual(explore.y);
-      const icon = (await leaf.locator(".mobile-p17-page__technology-icon").first().boundingBox())!;
+      const icon = (await leaf.locator(".mobile-premium-product-page__technology-icon").first().boundingBox())!;
       expect(icon.width).toBeCloseTo(icon.height, 1);
-      const sweetSpot = (await leaf.locator(".mobile-p17-page__sweet-spot").boundingBox())!;
+      const sweetSpot = (await leaf.locator(".mobile-premium-product-page__sweet-spot").boundingBox())!;
       expect(sweetSpot.width / sweetSpot.height).toBeCloseTo(100 / 156, 2);
-      expect(await leaf.locator(".mobile-p17-page__hero img").evaluate(el => ({ fit: getComputedStyle(el).objectFit, transform: getComputedStyle(el).transform })))
+      expect(await leaf.locator(".mobile-premium-product-page__hero img").evaluate(el => ({ fit: getComputedStyle(el).objectFit, transform: getComputedStyle(el).transform })))
         .toEqual({ fit: "contain", transform: "matrix(1, 0, 0, 1, 0, 0)" });
       expect(await exterior()).toEqual(originalExterior);
       expect(await page.evaluate(() => {
@@ -237,7 +470,7 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
       .page-controls { bottom: 34px !important; }
     ` });
     await page.evaluate(() => window.dispatchEvent(new Event("resize")));
-    const leaf = page.getByTestId("mobile-editorial-page");
+    const leaf = page.locator('[data-testid="mobile-editorial-page"]:visible');
     await expect.poll(async () => Math.abs((await leaf.boundingBox())!.height - (844 - 64 - 98 - 46))).toBeLessThan(1.1);
     const box = (await leaf.boundingBox())!;
     const guide = (await page.locator(".mobile-gesture-hint").boundingBox())!;
@@ -254,7 +487,7 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
     for (const viewport of [{ width: 360, height: 780 }, { width: 412, height: 915 }, { width: 390, height: 844 }]) {
       await page.setViewportSize(viewport);
       await expect.poll(async () => {
-        const box = (await page.getByTestId("mobile-editorial-page").boundingBox())!;
+        const box = (await page.locator('[data-testid="mobile-editorial-page"]:visible').boundingBox())!;
         return Math.abs(box.width - viewport.width) + Math.abs(box.height - (viewport.height - 48 - 126));
       }).toBeLessThan(2);
     }
@@ -267,14 +500,14 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
   test("native swipe from hero has no residual click; buttons and page picker retain reading state", async ({ page, context }) => {
     await page.goto("/?mobile-pilot=17"); await ready(page);
     await page.getByTestId("page-flip-engine").evaluate(el => el.setAttribute("data-instance-probe", "same"));
-    await swipe(page, context, page.locator(".mobile-p17-page__hero"), -145);
+    await swipe(page, context, page.locator(".mobile-premium-product-page__hero:visible"), -145);
     await settled(page, 18); await expect(page.getByRole("dialog")).toHaveCount(0);
     await expect(page.locator(".mobile-p17-frame")).toHaveCount(0);
     await page.getByRole("button", { name: "Página anterior", exact: true }).click(); await ready(page);
-    await swipe(page, context, page.locator(".mobile-p17-page__hero"), 2, 70);
+    await swipe(page, context, page.locator(".mobile-premium-product-page__hero:visible"), 2, 70);
     await settled(page); await expect(page.getByRole("dialog")).toHaveCount(0);
     // From the left edge, cross the spine far enough to commit the native fold.
-    await swipe(page, context, page.locator(".mobile-p17-page__technologies"), 220);
+    await swipe(page, context, page.locator(".mobile-premium-product-page__technologies:visible"), 220);
     await settled(page, 16); await expect(page.getByRole("dialog")).toHaveCount(0);
     await page.getByRole("button", { name: "Página siguiente", exact: true }).click(); await ready(page);
     await goTo(page, 27);
@@ -286,7 +519,7 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
     const originalDialog = await originalEntryProduct(page);
     const original = await originalDialogFingerprint(originalDialog);
     await page.goto("/?mobile-pilot=17"); await ready(page);
-    const leaf = page.getByTestId("mobile-editorial-page"), before = await leaf.boundingBox(), beforeHTML = await leaf.evaluate(el => el.outerHTML);
+    const leaf = page.locator('[data-testid="mobile-editorial-page"]:visible'), before = await leaf.boundingBox(), beforeHTML = await leaf.evaluate(el => el.outerHTML);
     const dialog = await openProduct(page);
     expect(await originalDialogFingerprint(dialog)).toEqual(original);
     await expect(dialog.locator('img[src*="/hero/"]')).toHaveCount(0);
@@ -333,12 +566,12 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
     await explore.getByRole("button", { name: "Cerrar ficha" }).click();
     const button = page.getByRole("button", { name: "Ver ficha y opciones de pedido de Raptor+", exact: true });
     await expect(button).toHaveAttribute("data-product-id", "raptor+");
-    await expect(page.locator(".mobile-p17-page__explore")).toHaveAttribute("data-product-id", "raptor+");
-    await expect(page.locator(".mobile-p17-page__hero")).toHaveAttribute("data-product-id", "raptor+");
+    await expect(page.locator(".mobile-premium-product-page__explore:visible")).toHaveAttribute("data-product-id", "raptor+");
+    await expect(page.locator(".mobile-premium-product-page__hero:visible")).toHaveAttribute("data-product-id", "raptor+");
     await expect(button).toHaveAttribute("aria-haspopup", "dialog");
     const box = (await button.boundingBox())!;
     expect(box.width).toBeGreaterThanOrEqual(44); expect(box.height).toBeGreaterThanOrEqual(44);
-    const technical = (await page.locator(".mobile-p17-page__technical").boundingBox())!;
+    const technical = (await page.locator(".mobile-premium-product-page__technical:visible").boundingBox())!;
     expect(box.y + box.height).toBeLessThan(technical.y);
     await page.keyboard.press("Tab"); await button.focus();
     expect(await button.evaluate(el => getComputedStyle(el).outlineWidth)).toBe("2px");
@@ -358,7 +591,7 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
     test(`portrait specs touch scroll survives underlying book hover and image zoom at ${viewport.width}x${viewport.height}`, async ({ page, context }, testInfo) => {
       await page.setViewportSize(viewport);
       await page.goto("/?mobile-pilot=17"); await ready(page);
-      const leaf = page.getByTestId("mobile-editorial-page");
+      const leaf = page.locator('[data-testid="mobile-editorial-page"]:visible');
       const approvedLeaf = await leaf.evaluate(el => el.outerHTML), leafBox = (await leaf.boundingBox())!;
       mkdirSync("tmp/p17-scroll-fix", { recursive: true });
       if (viewport.width === 360) await page.screenshot({ path: "tmp/p17-scroll-fix/p17-button-repositioned.png", animations: "disabled" });
@@ -429,7 +662,7 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
     await page.setViewportSize({ width: 320, height: 568 }); await page.emulateMedia({ reducedMotion: "reduce" });
     await page.route("**/hero/raptor-mobile.webp", route => route.abort());
     await page.goto("/?mobile-pilot=17"); await ready(page);
-    await expect(page.locator(".mobile-p17-page__hero img")).not.toHaveAttribute("src", /\/hero\//);
+    await expect(page.locator(".mobile-premium-product-page__hero:visible img")).not.toHaveAttribute("src", /\/hero\//);
     const dialog = await openProduct(page);
     await dialog.getByRole("button", { name: "Agregar al pedido", exact: true }).scrollIntoViewIfNeeded();
     await expect(dialog.getByRole("button", { name: "Agregar al pedido", exact: true })).toBeInViewport();
@@ -446,14 +679,14 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
     page.on("request", request => { const path = new URL(request.url()).pathname; if (path.startsWith("/hero/")) heroes.push(path); if (path.startsWith("/catalog/product-images/")) productImages.push(path); if (path === "/catalog/pages/page-17.webp") iconArtwork.push(path); });
     await page.goto("/?mobile-pilot=17"); await ready(page);
     expect(await exterior()).toEqual(originalExterior);
-    const newBox = (await page.getByTestId("mobile-editorial-page").boundingBox())!;
+    const newBox = (await page.locator('[data-testid="mobile-editorial-page"]:visible').boundingBox())!;
     const guideBox = (await page.locator(".mobile-gesture-hint").boundingBox())!;
     expect(newBox.y + newBox.height).toBeLessThanOrEqual(guideBox.y);
     expect(newBox.height / newBox.width).toBeGreaterThan(1.6); expect(newBox.height).toBeGreaterThan(originalBox.height * 2);
     expect(heroes).toEqual(["/hero/raptor-mobile.webp"]); expect(productImages.filter(path => path.includes("raptor"))).toEqual([]);
     expect(iconArtwork).toEqual(["/catalog/pages/page-17.webp"]);
-    const leaf = page.getByTestId("mobile-editorial-page");
-    await expect(leaf.locator(".mobile-p17-page__technologies li")).toHaveCount(9);
+    const leaf = page.locator('[data-testid="mobile-editorial-page"]:visible');
+    await expect(leaf.locator(".mobile-premium-product-page__technologies li")).toHaveCount(9);
     await expect(leaf.getByRole("img", { name: "Punto dulce de Raptor+" })).toBeVisible();
     const cta = leaf.getByRole("button", { name: "Explorar Raptor+" });
     await expect(cta).toBeInViewport();

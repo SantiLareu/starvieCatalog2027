@@ -4,8 +4,10 @@ import { CartDrawer } from "../commerce/CartDrawer";
 import { useCommerce } from "../commerce/CommerceContext";
 import { PageFlipEngine, type PageFlipHandle } from "./PageFlipEngine";
 import { ProductModal } from "./ProductModal";
-import { MobileP17Page } from "./mobile/MobileP17Page";
-import { usePilotViewport } from "./mobile/mobilePilot";
+import { MobilePremiumProductPage } from "./mobile/MobilePremiumProductPage";
+import { mobilePresentationForPage } from "../data/mobileProductPresentation";
+import "./mobile/mobile-pilot.css";
+import { MOBILE_PREMIUM_PAGES, usePilotViewport } from "./mobile/mobilePilot";
 import {
   BACK_COVER_ORIGINAL_PAGE,
   COLLECTION_LINEUP_PAGE,
@@ -21,9 +23,9 @@ import {
 
 type MagazineProps = {
   catalog: CatalogMetadata;
-  /** Direct entry for the opt-in P17 leaf experiment; normal entry remains P1. */
+  /** Direct entry for the opt-in premium leaf experiment; normal entry remains P1. */
   initialOriginalPage?: number;
-  mobileP17Pilot?: boolean;
+  mobilePremiumPilot?: boolean;
 };
 
 type ExperienceMode = "collection" | "starlab";
@@ -111,7 +113,7 @@ type BookTransition =
       rearCover?: boolean;
     };
 
-export function Magazine({ catalog, initialOriginalPage = 1, mobileP17Pilot = false }: MagazineProps) {
+export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot = false }: MagazineProps) {
   const bookPages = useMemo(() => buildBookPages(catalog), [catalog]);
   const initialIndex = Math.max(0, bookIndexForOriginalPage(bookPages, initialOriginalPage));
   const initialExperience: ExperienceMode = isStarLabOriginalPage(initialOriginalPage) ? "starlab" : "collection";
@@ -133,8 +135,7 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobileP17Pilot = fa
   const [pageInput, setPageInput] = useState("1");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
   const portraitPhone = usePilotViewport();
-  const customP17 = mobileP17Pilot && portraitPhone;
-  const p17Index = useMemo(() => bookIndexForOriginalPage(bookPages, 17), [bookPages]);
+  const customPremium = mobilePremiumPilot && portraitPhone;
   const {
     catalogError,
     productNames,
@@ -225,9 +226,9 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobileP17Pilot = fa
     const candidates = new Set([0, displayIndex - 2, displayIndex - 1, displayIndex, displayIndex + 1, displayIndex + 2]);
     for (const index of candidates) {
       const bookPage = bookPages[index];
-      // P17's custom leaf does not display the original full bitmap. Returning
+      // Premium leaves do not display the original full bitmap. Returning
       // to another device presentation runs this same decoded preloader again.
-      if (customP17 && bookPage?.kind === "pdf" && bookPage.originalNumber === 17) continue;
+      if (customPremium && bookPage?.kind === "pdf" && MOBILE_PREMIUM_PAGES.some(number => number === bookPage.originalNumber)) continue;
       if (bookPage?.kind === "pdf" && !warmedPagesRef.current.has(bookPage.page.src)) {
         // Precargar y decodificar cada URL una vez; reintentar si falla la carga.
         warmedPagesRef.current.add(bookPage.page.src);
@@ -238,7 +239,7 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobileP17Pilot = fa
         if (typeof image.decode === "function") void image.decode().catch(() => undefined);
       }
     }
-  }, [bookPages, displayIndex, customP17]);
+  }, [bookPages, displayIndex, customPremium]);
 
   const currentLabel = useMemo(() => {
     if (backCoverState === "closed") return `CONTRATAPA / ${catalog.pageCount}`;
@@ -588,7 +589,19 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobileP17Pilot = fa
     modalProduct != null
       ? lines.find((line) => line.productId === modalProduct.id)?.qty ?? 0
       : 0;
-  const resolvedP17 = customP17 ? resolveProduct("raptor+") : null;
+  const mobilePremiumContent = customPremium ? new Map(MOBILE_PREMIUM_PAGES.map(number => {
+    const presentation = mobilePresentationForPage(number)!;
+    const resolved = resolveProduct(presentation.productId);
+    const index = bookIndexForOriginalPage(bookPages, number);
+    return [number, <MobilePremiumProductPage
+      key={presentation.productId}
+      presentation={presentation}
+      active={activeIndex === index && !isBookTransitioning && !selectedProductId && !cartOpen}
+      product={resolved.kind === "ok" ? resolved.product : null}
+      load={Math.abs(activeIndex - index) <= 1 ||
+        (bookTransition != null && "targetIndex" in bookTransition && bookTransition.targetIndex === index)}
+      live={!isBookTransitioning && !selectedProductId && !cartOpen} />] as const;
+  })) : undefined;
 
   useEffect(() => {
     setUiBusy(selectedProductId != null || cartOpen || isBookTransitioning);
@@ -769,11 +782,7 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobileP17Pilot = fa
         <PageFlipEngine
           ref={engineRef}
           initialIndex={initialIndex}
-          mobileP17Content={customP17 ? <MobileP17Page
-            product={resolvedP17?.kind === "ok" ? resolvedP17.product : null}
-            load={Math.abs(activeIndex - p17Index) <= 1 ||
-              (bookTransition != null && "targetIndex" in bookTransition && bookTransition.targetIndex === p17Index)}
-            live={!isBookTransitioning && !selectedProductId && !cartOpen} /> : undefined}
+          mobilePremiumContent={mobilePremiumContent}
           pages={bookPages}
           backCoverPage={backCoverPage}
           activeIndex={activeIndex}

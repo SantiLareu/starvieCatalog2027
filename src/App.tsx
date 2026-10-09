@@ -45,7 +45,7 @@ function CatalogApp() {
 
   return (
     <CommerceProvider>
-      <Magazine catalog={catalog} initialOriginalPage={pilotPage ?? 1} mobileP17Pilot={pilotPage === 17} />
+      <Magazine catalog={catalog} initialOriginalPage={pilotPage ?? 1} mobilePremiumPilot={pilotPage != null} />
     </CommerceProvider>
   );
 }

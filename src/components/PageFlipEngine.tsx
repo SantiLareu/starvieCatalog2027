@@ -11,6 +11,7 @@ import { SanyoEditorial } from "./SanyoEditorial";
 import { TamaraEditorial } from "./TamaraEditorial";
 import { sectionIndexForPage } from "../data/CatalogData";
 import { BackCover, type BackCoverHandle } from "./BackCover";
+import { PREMIUM_ZOOM_CLAIM, PREMIUM_ZOOM_RESET } from "./mobile/premiumPageZoom";
 
 type PageFlipRuntime = {
   update: () => void;
@@ -19,6 +20,7 @@ type PageFlipRuntime = {
   getRender: () => {
     orientation: "portrait" | "landscape";
     getRect: () => { left: number; top: number; height: number; pageWidth: number };
+    finishAnimation: () => void;
   };
   getFlipController: () => {
     getCalculation: () => { getDirection: () => number; getFlippingProgress: () => number } | null;
@@ -52,8 +54,8 @@ export type PageFlipHandle = {
 
 type PageFlipEngineProps = {
   initialIndex?: number;
-  /** Optional P17 leaf content. No alternative engine or gesture handlers. */
-  mobileP17Content?: ReactNode;
+  /** Opt-in content by original PDF page. Native engine/gestures are shared. */
+  mobilePremiumContent?: ReadonlyMap<number, ReactNode>;
   pages: BookPage[];
   /** P39 como superficie visual: nunca es .catalog-leaf ni tiene índice. */
   backCoverPage: CatalogPage | undefined;
@@ -90,7 +92,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
   function PageFlipEngine(
     {
       initialIndex = 0,
-      mobileP17Content,
+      mobilePremiumContent,
       pages,
       backCoverPage,
       activeIndex,
@@ -303,6 +305,23 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       let pendingTouchGesture: PendingBoundaryGesture | null = null;
       let suppressGestureClick = false;
       const gestureSurface = host.closest<HTMLElement>(".magazine-stage") ?? host;
+      const handlePremiumZoomClaim = (event: Event) => {
+        const target = event.target;
+        if (!(target instanceof HTMLElement) || !target.hasAttribute("data-premium-zoom-viewport") || !host.contains(target)) return;
+        const pending = pendingTouchGesture;
+        if (isTurning() && !pending?.direction) { event.preventDefault(); return; }
+        pendingTouchGesture = null;
+        pendingMouseGesture = null;
+        suppressGestureClick = false; // The leaf now owns residual-click suppression.
+        if (pending?.direction && pending.corner) {
+          const runtime = engine as unknown as PageFlipRuntime;
+          // Retract to the original corner before native stopMove, so even a
+          // deep one-finger fold cancels rather than crossing to the next leaf.
+          runtime.getFlipController().fold(pending.corner);
+          runtime.getFlipController().stopMove();
+          runtime.getRender().finishAnimation();
+        }
+      };
 
       const beginBoundaryGesture = (
         point: PendingBoundaryGesture,
@@ -496,6 +515,18 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       });
       engine.on("changeState", (event) => {
         const state = String(event.data);
+        if (state === "flipping") host.querySelectorAll<HTMLElement>("[data-premium-zoom-viewport]").forEach(viewport => {
+          viewport.dispatchEvent(new Event(PREMIUM_ZOOM_RESET));
+          // Native temporary copies have no React refs/listeners. Reset only
+          // those library-owned copies too, before they are exposed by a turn.
+          const leaf = viewport.closest<HTMLElement>(".catalog-leaf");
+          if (leaf && !sourceLeaves.has(leaf)) {
+            viewport.querySelector<HTMLElement>(".mobile-premium-product-page")?.style.removeProperty("transform");
+            viewport.dataset.zoom = "1.00"; viewport.dataset.panX = "0.00"; viewport.dataset.panY = "0.00";
+            const resetButton = viewport.querySelector<HTMLButtonElement>(".mobile-premium-zoom-reset");
+            if (resetButton) resetButton.hidden = true;
+          }
+        });
         if (state === "flipping" || state === "user_fold") {
           const currentIndex = activeIndexRef.current;
           const videoIndex = pages.findIndex((page, index) => page.kind === "video" &&
@@ -685,6 +716,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       host.addEventListener("pointerleave", restoreCornerZone);
       host.addEventListener("click", handleDelegatedHotspot, true);
       gestureSurface.addEventListener("mousedown", handleCoverMouseDown, true);
+      gestureSurface.addEventListener(PREMIUM_ZOOM_CLAIM, handlePremiumZoomClaim);
       gestureSurface.addEventListener("touchstart", handleLockedTouchStart, { capture: true, passive: false });
       host.addEventListener("pointermove", handleCoverPointerMove, true);
       host.addEventListener("pointerleave", handleCoverPointerLeave, true);
@@ -700,6 +732,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         host.removeEventListener("pointerleave", restoreCornerZone);
         host.removeEventListener("click", handleDelegatedHotspot, true);
         gestureSurface.removeEventListener("mousedown", handleCoverMouseDown, true);
+        gestureSurface.removeEventListener(PREMIUM_ZOOM_CLAIM, handlePremiumZoomClaim);
         gestureSurface.removeEventListener("touchstart", handleLockedTouchStart, true);
         host.removeEventListener("pointermove", handleCoverPointerMove, true);
         host.removeEventListener("pointerleave", handleCoverPointerLeave, true);
@@ -720,10 +753,10 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       const host = hostRef.current;
       if (!engine || !host || isTurning()) return;
       const page = pages[activeIndex];
-      const vertical = mobileP17Content != null && page?.kind === "pdf" && page.originalNumber === 17;
+      const vertical = page?.kind === "pdf" && mobilePremiumContent?.has(page.originalNumber) === true;
       if (!vertical && !mobileGeometryRef.current) return;
       mobileGeometryRef.current = vertical;
-      // Only the custom P17 leaf follows its responsive frame. Native physics
+      // Only registered premium leaves follow the existing responsive frame. Native physics
       // and gestures are unchanged; freeze geometry while turning and restore
       // the approved dimensions at read on any other page/device.
       const settings = engine.getSettings();
@@ -745,7 +778,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       const observer = new ResizeObserver(updateGeometry);
       observer.observe(host);
       return () => observer.disconnect();
-    }, [activeIndex, flipInProgress, mobileP17Content != null, pages, isTurning]);
+    }, [activeIndex, flipInProgress, mobilePremiumContent != null, pages, isTurning]);
 
     useLayoutEffect(() => {
       setCoverVideoRevealed(false);
@@ -821,7 +854,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         cancelled = true;
         for (const probe of probes) probe.onload = null;
       };
-    }, [activeIndex, mobileP17Content != null]);
+    }, [activeIndex, mobilePremiumContent != null]);
 
     useEffect(() => {
       const engine = engineRef.current;
@@ -854,7 +887,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
             data-density={index === 0 ? "hard" : "soft"}
             key={bookPage.id}
           >
-            {bookPage.kind === "pdf" && bookPage.originalNumber === 17 && mobileP17Content != null ? mobileP17Content : bookPage.kind === "pdf" && bookPage.originalNumber === 14 ? (
+            {bookPage.kind === "pdf" && mobilePremiumContent?.has(bookPage.originalNumber) ? mobilePremiumContent.get(bookPage.originalNumber) : bookPage.kind === "pdf" && bookPage.originalNumber === 14 ? (
               <Page14Coverflow
                 visible={activeIndex === index && !flipInProgress && !interactionLocked && !productOpen && !cartOpen}
                 activeProductId={coverflowProductId}
