@@ -1,5 +1,15 @@
 .mobile-premium-page-viewport { position: absolute; inset: 0; overflow: hidden; isolation: isolate; touch-action: none; }
-.mobile-premium-page-viewport > .mobile-premium-product-page { transform-origin: 0 0; }
+.mobile-premium-page-viewport > .mobile-premium-product-page {
+  transform-origin: 0 0;
+}
+/* Cache only moving premium faces, including native portrait copies. Avoid
+   persistent backing surfaces or changing text antialiasing at rest. The
+   engine's state attribute is synchronous; zoom's inline transform still
+   owns scale/pan and its existing claim cancels a one-finger native fold. */
+.page-flip-host.mobile-p17-frame:is([data-flip-state="user_fold"], [data-flip-state="flipping"], [data-flip-state="fold_corner"])
+  .mobile-premium-page-viewport > .mobile-premium-product-page {
+  transform: translateZ(0);
+}
 .mobile-premium-page-viewport .mobile-premium-zoom-reset { position: absolute; top: 8px; right: 8px; z-index: 5; min-height: 44px; padding: 0 12px;
   border: 1px solid var(--premium-zoom-accent); border-radius: 22px; color: #f7eee7; background: #0a0a0ae8; font: 600 12px/1 system-ui; cursor: pointer; }
 .mobile-premium-page-viewport .mobile-premium-zoom-reset:focus-visible { outline: 2px solid var(--premium-zoom-accent); outline-offset: 2px; }
@@ -18,8 +28,16 @@
 .mobile-premium-product-page .mobile-premium-product-page__scene > span { position: absolute; top: 0; bottom: 0; width: 58%; background-image: var(--mobile-premium-scene); background-size: 800% 100%; background-repeat: no-repeat; }
 .mobile-premium-product-page .mobile-premium-product-page__scene > span:first-child { left: 0; background-position: left center; mask-image: linear-gradient(90deg, #000 65%, transparent); }
 .mobile-premium-product-page .mobile-premium-product-page__scene > span:last-child { right: 0; background-position: right center; mask-image: linear-gradient(270deg, #000 65%, transparent); }
+/* A separate product-free photograph covers the entire leaf. The legacy
+   edge treatment above remains untouched for approved scenes such as P15. */
+.mobile-premium-product-page .mobile-premium-product-page__scene--ambient { inset: -3px; background-image: var(--mobile-premium-scene); background-size: cover;
+  background-position: var(--mobile-premium-scene-position, center); background-repeat: no-repeat; filter: blur(2px); }
+/* Prepared environmental assets can opt out of filtering and blur overscan. */
+.mobile-premium-product-page .mobile-premium-product-page__scene--ambient.mobile-premium-product-page__scene--sharp { inset: 0; filter: none; }
 .mobile-premium-product-page .mobile-premium-product-page__readability { position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background: var(--mobile-premium-readability, linear-gradient(0deg, #070709c9, transparent 26%, transparent 76%, #070709bf), linear-gradient(90deg, #070709d6, #070709b3 24%, transparent 38%, transparent 62%, #070709b3 78%, #070709d6)); }
+.mobile-premium-product-page--ambient .mobile-premium-product-page__readability { background: var(--mobile-premium-readability,
+  linear-gradient(0deg, #070709b3, transparent 30%, transparent 70%, #07070980), linear-gradient(90deg, #07070980, #07070966 22%, #0707091a 38%, #0707091a 62%, #07070966 78%, #07070980)); }
 .mobile-premium-product-page::after { content: ''; position: absolute; inset: 0; z-index: 0; pointer-events: none;
   background: radial-gradient(ellipse at 82% 48%, color-mix(in srgb, var(--mobile-premium-accent) 12%, transparent), transparent 62%), linear-gradient(90deg, #0004, transparent 5%, transparent 98%, #0004); }
 .mobile-premium-product-page .mobile-premium-product-page__masthead { position: absolute; top: 3%; left: 5%; right: 5%; display: flex; align-items: center; justify-content: space-between; gap: calc(3 * var(--mobile-premium-unit)); text-transform: uppercase; font-size: calc(2.25 * var(--mobile-premium-unit)); letter-spacing: .1em; color: #bcb4ae; }
@@ -32,6 +50,14 @@
 .mobile-premium-product-page .mobile-premium-product-page__hero { position: absolute; top: 18%; left: 0; width: 100%; height: 63%; z-index: 1; padding: 0; border: 0; background: transparent; color: inherit; display: flex; align-items: center; justify-content: center; cursor: pointer; }
 .mobile-premium-product-page .mobile-premium-product-page__hero img { width: auto; max-width: 100%; height: 100%; object-fit: contain; object-position: center; transform: scale(var(--asset-scale, 1)); user-select: none; pointer-events: none;
   mask-image: linear-gradient(90deg, transparent, #000 9%, #000 91%, transparent), linear-gradient(0deg, transparent, #000 3%, #000 97%, transparent); mask-composite: intersect; }
+/* Fade only the surrounding photo into the independent scene. These three
+   overlapping masks keep the head, bridge and grip opaque without moving,
+   resizing or replacing the sharp original foreground image. */
+.mobile-premium-product-page--ambient .mobile-premium-product-page__hero img {
+  mask-image: radial-gradient(ellipse 44% 36% at 52% 34%, #000 90%, transparent 100%),
+    radial-gradient(ellipse 30% 17% at 50% 63%, #000 84%, transparent 100%),
+    radial-gradient(ellipse 18% 24% at 50% 78%, #000 90%, transparent 100%);
+  mask-composite: add; }
 .mobile-premium-product-page .mobile-premium-product-page__hero:focus-visible { outline: 1px solid var(--mobile-premium-accent); outline-offset: -8px; }
 .mobile-premium-product-page .mobile-premium-product-page__product-button { position: absolute; top: min(20%, calc(30% - 56px)); right: calc(22% - 22px); width: 44px; height: 44px; padding: 0; display: grid; place-items: center; z-index: 4;
   border: 1px solid color-mix(in srgb, var(--mobile-premium-accent) 75%, transparent); border-radius: 50%; background: linear-gradient(145deg, color-mix(in srgb, var(--mobile-premium-accent) 20%, #101012), #101012); color: #f5eee8; cursor: pointer;
@@ -49,6 +75,8 @@
   background-repeat: no-repeat;
 
   filter: grayscale(1) contrast(2.2); mix-blend-mode: screen; }
+.mobile-premium-product-page .mobile-premium-product-page__technology-new { display: inline-block; padding: .1em .25em; font-size: .65em; font-weight: 750; line-height: 1.1;
+  border: 1px solid var(--mobile-premium-accent); color: color-mix(in srgb, var(--mobile-premium-accent) 55%, white); border-radius: 2px; }
 .mobile-premium-product-page .mobile-premium-product-page__technical { position: absolute; right: 4.5%; top: 30%; width: 23%; z-index: 3; }
 .mobile-premium-product-page .mobile-premium-product-page__sweet-spot-block { display: flex; align-items: center; flex-direction: column; }
 .mobile-premium-product-page .mobile-premium-product-page__sweet-spot { width: calc(12.2 * var(--mobile-premium-unit)); height: auto; }
@@ -60,7 +88,7 @@
 .mobile-premium-product-page .mobile-premium-product-page__technical dl > div { display: grid; grid-template-columns: 48% 52%; border-bottom: 1px solid #ddd1c32c; padding: calc(1.4 * var(--mobile-premium-unit)) calc(.7 * var(--mobile-premium-unit)); }
 .mobile-premium-product-page .mobile-premium-product-page__technical dl > div:last-child { border-bottom: 0; }
 .mobile-premium-product-page .mobile-premium-product-page__technical dt { font-weight: 700; }
-.mobile-premium-product-page .mobile-premium-product-page__technical dd { margin: 0; font-style: italic; white-space: nowrap; }
+.mobile-premium-product-page .mobile-premium-product-page__technical dd { margin: 0; font-style: italic; white-space: var(--premium-spec-white-space, nowrap); }
 .mobile-premium-product-page .mobile-premium-product-page__features { position: absolute; bottom: max(12%, calc(44px + 2.5% + 3 * var(--mobile-premium-unit))); left: 5%; right: 5%; margin: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: calc(2 * var(--mobile-premium-unit)); pointer-events: none; }
 .mobile-premium-product-page .mobile-premium-product-page__features > div { display: flex; flex-direction: column; gap: calc(1.5 * var(--mobile-premium-unit)); }
 .mobile-premium-product-page .mobile-premium-product-page__features svg { width: calc(4 * var(--mobile-premium-unit)); height: calc(4 * var(--mobile-premium-unit)); color: color-mix(in srgb, var(--mobile-premium-accent) 55%, #e5dacf); }
@@ -80,5 +108,8 @@
 .mobile-premium-product-page .mobile-premium-product-page__explore:disabled { opacity: .4; cursor: default; }
 .mobile-premium-product-page .mobile-premium-product-page__folio { position: absolute; bottom: 4.3%; left: 5%; right: 5%; display: flex; justify-content: space-between; color: #93877e; font-size: calc(1.8 * var(--mobile-premium-unit)); letter-spacing: .08em; text-transform: uppercase; pointer-events: none; }
 .mobile-premium-product-page .mobile-premium-product-page__folio > span:last-child { font-size: calc(2.7 * var(--mobile-premium-unit)); color: #d4c7be; }
+.mobile-premium-product-page .mobile-premium-product-page__folio--details > span { width: 24%; }
+.mobile-premium-product-page .mobile-premium-product-page__folio--details > span:last-child { text-align: right; }
+.mobile-premium-product-page .mobile-premium-product-page__printed-details { display: block; margin-top: calc(.5 * var(--mobile-premium-unit)); font-size: calc(1.6 * var(--mobile-premium-unit)); line-height: 1.3; letter-spacing: .02em; color: #c5b9b3; }
 .mobile-premium-product-page .mobile-premium-product-page__placeholder { font-size: calc(3 * var(--mobile-premium-unit)); color: #a99b91; }
 .mobile-premium-product-page .mobile-premium-product-page__asset-note { position: absolute; bottom: .7%; left: 5%; font-size: calc(1.7 * var(--mobile-premium-unit)); color: #9a8f88; }

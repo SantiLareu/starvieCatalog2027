@@ -4,6 +4,12 @@ const full = "/catalog/pages/page-17.webp";
 const thumbnail = "/catalog/thumbnails/page-17.webp";
 const image17 = (page: Page) => page.locator('[data-catalog-page="17"]');
 
+// P17 is now an HTML court/product leaf on portrait phones. These regressions
+// exercise the native PDF decoder, which still applies to desktop/landscape.
+test.beforeEach(async ({page,isMobile}) => {
+  if (isMobile) await page.setViewportSize({width:844,height:390});
+});
+
 async function goTo(page: Page, number: number) {
   await page.getByTestId("page-indicator").click();
   await page.locator("#page-number").fill(String(number));

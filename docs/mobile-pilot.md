@@ -1,18 +1,20 @@
-# P15 / P17 experimental: hojas propias dentro del visor aprobado
+# Hojas premium mobile dentro del visor aprobado
 
-El piloto se abre con `/?mobile-pilot=15` (Eternal) o `/?mobile-pilot=17` (Raptor+).
-Ambas entradas habilitan únicamente P15/P17. La entrada habitual `/` sigue siendo
-el catálogo aprobado. En ambas entradas hay un único `Magazine` y un único
-StPageFlip; no existe un shell ni un sistema de navegación mobile paralelo.
+La entrada habitual `/` activa el sistema de cancha y hojas premium P15–P20 en
+teléfonos portrait. Los parámetros `/?mobile-pilot=15` (Eternal) y
+`/?mobile-pilot=17` (Raptor+) se conservan como accesos directos, al igual que
+16/18/19/20. Hay un único `Magazine` y un único StPageFlip.
+La configuración actual y cómo cambiar StarNews se describen en
+[mobile-court.md](mobile-court.md).
 
 Sólo `(max-width: 599px) and (orientation: portrait)` sustituye el contenido de
-P15/P17 por `MobilePremiumProductPage`. Desktop, tablet y teléfono landscape muestran el PDF
+P15–P20 por `MobilePremiumProductPage`. Desktop, tablet y teléfono landscape muestran el PDF
 original. P27/P28 y las demás páginas conservan sus componentes y assets.
 
 ## Arquitectura y geometría autorizada
 
-- `App.tsx` monta siempre Magazine. El parámetro experimental permite entrar
-  directamente en P15 o P17 y habilita la sustitución de esas dos hojas.
+- `App.tsx` monta siempre Magazine. El parámetro permite entrar directamente
+  a una hoja premium; la sustitución se habilita por el viewport portrait.
 - Magazine resuelve cada productId mediante CommerceContext y entrega las hojas
   al mapa `mobilePremiumContent` del adaptador, por número original del PDF.
   La lista explícita `MOBILE_PREMIUM_PAGES` evita activar futuros perfiles por
@@ -23,7 +25,8 @@ original. P27/P28 y las demás páginas conservan sus componentes y assets.
   original, punto dulce vectorial con rojo elevado y tabla de datos vivos.
   Su botón declara `data-product-id`: el delegado y el árbitro de gestos
   **originales** de StPageFlip distinguen tap/drag y suprimen click residual.
-- El marco responsive aprobado de P17 se aplica también a P15 por autorización.
+- El marco responsive aprobado de P17 se reutiliza en P15–P20, portada, P14 y
+  StarNews dentro de la presentación portrait de cancha.
   En reposo llena los dos ejes de la banda entre header y guía, sin ratio fijo.
   CSS calcula esa banda con dvh/safe areas; un ResizeObserver local al marco
   sincroniza su ratio actual con las dimensiones que recibe StPageFlip.
@@ -34,7 +37,7 @@ original. P27/P28 y las demás páginas conservan sus componentes y assets.
   vertical; al asentarse recupera su formato horizontal. Esta adaptación
   del marco entre formatos es una limitación visual del piloto para evaluar.
 - CSS de la composición aislado en `.mobile-premium-product-page`; el marco
-  conserva `.mobile-p17-frame` y su geometría exclusiva del piloto.
+  conserva `.mobile-p17-frame` como nombre del marco portrait compartido.
   No se editaron styles.css, hardCoverMotion, ni las reglas globales del visor.
   El marco reserva espacio para la guía y botones actuales sin moverlos.
 - Pala, Explorar y el botón circular de bolsa abren el ProductModal original.
@@ -50,6 +53,10 @@ original. P27/P28 y las demás páginas conservan sus componentes y assets.
   vuelve al mismo índice del mismo engine. El carrito/checkout son los originales.
 
 ## Infraestructura retirada y reutilizada
+
+Los detalles de assets hero y validaciones experimentales que siguen documentan
+etapas anteriores. La presentación habitual actual usa cancha y fotos reales
+del catálogo, según `mobile-court.md`; esos assets anteriores se conservan.
 
 Se eliminaron MobileMagazineShell, MobilePilotPresentation y MobilePageTurn,
 con su header/navigation/retorno, handoff entre renderers, ocho franjas 3D,

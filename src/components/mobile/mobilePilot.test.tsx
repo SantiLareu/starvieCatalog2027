@@ -13,14 +13,285 @@ afterEach(() => { cleanup(); vi.useRealTimers(); vi.restoreAllMocks(); vi.unstub
 const product = catalog.products.find(candidate => candidate.id === "raptor+")! as CommerceProduct;
 
 describe("P17 presentation and eligibility", () => {
-  it("requires the explicit experiment and enables only P15/P17", () => {
+  it("keeps deep links for P15/P16/P17/P18/P19/P20/P21/P22/P23/P24/P25/P26", () => {
     expect(pilotPageFromSearch("")).toBeNull();
     expect(pilotPageFromSearch("?mobile-pilot=17")).toBe(17);
     expect(pilotPageFromSearch("?mobile-pilot=15")).toBe(15);
-    expect(MOBILE_PREMIUM_PAGES).toEqual([15, 17]);
+    expect(pilotPageFromSearch("?mobile-pilot=16")).toBe(16);
+    expect(pilotPageFromSearch("?mobile-pilot=18")).toBe(18);
+    expect(pilotPageFromSearch("?mobile-pilot=19")).toBe(19);
+    expect(pilotPageFromSearch("?mobile-pilot=20")).toBe(20);
+    expect(pilotPageFromSearch("?mobile-pilot=21")).toBe(21);
+    expect(pilotPageFromSearch("?mobile-pilot=22")).toBe(22);
+    expect(pilotPageFromSearch("?mobile-pilot=23")).toBe(23);
+    expect(pilotPageFromSearch("?mobile-pilot=24")).toBe(24);
+    expect(pilotPageFromSearch("?mobile-pilot=25")).toBe(25);
+    expect(pilotPageFromSearch("?mobile-pilot=26")).toBe(26);
+    expect(MOBILE_PREMIUM_PAGES).toEqual([15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26]);
     expect(pilotPageFromSearch("?mobile-pilot=27")).toBeNull();
     expect(pilotPageFromSearch("?mobile-pilot=28")).toBeNull();
     expect(pilotPageFromSearch("?mobile-pilot")).toBe(17);
+  });
+  it("associates Black Titan with its real P18 identity and keeps its original commerce gallery", () => {
+    const titan = catalog.products.find(candidate => candidate.id === "black titan")! as CommerceProduct;
+    const presentation = mobilePresentationForPage(18)!;
+    expect(titan).toMatchObject({ id: "black titan", sku: "PSTBT41000", pagina: 18 });
+    expect(presentation).toBe(mobileProductPresentation[titan.id]);
+    expect(presentation).toMatchObject({
+      pageId: 18, productId: "black titan", title: "BLACK TITAN",
+      printedDetails: { ref: "PSTBT41000", ean: "8436612942018", include: "ECOFRIENDLY GYMSACK" },
+      mobileHero: { source: "/hero/titan-mobile.png", role: "hero", scale: 1 },
+      themeAccent: "#36b9e8", heroBackgroundMode: "full-bleed",
+      backgroundTheme: { asset: { source: "/hero/titan-ambient.webp", soften: false } },
+      sweetSpot: { kind: "asset", source: "mobile/dulcetitan.png", width: 303, height: 435 },
+      specs: { shape: "HÍBRIDO", surface: "24K CARBON", weight: "350-370 GR", balance: "ALTO" },
+    });
+    expect(presentation.technologies.map(technology => technology.label)).toEqual([
+      "24K Carbon Master", "H-Eva Power", "Spin Boost Tech", "Anti-Vibe",
+      "Dynamic Star", "Five Sides Tech", "Reactive Holes", "Z-shock",
+    ]);
+    expect(mobileAssets(titan, "gallery").assets.map(asset => asset.source)).toEqual(titan.imagenes);
+    const { container } = render(<MobilePremiumProductPage presentation={presentation} product={titan} live load />);
+    expect(container.querySelectorAll('button[data-product-id="black titan"]')).toHaveLength(3);
+    expect(screen.getByText("REF: PSTBT41000")).toBeVisible();
+    expect(screen.getByText("EAN: 8436612942018")).toBeVisible();
+  });
+  it("configures Tritón + Power on P19 with its exact masthead and original gallery", () => {
+    const power = catalog.products.find(candidate => candidate.id === "triton+ power")! as CommerceProduct;
+    const presentation = mobilePresentationForPage(19)!;
+    expect(power).toMatchObject({ id: "triton+ power", sku: "PSTTP41000", pagina: 19 });
+    expect(presentation).toBe(mobileProductPresentation[power.id]);
+    expect(presentation).toMatchObject({
+      pageId: 19, productId: "triton+ power", title: "TRITÓN + POWER",
+      rangeLabel: "PRO-LINE", rangePrefix: "", audienceLabel: "HIGH LEVEL", claim: "BREAK THE RULES",
+      printedDetails: { ref: "PSTTP41000", ean: "8436612942056", include: "ECOFRIENDLY GYMSACK" },
+      mobileHero: { source: "/hero/power-mobile.png", role: "hero", scale: 1 },
+      themeAccent: "#28bdf0", heroBackgroundMode: "full-bleed",
+      backgroundTheme: { asset: { source: "/hero/power-ambient.webp", soften: false } },
+      sweetSpot: { kind: "asset", source: "mobile/dulcepower.png", width: 168, height: 285 },
+      gameType: "ATAQUE",
+      specs: { shape: "DIAMANTE", surface: "18K CARBON", weight: "350-370 GR", balance: "ALTO" },
+    });
+    expect(presentation.technologies.map(technology => technology.label)).toEqual([
+      "18K Carbon Hybrid", "H-Eva Power", "Spin Boost Tech", "TriTech Core",
+      "Five Sides Tech", "Anatomic Bridge Design", "Longer Handgrip", "Z-shock",
+    ]);
+    expect(presentation.technologies.some(technology => technology.isNew)).toBe(false);
+    expect(mobileAssets(power, "gallery").assets.map(asset => asset.source)).toEqual(power.imagenes);
+    const { container } = render(<MobilePremiumProductPage presentation={presentation} product={power} live load />);
+    expect(screen.getAllByRole("button")).toHaveLength(3);
+    screen.getAllByRole("button").forEach(button => expect(button).toHaveAttribute("data-product-id", power.id));
+    expect(container.querySelector(".mobile-premium-product-page__masthead strong")).toHaveTextContent(/^PRO-LINE$/);
+    expect(screen.getByText("HIGH LEVEL")).toBeVisible();
+    expect(screen.getByText("REF: PSTTP41000")).toBeVisible();
+    expect(screen.getByText("EAN: 8436612942056")).toBeVisible();
+  });
+  it("configures Tritón + Balance on P20 without replacing its real catalog gallery", () => {
+    const balance = catalog.products.find(candidate => candidate.id === "triton+ balance")! as CommerceProduct;
+    const presentation = mobilePresentationForPage(20)!;
+    expect(balance).toMatchObject({ id: "triton+ balance", sku: "PSTTB41000", pagina: 20 });
+    expect(presentation).toBe(mobileProductPresentation[balance.id]);
+    expect(presentation).toMatchObject({
+      pageId: 20, productId: "triton+ balance", title: "TRITÓN + BALANCE",
+      rangeLabel: "PRO-LINE", rangePrefix: "", audienceLabel: "HIGH LEVEL", claim: "BREAK THE RULES",
+      printedDetails: { ref: "PSTTB41000", ean: "8436612942049", include: "ECOFRIENDLY GYMSACK" },
+      mobileHero: { source: "/hero/balance-mobile.png", role: "hero", scale: 1 },
+      themeAccent: "#f2d326", heroBackgroundMode: "full-bleed",
+      backgroundTheme: { asset: { source: "/hero/balance-ambient.webp", soften: false } },
+      sweetSpot: { kind: "asset", source: "mobile/dulcebalance.png", width: 180, height: 268 },
+      gameType: "VERSÁTIL",
+      specs: { shape: "DIAMANTE", surface: "18K CARBON", weight: "350-370 GR", balance: "MEDIO" },
+    });
+    expect(presentation.technologies.map(technology => technology.label)).toEqual([
+      "18K Carbon Hybrid", "M-Eva Balance", "Spin Boost Tech", "TriTech Core",
+      "Five Sides Tech", "Anatomic Bridge Design", "Longer Handgrip", "Z-shock",
+    ]);
+    expect(presentation.technologies.some(technology => technology.isNew)).toBe(false);
+    expect(mobileAssets(balance, "gallery").assets.map(asset => asset.source)).toEqual(balance.imagenes);
+    const { container } = render(<MobilePremiumProductPage presentation={presentation} product={balance} live load />);
+    expect(screen.getAllByRole("button")).toHaveLength(3);
+    screen.getAllByRole("button").forEach(button => expect(button).toHaveAttribute("data-product-id", balance.id));
+    expect(container.querySelector(".mobile-premium-product-page__masthead strong")).toHaveTextContent(/^PRO-LINE$/);
+    expect(screen.getByText("HIGH LEVEL")).toBeVisible();
+    expect(screen.getByText("REF: PSTTB41000")).toBeVisible();
+    expect(screen.getByText("EAN: 8436612942049")).toBeVisible();
+  });
+  it("keeps the original GAMA masthead for P15/P16/P17/P18", () => {
+    for (const pageId of [15, 16, 17, 18]) {
+      const presentation = mobilePresentationForPage(pageId)!;
+      const original = catalog.products.find(candidate => candidate.id === presentation.productId)! as CommerceProduct;
+      const { container, unmount } = render(<MobilePremiumProductPage presentation={presentation} product={original} load={false} live={false} />);
+      expect(container.querySelector(".mobile-premium-product-page__masthead strong")).toHaveTextContent(/^GAMA /);
+      unmount();
+    }
+  });
+  it("renders Astrum+ with the shared court template, exact editorial data and real gallery", () => {
+    const astrum = catalog.products.find(candidate => candidate.id === "astrum+")! as CommerceProduct;
+    const presentation = mobilePresentationForPage(21)!;
+    expect(astrum).toMatchObject({ id: "astrum+", sku: "PSTAMP41000", pagina: 21 });
+    expect(mobileAssets(astrum, "gallery").assets.map(asset => asset.source)).toEqual(astrum.imagenes);
+    const { container } = render(<MobilePremiumProductPage product={astrum} presentation={presentation} courtScene load live />);
+    expect(screen.getByRole("heading", { name: /^ASTRUM\+$/ })).toBeVisible();
+    expect(container.querySelector(".mobile-premium-product-page__masthead")).toHaveTextContent("GAMA PREMIUMINTERMEDIO");
+    expect(screen.getByText("BREAK THE RULES")).toBeVisible();
+    expect(screen.getByText("REF: PSTAMP41000")).toBeVisible();
+    expect(screen.getByText("EAN: 8436612942032")).toBeVisible();
+    expect(screen.getByText(/ECOFRIENDLY GYMSACK/)).toBeVisible();
+    const rail = screen.getByRole("complementary", { name: "Tecnologías de Astrum+" });
+    expect([...rail.querySelectorAll("li")].map(node => node.textContent)).toEqual([
+      "12K Carbon Hyper", "M-Eva Balance", "Spin Boost Tech", "Air Booster", "Shock Shield", "Five Sides Tech", "Z-shock",
+    ]);
+    expect(screen.getByRole("complementary", { name: "Datos técnicos de Astrum+" })).toHaveTextContent("LÁGRIMA");
+    expect(mainProductFeatures(astrum)).toEqual([
+      ["Plano", "12K CARBON HYPER"], ["Forma", "LÁGRIMA"], ["Peso", "350–370 GR"], ["Balance", "MEDIO"],
+    ]);
+    expect(screen.getByRole("img", { name: "Punto dulce de Astrum+" })).toHaveAttribute("src", expect.stringContaining("mobile/astrum-sweetspot.png"));
+    expect(screen.getByRole("img", { name: /^Astrum\+$/ })).toHaveAttribute("data-mobile-hero-source", "products/palas/ASTRUM/ASTRUM1.1.webp");
+    expect(container.querySelector(".mobile-court-scene--product")).not.toBeNull();
+    expect(container.querySelector(".mobile-premium-product-page__scene")).toBeNull();
+    expect(container.querySelectorAll('button[data-product-id="astrum+"]')).toHaveLength(3);
+  });
+  it("renders Metheora+ on P22 with its real assets, exact data and only its two NEW technologies", () => {
+    const metheora = catalog.products.find(candidate => candidate.id === "metheora+")! as CommerceProduct;
+    const presentation = mobilePresentationForPage(22)!;
+    expect(metheora).toMatchObject({ id: "metheora+", sku: "PSTMP41000", pagina: 22 });
+    expect(presentation).toBe(mobileProductPresentation[metheora.id]);
+    expect(mobileAssets(metheora, "gallery").assets.map(asset => asset.source)).toEqual(metheora.imagenes);
+    const { container } = render(<MobilePremiumProductPage product={metheora} presentation={presentation} courtScene load live />);
+    expect(screen.getByRole("heading", { name: /^METHEORA\+$/ })).toBeVisible();
+    expect(container.querySelector(".mobile-premium-product-page__masthead")).toHaveTextContent("GAMA PREMIUMINTERMEDIO");
+    expect(screen.getByText("BREAK THE RULES")).toBeVisible();
+    expect(screen.getByText("REF: PSTMP41000")).toBeVisible();
+    expect(screen.getByText("EAN: 8436612942063")).toBeVisible();
+    expect(screen.getByText(/ECOFRIENDLY GYMSACK/)).toBeVisible();
+    const rail = screen.getByRole("complementary", { name: "Tecnologías de Metheora+" });
+    expect([...rail.querySelectorAll("li")].map(node => node.textContent)).toEqual([
+      "12K Carbon Hyper", "M-Eva Balance", "Spin Boost Tech", "Precision Bridge NEW",
+      "Core Axis NEW", "Reactive Holes", "Longer Handgrip", "Z-shock",
+    ]);
+    expect(presentation.technologies.filter(technology => technology.isNew).map(technology => technology.label)).toEqual(["Precision Bridge", "Core Axis"]);
+    expect(mainProductFeatures(metheora)).toEqual([
+      ["Plano", "12K CARBON HYPER"], ["Forma", "HÍBRIDA"], ["Peso", "350–370 GR"], ["Balance", "MEDIO"],
+    ]);
+    expect(screen.getByRole("img", { name: "Punto dulce de Metheora+" })).toHaveAttribute("src", expect.stringContaining("mobile/metheora-sweetspot.png"));
+    expect(screen.getByRole("img", { name: /^Metheora\+$/ })).toHaveAttribute("data-mobile-hero-source", "products/palas/METHEORA/METHE1.4.webp");
+    expect(container.querySelector(".mobile-court-scene--product")).not.toBeNull();
+    expect(container.querySelector(".mobile-premium-product-page__scene")).toBeNull();
+    expect(container.querySelectorAll('button[data-product-id="metheora+"]')).toHaveLength(3);
+  });
+  it("renders Phantom on P23 with exact printed data, real assets and its two NEW technologies", () => {
+    const phantom = catalog.products.find(candidate => candidate.id === "phantom")! as CommerceProduct;
+    const presentation = mobilePresentationForPage(23)!;
+    expect(phantom).toMatchObject({ id: "phantom", sku: "PSTP41000", pagina: 23 });
+    expect(presentation).toBe(mobileProductPresentation[phantom.id]);
+    expect(mobileAssets(phantom, "gallery").assets.map(asset => asset.source)).toEqual(phantom.imagenes);
+    const { container } = render(<MobilePremiumProductPage product={phantom} presentation={presentation} courtScene load live />);
+    expect(screen.getByRole("heading", { name: /^PHANTOM$/ })).toBeVisible();
+    expect(container.querySelector(".mobile-premium-product-page__masthead")).toHaveTextContent("GAMA PREMIUMINTERMEDIO");
+    expect(screen.getByText("BREAK THE RULES")).toBeVisible();
+    expect(screen.getByText("REF: PSTP41000")).toBeVisible();
+    expect(screen.getByText("EAN: 8436612942070")).toBeVisible();
+    expect(screen.getByText(/ECOFRIENDLY GYMSACK/)).toBeVisible();
+    const rail = screen.getByRole("complementary", { name: "Tecnologías de Phantom" });
+    expect([...rail.querySelectorAll("li")].map(node => node.textContent)).toEqual([
+      "12K Carbon Hyper", "S-Eva Flex", "Spin Boost Tech", "Precision Bridge NEW",
+      "Core Axis NEW", "Reactive Holes", "Longer Handgrip", "Z-shock",
+    ]);
+    expect(presentation.technologies.filter(technology => technology.isNew).map(technology => technology.label)).toEqual(["Precision Bridge", "Core Axis"]);
+    expect(mainProductFeatures(phantom)).toEqual([
+      ["Plano", "12K CARBON HYPER"], ["Forma", "REDONDA"], ["Peso", "347–365 GR"], ["Balance", "BAJO"],
+    ]);
+    expect(screen.getByRole("complementary", { name: "Datos técnicos de Phantom" })).toHaveTextContent("CONTROL");
+    expect(screen.getByRole("img", { name: "Punto dulce de Phantom" })).toHaveAttribute("src", expect.stringContaining("mobile/phantom-sweetspot.png"));
+    expect(screen.getByRole("img", { name: /^Phantom$/ })).toHaveAttribute("data-mobile-hero-source", "products/palas/PHANTOM/PHANTON1.1.webp");
+    expect(container.querySelector(".mobile-court-scene--product")).not.toBeNull();
+    expect(container.querySelector(".mobile-premium-product-page__scene")).toBeNull();
+    expect(container.querySelectorAll('button[data-product-id="phantom"]')).toHaveLength(3);
+  });
+  it("renders Drax+ on P24 with exact printed data, real assets and all nine technologies in order", () => {
+    const drax = catalog.products.find(candidate => candidate.id === "drax+")! as CommerceProduct;
+    const presentation = mobilePresentationForPage(24)!;
+    expect(drax).toMatchObject({ id: "drax+", sku: "PSTDP31000", pagina: 24 });
+    expect(presentation).toBe(mobileProductPresentation[drax.id]);
+    expect(mobileAssets(drax, "gallery").assets.map(asset => asset.source)).toEqual(drax.imagenes);
+    const { container } = render(<MobilePremiumProductPage product={drax} presentation={presentation} courtScene load live />);
+    expect(screen.getByRole("heading", { name: /^DRAX\+$/ })).toBeVisible();
+    expect(container.querySelector(".mobile-premium-product-page__masthead")).toHaveTextContent("GAMA PREMIUMINTERMEDIO");
+    expect(screen.getByText("BREAK THE RULES")).toBeVisible();
+    expect(screen.getByText("REF: PSTDP31000")).toBeVisible();
+    expect(screen.getByText("EAN: 8436612941073")).toBeVisible();
+    expect(screen.getByText(/ECOFRIENDLY GYMSACK/)).toBeVisible();
+    const rail = screen.getByRole("complementary", { name: "Tecnologías de Drax+" });
+    expect([...rail.querySelectorAll("li")].map(node => node.textContent)).toEqual([
+      "12K Carbon Hyper", "M-Eva Balance", "Spin Boost Tech", "Hepta Bridge", "Shock Shield",
+      "Reactive Holes", "Longer Handgrip", "Air Flow Design", "Z-shock",
+    ]);
+    expect(presentation.technologies.some(technology => technology.isNew)).toBe(false);
+    expect(mainProductFeatures(drax)).toEqual([
+      ["Plano", "12K CARBON HYPER"], ["Forma", "LÁGRIMA"], ["Peso", "350–370 GR"], ["Balance", "MEDIO"],
+    ]);
+    expect(screen.getByRole("complementary", { name: "Datos técnicos de Drax+" })).toHaveTextContent("CONTROL");
+    expect(screen.getByRole("img", { name: "Punto dulce de Drax+" })).toHaveAttribute("src", expect.stringContaining("mobile/drax-sweetspot.png"));
+    expect(screen.getByRole("img", { name: /^Drax\+$/ })).toHaveAttribute("data-mobile-hero-source", "products/palas/DRAX/DRAX1.5.webp");
+    expect(container.querySelector(".mobile-court-scene--product")).not.toBeNull();
+    expect(container.querySelector(".mobile-premium-product-page__scene")).toBeNull();
+    expect(container.querySelectorAll('button[data-product-id="drax+"]')).toHaveLength(3);
+  });
+  it("renders Shade on P25 with Advance labels, exact printed data and only Aluminized X-Glass marked NEW", () => {
+    const shade = catalog.products.find(candidate => candidate.id === "shade")! as CommerceProduct;
+    const presentation = mobilePresentationForPage(25)!;
+    expect(shade).toMatchObject({ id: "shade", sku: "PSTS41000", pagina: 25 });
+    expect(presentation).toBe(mobileProductPresentation[shade.id]);
+    expect(mobileAssets(shade, "gallery").assets.map(asset => asset.source)).toEqual(shade.imagenes);
+    const { container } = render(<MobilePremiumProductPage product={shade} presentation={presentation} courtScene load live />);
+    expect(screen.getByRole("heading", { name: /^SHADE$/ })).toBeVisible();
+    expect(container.querySelector(".mobile-premium-product-page__masthead")).toHaveTextContent("GAMA ADVANCEPRINCIPIANTES");
+    expect(screen.getByText("BREAK THE RULES")).toBeVisible();
+    expect(screen.getByText("REF: PSTS41000")).toBeVisible();
+    expect(screen.getByText("EAN: 8436612942094")).toBeVisible();
+    expect(screen.getByText(/ECOFRIENDLY GYMSACK/)).toBeVisible();
+    const rail = screen.getByRole("complementary", { name: "Tecnologías de Shade" });
+    expect([...rail.querySelectorAll("li")].map(node => node.textContent)).toEqual([
+      "Aluminized X-Glass NEW", "S-Eva Flex", "Geo Bridge", "Reactive Holes", "Longer Handgrip",
+    ]);
+    expect(presentation.technologies.filter(technology => technology.isNew).map(technology => technology.label)).toEqual(["Aluminized X-Glass"]);
+    expect(mainProductFeatures(shade)).toEqual([
+      ["Plano", "ALUMINIZED X-GLASS"], ["Forma", "REDONDA"], ["Peso", "350–370 GR"], ["Balance", "BAJO"],
+    ]);
+    expect(screen.getByRole("complementary", { name: "Datos técnicos de Shade" })).toHaveTextContent("CONTROL");
+    expect(screen.getByRole("img", { name: "Punto dulce de Shade" })).toHaveAttribute("src", expect.stringContaining("mobile/shade-sweetspot.png"));
+    expect(screen.getByRole("img", { name: /^Shade$/ })).toHaveAttribute("data-mobile-hero-source", "products/palas/SHADE/SHADE1.1.webp");
+    expect(container.querySelector(".mobile-court-scene--product")).not.toBeNull();
+    expect(container.querySelector(".mobile-premium-product-page__scene")).toBeNull();
+    expect(container.querySelectorAll('button[data-product-id="shade"]')).toHaveLength(3);
+  });
+  it("renders Kyra on P26 using the shared format, real assets and requested printed identifiers", () => {
+    const kyra = catalog.products.find(candidate => candidate.id === "kyra")! as CommerceProduct;
+    const presentation = mobilePresentationForPage(26)!;
+    expect(kyra).toMatchObject({ id: "kyra", sku: "PSTK41000", pagina: 26 });
+    expect(presentation).toBe(mobileProductPresentation[kyra.id]);
+    expect(mobileAssets(kyra, "gallery").assets.map(asset => asset.source)).toEqual(kyra.imagenes);
+    const { container } = render(<MobilePremiumProductPage product={kyra} presentation={presentation} courtScene load live />);
+    expect(screen.getByRole("heading", { name: /^KYRA$/ })).toBeVisible();
+    expect(container.querySelector(".mobile-premium-product-page__masthead")).toHaveTextContent("GAMA ADVANCEPRINCIPIANTES");
+    expect(screen.getByText("BREAK THE RULES")).toBeVisible();
+    expect(screen.getByText("REF: PSTS41000")).toBeVisible();
+    expect(screen.getByText("EAN: 8436612942094")).toBeVisible();
+    expect(screen.getByText(/ECOFRIENDLY GYMSACK/)).toBeVisible();
+    const rail = screen.getByRole("complementary", { name: "Tecnologías de Kyra" });
+    expect([...rail.querySelectorAll("li")].map(node => node.textContent)).toEqual([
+      "X-Glass Tech", "S-Eva Flex", "Geo Bridge", "Reactive Holes", "Longer Handgrip",
+    ]);
+    expect(presentation.technologies.some(technology => technology.isNew)).toBe(false);
+    expect(mainProductFeatures(kyra)).toEqual([
+      ["Plano", "X-GLASS TECH"], ["Forma", "REDONDA"], ["Peso", "340–360 GR"], ["Balance", "BAJO"],
+    ]);
+    expect(screen.getByRole("complementary", { name: "Datos técnicos de Kyra" })).toHaveTextContent("CONTROL");
+    expect(screen.getByRole("img", { name: "Punto dulce de Kyra" })).toHaveAttribute("src", expect.stringContaining("mobile/kyra-sweetspot.png"));
+    expect(screen.getByRole("img", { name: /^Kyra$/ })).toHaveAttribute("data-mobile-hero-source", "products/palas/KYRA/KYRA1.2.webp");
+    expect(container.querySelector(".mobile-court-scene--product")).not.toBeNull();
+    expect(container.querySelector(".mobile-premium-product-page__scene")).toBeNull();
+    expect(container.querySelectorAll('button[data-product-id="kyra"]')).toHaveLength(3);
   });
   it("uses real commerce gallery paths as provisional assets", () => {
     const result = mobileAssets({ ...product, id: "unconfigured-test-product" });
@@ -177,10 +448,10 @@ describe("Reusable premium product template", () => {
     const icon = container.querySelector<HTMLElement>(".mobile-premium-product-page__technology-icon")!;
     expect(icon.style.backgroundImage).toContain("fixtures/icon.svg");
     expect(icon.style.backgroundSize).toBe("contain");
-    expect(page.style.getPropertyValue("--mobile-premium-background")).toContain('fixtures/background.webp');
+    expect(page.style.getPropertyValue("--mobile-premium-scene")).toContain('fixtures/background.webp');
     expect(page.style.getPropertyValue("--mobile-premium-background")).toContain('#102030');
     expect(page.style.getPropertyValue("--mobile-premium-accent")).toBe("#739cd8");
-    expect(page.style.getPropertyValue("--mobile-premium-scene")).toContain("fixtures/another-hero.webp");
+    expect(page.style.getPropertyValue("--mobile-premium-scene")).toContain("fixtures/background.webp");
     expect(screen.getByRole("img", { name: anotherProduct.nombre })).toHaveAttribute("src", expect.stringContaining("fixtures/another-hero.webp"));
     expect(screen.getByRole("img", { name: `Punto dulce de ${anotherProduct.nombre}` })).toHaveAttribute("src", expect.stringContaining("fixtures/sweet-spot.svg"));
     expect(screen.getByRole("complementary", { name: `Datos técnicos de ${anotherProduct.nombre}` })).toHaveTextContent(/Control.*Redonda.*Superficie de prueba.*360 GR.*Bajo/);
@@ -242,17 +513,60 @@ describe("Reusable premium product template", () => {
     screen.getAllByRole("button").forEach(button => expect(button).toHaveAttribute("data-product-id", anotherProduct.id));
   });
 
-  it.each([["eternal", "#e8b957"], ["raptor+", "#e84b3e"]])("uses the explicit %s accent and loaded hero for its full-bleed scene", (id, accent) => {
+  it.each([["eternal", "#e8b957"], ["triton t-one", "#8b3046"], ["raptor+", "#e84b3e"]])("uses the explicit %s accent and configured full-bleed scene without replacing the foreground", (id, accent) => {
     const liveProduct = catalog.products.find(candidate => candidate.id === id)! as CommerceProduct;
     const profile = mobileProductPresentation[id];
     const { container } = render(<MobilePremiumProductPage product={liveProduct} presentation={profile} load live />);
     expect(profile.themeAccent).toBe(accent);
     expect(profile.heroBackgroundMode).toBe("full-bleed");
     expect(screen.getByTestId("mobile-editorial-page").style.getPropertyValue("--mobile-premium-accent")).toBe(accent);
-    expect(screen.getByTestId("mobile-editorial-page").style.getPropertyValue("--mobile-premium-scene")).toContain(profile.mobileHero!.source);
-    expect(container.querySelectorAll(".mobile-premium-product-page__scene > span")).toHaveLength(2);
+    expect(screen.getByTestId("mobile-editorial-page").style.getPropertyValue("--mobile-premium-scene")).toContain(profile.backgroundTheme.asset?.source ?? profile.mobileHero!.source);
+    expect(container.querySelectorAll(".mobile-premium-product-page__scene > span")).toHaveLength(profile.backgroundTheme.asset ? 0 : 2);
     expect(screen.getAllByRole("img", { name: liveProduct.nombre })).toHaveLength(1);
+    expect(screen.getByRole("img", { name: liveProduct.nombre })).toHaveAttribute("src", expect.stringContaining(profile.mobileHero!.source));
     expect(container.querySelectorAll("[data-product-id]")).toHaveLength(3);
+  });
+
+  it.each(["eternal", "triton t-one", "raptor+"])("uses the configured identifiers or live catalog in the %s footer", id => {
+    const liveProduct = catalog.products.find(candidate => candidate.id === id)! as CommerceProduct;
+    const profile = mobileProductPresentation[id];
+    const { container } = render(<MobilePremiumProductPage product={liveProduct} presentation={profile} load live />);
+    const footer = container.querySelector("footer")!;
+    expect(footer).toHaveTextContent("STARVIE · 2027");
+    expect(footer).toHaveTextContent(`REF: ${profile.printedDetails?.ref ?? liveProduct.sku}`);
+    const ean = profile.printedDetails?.ean ?? liveProduct.ean;
+    if (ean) expect(footer).toHaveTextContent(`EAN: ${ean}`);
+    else expect(footer).not.toHaveTextContent("EAN:");
+    expect(footer).not.toHaveTextContent(/undefined|TODO_/);
+    if (!profile.printedDetails?.include) expect(footer).not.toHaveTextContent("INCLUYE");
+  });
+
+  it.each([
+    { sku: "", ean: "" }, { sku: "PSTRP41000", ean: "" },
+    { sku: "", ean: "8436612942001" }, { sku: "PSTRP41000", ean: "8436612942001" },
+  ])("independently omits missing SKU/EAN and refreshes the live footer (%j)", identifiers => {
+    const profile = { ...mobileProductPresentation[product.id], printedDetails: undefined };
+    const { container, rerender } = render(<MobilePremiumProductPage product={{ ...product, ...identifiers }} presentation={profile} load live />);
+    const footer = () => container.querySelector("footer")!;
+    if (identifiers.sku) expect(footer()).toHaveTextContent(`REF: ${identifiers.sku}`);
+    else expect(footer()).not.toHaveTextContent("REF:");
+    if (identifiers.ean) expect(footer()).toHaveTextContent(`EAN: ${identifiers.ean}`);
+    else expect(footer()).not.toHaveTextContent("EAN:");
+    rerender(<MobilePremiumProductPage product={{ ...product, sku: "  ", ean: "  " }} presentation={profile} load live />);
+    expect(footer()).not.toHaveTextContent(/REF:|EAN:/);
+  });
+
+  it("prioritizes the approved printed identifiers independently, with blank overrides falling back to commerce", () => {
+    const liveProduct = { ...product, sku: "LIVE-SKU", ean: "LIVE-EAN" };
+    const profile = mobileProductPresentation[product.id];
+    const { container, rerender } = render(<MobilePremiumProductPage product={liveProduct} presentation={profile} load live />);
+    const footer = () => container.querySelector("footer")!;
+    expect(footer()).toHaveTextContent("REF: PSTRP41000");
+    expect(footer()).toHaveTextContent("EAN: 8436612942025");
+    expect(footer()).not.toHaveTextContent(/LIVE-SKU|LIVE-EAN|INCLUYE/);
+    rerender(<MobilePremiumProductPage product={liveProduct} presentation={{ ...profile, printedDetails: { ref: "PSTRP41000", ean: "  " } }} load live />);
+    expect(footer()).toHaveTextContent("REF: PSTRP41000");
+    expect(footer()).toHaveTextContent("EAN: LIVE-EAN");
   });
 });
 

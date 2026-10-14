@@ -8,7 +8,6 @@ import {
   type CheckoutContact,
   type ContactErrors,
   type OrderPayload,
-  type SubmitResult,
 } from "./orders";
 import {
   getAttemptSession,

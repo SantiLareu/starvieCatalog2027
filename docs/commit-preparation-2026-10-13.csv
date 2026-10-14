@@ -1,0 +1,338 @@
+﻿git_status,path,classification,bytes_current,reason
+ M,.gitignore,COMMIT,505,Politica local de masters con excepciones para manifiesto y README
+ M,catalog/products.xlsx,COMMIT,10722,"Catalogo canonico/JSON sincronizados; 56 rutas migradas, datos comerciales intactos"
+ M,docs/mobile-pilot.md,COMMIT,34113,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+ M,e2e/final-visual.spec.ts,COMMIT,10053,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+ M,e2e/mobile-pilot.spec.ts,COMMIT,53774,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+ M,e2e/page-image-loading.spec.ts,COMMIT,7455,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+ M,generated/products-version.json,COMMIT,148,"Catalogo canonico/JSON sincronizados; 56 rutas migradas, datos comerciales intactos"
+ M,generated/products.json,COMMIT,20886,"Catalogo canonico/JSON sincronizados; 56 rutas migradas, datos comerciales intactos"
+ M,package.json,COMMIT,1415,Pipeline de imagenes/checks o exclusion de temporales de tests
+ M,public/products-version.json,COMMIT,148,"Catalogo canonico/JSON sincronizados; 56 rutas migradas, datos comerciales intactos"
+ M,public/products.json,COMMIT,20886,"Catalogo canonico/JSON sincronizados; 56 rutas migradas, datos comerciales intactos"
+ D,public/products/bolsos/accesorio/Gorra 1.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/accesorio/Gorra 2.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/accesorio/Gorra 3.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/accesorio/Gorra 4.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/accesorio/Gorra 5.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ M,public/products/bolsos/accesorio/MUÑEQUERA AZUL 1.2.png,COMMIT,1030384,Fotografia runtime real/optimizada; mantener ruta y galeria
+ D,public/products/bolsos/accesorio/Muñequera blanca 1.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/accesorio/Muñequera blanca 4.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/accesorio/Muñequera negra pack 2 2.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/accesorio/Muñequera negra pack 2 3.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ M,public/products/bolsos/accesorio/OVERGRIP 25 UNITS 1.png,COMMIT,2212928,Fotografia runtime real/optimizada; mantener ruta y galeria
+ M,public/products/bolsos/accesorio/OVERGRIP 25 UNITS 2.png,COMMIT,2306681,Fotografia runtime real/optimizada; mantener ruta y galeria
+ M,public/products/bolsos/accesorio/OVERGRIP 60 UNITS 1.png,COMMIT,3252054,Fotografia runtime real/optimizada; mantener ruta y galeria
+ M,public/products/bolsos/accesorio/OVERGRIP 60 UNITS 3.png,COMMIT,1078373,Fotografia runtime real/optimizada; mantener ruta y galeria
+ M,public/products/bolsos/accesorio/POWER BALANCE 2.png,COMMIT,2278650,Fotografia runtime real/optimizada; mantener ruta y galeria
+ M,public/products/bolsos/accesorio/POWER BALANCE.png,COMMIT,2444485,Fotografia runtime real/optimizada; mantener ruta y galeria
+ D,public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.MAIN.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT01.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT02.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT03.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.MAIN.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT01.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT02.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT03.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.MAIN.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT01.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT02.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT03.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/neceser/NECESER STARVIE MOSS.MAIN.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/neceser/NECESER STARVIE MOSS.PT01.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/neceser/NECESER STARVIE MOSS.PT02.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/neceser/NECESER STARVIE MOSS.PT03.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/neceser/NECESER STARVIE NAVY.MAIN.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/neceser/NECESER STARVIE NAVY.PT01.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/neceser/NECESER STARVIE NAVY.PT02.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/neceser/NECESER STARVIE NAVY.PT03.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT01.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT02.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT03.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT04.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT06.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT01.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT02.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT03.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT04.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT05.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT06.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT07.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.MAIN.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT01.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT03.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT04.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.MAIN.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT01.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT02.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT05.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.MAIN.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT01.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT02.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT04.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT05.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.MAIN.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT01.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT02.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT03.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ D,public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT04.png,COMMIT,,Retirar PNG runtime: master local preservado; WebP reemplazo o source-only documentado
+ M,scripts/build-product-images.mjs,COMMIT,3097,Pipeline de imagenes/checks o exclusion de temporales de tests
+ M,src/commerce/CheckoutModal.tsx,COMMIT,34314,Limpieza preexistente de imports sin uso; sin cambios de logica comercial
+ M,src/commerce/orderAttempt.test.ts,COMMIT,59259,Limpieza preexistente de imports sin uso; sin cambios de logica comercial
+ M,src/commerce/orders.test.ts,COMMIT,29670,Limpieza preexistente de imports sin uso; sin cambios de logica comercial
+ M,src/components/BackCover.tsx,COMMIT,9009,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/components/Magazine.tsx,COMMIT,41749,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/components/Page14Coverflow.tsx,COMMIT,14314,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/components/PageFlipEngine.tsx,COMMIT,51669,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/components/PdfPage.tsx,COMMIT,2091,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/components/VideoPage.tsx,COMMIT,2228,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/components/mobile/MobilePremiumProductPage.tsx,COMMIT,8213,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/components/mobile/MobilePremiumProductTechnical.tsx,COMMIT,4052,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/components/mobile/mobile-premium-product.css,COMMIT,17206,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/components/mobile/mobilePilot.test.tsx,COMMIT,47419,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/components/mobile/mobilePilot.ts,COMMIT,1188,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/data/bookFlow.test.ts,COMMIT,6688,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/data/bookFlow.ts,COMMIT,5733,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/data/mobileProductPresentation.ts,COMMIT,25199,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,src/data/productImageVariants.json,COMMIT,66136,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ M,vite.config.ts,COMMIT,3877,Pipeline de imagenes/checks o exclusion de temporales de tests
+??,docs/commit-preparation-2026-10-13.csv,COMMIT,0,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+??,docs/commit-preparation-2026-10-13.md,COMMIT,0,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+??,docs/desktop-stage.md,COMMIT,11243,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+??,docs/mobile-accessory-showcase.md,COMMIT,3468,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+??,docs/mobile-court.md,COMMIT,13022,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+??,docs/mobile-eternal-editorial.md,COMMIT,2276,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+??,docs/mobile-tone-editorial.md,COMMIT,2958,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+??,docs/png16-audit-2026-10-13.csv,COMMIT,67117,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+??,docs/png16-audit-2026-10-13.json,COMMIT,2694,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+??,docs/png16-audit-2026-10-13.md,COMMIT,10825,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+??,docs/precommit-audit-2026-10-13.md,COMMIT,11179,Documentacion y auditoria reproducible; pesos historicos diferenciados del estado final
+??,e2e/asset-loading-audit.spec.ts,COMMIT,4268,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/desktop-logo-flight.spec.ts,COMMIT,10221,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-accessories.spec.ts,COMMIT,19188,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-accessory-showcase.spec.ts,COMMIT,6859,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-artic-sport.spec.ts,COMMIT,8518,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-astrum.spec.ts,COMMIT,7464,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-black-voltage.spec.ts,COMMIT,8542,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-court-polish.spec.ts,COMMIT,8479,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-court.spec.ts,COMMIT,13684,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-drax.spec.ts,COMMIT,8088,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-eternal-editorial.spec.ts,COMMIT,5589,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-hard-eva-backpack.spec.ts,COMMIT,9775,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-kyra.spec.ts,COMMIT,9332,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-metheora.spec.ts,COMMIT,7519,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-necessaires.spec.ts,COMMIT,8565,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-neon-strike.spec.ts,COMMIT,7979,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-phantom.spec.ts,COMMIT,7489,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-pro-master.spec.ts,COMMIT,7750,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-shade.spec.ts,COMMIT,8031,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-star.spec.ts,COMMIT,7809,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/mobile-tone.spec.ts,COMMIT,9350,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/png16-runtime.spec.ts,COMMIT,5584,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,e2e/png16-visual.spec.ts,COMMIT,3770,Regresion util de UI/navegacion/carga; comparacion de masters es opcional local
+??,public/hero/balance-ambient.webp,COMMIT,152458,Dependencia de perfiles heredados y tests; no retirar en esta preparacion
+??,public/hero/balance-mobile.png,COMMIT,2530423,Dependencia de perfiles heredados y tests; no retirar en esta preparacion
+??,public/hero/eternal-ambient.webp,COMMIT,150860,Dependencia de perfiles heredados y tests; no retirar en esta preparacion
+??,public/hero/power-ambient.webp,COMMIT,255128,Dependencia de perfiles heredados y tests; no retirar en esta preparacion
+??,public/hero/power-mobile.png,COMMIT,3073503,Dependencia de perfiles heredados y tests; no retirar en esta preparacion
+??,public/hero/raptor-ambient.webp,COMMIT,101852,Dependencia de perfiles heredados y tests; no retirar en esta preparacion
+??,public/hero/titan-ambient.webp,COMMIT,183472,Dependencia de perfiles heredados y tests; no retirar en esta preparacion
+??,public/hero/titan-mobile.png,COMMIT,2809441,Dependencia de perfiles heredados y tests; no retirar en esta preparacion
+??,public/hero/tone-ambient.webp,COMMIT,232008,Dependencia de perfiles heredados y tests; no retirar en esta preparacion
+??,public/hero/tone-mobile.png,COMMIT,2849697,Dependencia de perfiles heredados y tests; no retirar en esta preparacion
+??,public/mobile/accessory-black-cap.webp,COMMIT,33438,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/accessory-power-balance.webp,COMMIT,33012,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/accessory-premier-soft.webp,COMMIT,74484,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/accessory-protector-carbon.webp,COMMIT,18290,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/accessory-tacky-touch.webp,COMMIT,49068,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/accessory-wristband-black.webp,COMMIT,31838,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/accessory-wristband-blue.webp,COMMIT,55198,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/accessory-wristband-white.webp,COMMIT,24736,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/artic-sport-backpack.webp,COMMIT,518604,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/astrum-sweetspot.png,COMMIT,39917,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/black-voltage-backpack.webp,COMMIT,164492,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/drax-sweetspot.png,COMMIT,40844,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/dulcebalance.png,COMMIT,35253,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/dulcepower.png,COMMIT,37116,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/dulcetitan.png,COMMIT,85032,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/eternal-sanyo-portrait.webp,COMMIT,38078,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/eternal-sanyo-signature.webp,COMMIT,3588,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/hard-eva-black-backpack-front.webp,COMMIT,379504,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/hard-eva-black.webp,COMMIT,75730,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/hard-eva-eternal.webp,COMMIT,117078,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/key-ring.webp,COMMIT,63688,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/kyra-sweetspot.png,COMMIT,45066,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/metheora-sweetspot.png,COMMIT,44990,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/neceser-moss.webp,COMMIT,97088,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/neceser-navy.webp,COMMIT,123948,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/neon-strike.webp,COMMIT,234514,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/phantom-sweetspot.png,COMMIT,45046,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/pro-master.webp,COMMIT,229920,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/shade-sweetspot.png,COMMIT,46251,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/star-bag.webp,COMMIT,276372,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/t-one-pro.webp,COMMIT,418756,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/tone-tamara-portrait.webp,COMMIT,80880,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/tone-tamara-signature.webp,COMMIT,5306,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/mobile/tone.png,COMMIT,34000,"Asset de plantillas portrait aprobadas, producto/editorial/punto dulce real"
+??,public/products/bolsos/accesorio/Gorra 1.webp,COMMIT,3538060,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/accesorio/Gorra 2.webp,COMMIT,3414584,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/accesorio/Gorra 3.webp,COMMIT,3146028,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/accesorio/Gorra 4.webp,COMMIT,3041848,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/accesorio/Gorra 5.webp,COMMIT,11239868,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/accesorio/Muñequera blanca 1.webp,COMMIT,1933892,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/accesorio/Muñequera blanca 4.webp,COMMIT,3151988,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/accesorio/Muñequera negra pack 2 2.webp,COMMIT,5141868,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/accesorio/Muñequera negra pack 2 3.webp,COMMIT,5496748,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.MAIN.webp,COMMIT,4042478,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT01.webp,COMMIT,3850648,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT02.webp,COMMIT,4062830,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT03.webp,COMMIT,7279622,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.MAIN.webp,COMMIT,3858214,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT01.webp,COMMIT,2384664,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT02.webp,COMMIT,3442562,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT03.webp,COMMIT,8218258,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.MAIN.webp,COMMIT,2667520,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT01.webp,COMMIT,3541274,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT02.webp,COMMIT,2900552,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT03.webp,COMMIT,11419514,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/neceser/NECESER STARVIE MOSS.MAIN.webp,COMMIT,1109292,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/neceser/NECESER STARVIE MOSS.PT01.webp,COMMIT,961026,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/neceser/NECESER STARVIE MOSS.PT02.webp,COMMIT,987252,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/neceser/NECESER STARVIE MOSS.PT03.webp,COMMIT,3567172,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/neceser/NECESER STARVIE NAVY.MAIN.webp,COMMIT,1107498,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/neceser/NECESER STARVIE NAVY.PT01.webp,COMMIT,1026990,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/neceser/NECESER STARVIE NAVY.PT02.webp,COMMIT,790510,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/neceser/NECESER STARVIE NAVY.PT03.webp,COMMIT,4176178,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT01.webp,COMMIT,1703168,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT02.webp,COMMIT,2242976,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT03.webp,COMMIT,2346748,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT04.webp,COMMIT,5739460,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT06.webp,COMMIT,3148682,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT01.webp,COMMIT,2577644,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT02.webp,COMMIT,2449252,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT04.webp,COMMIT,2570162,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT06.webp,COMMIT,8726470,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.MAIN.webp,COMMIT,2776530,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT01.webp,COMMIT,3063250,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT03.webp,COMMIT,4004882,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT04.webp,COMMIT,6085194,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.MAIN.webp,COMMIT,2133842,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT01.webp,COMMIT,2473026,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT02.webp,COMMIT,2449358,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT05.webp,COMMIT,4929276,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.MAIN.webp,COMMIT,3027592,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT01.webp,COMMIT,3544434,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT02.webp,COMMIT,3017110,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT04.webp,COMMIT,8572834,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT05.webp,COMMIT,6389104,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.MAIN.webp,COMMIT,3742062,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT01.webp,COMMIT,4084290,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT02.webp,COMMIT,4485524,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT03.webp,COMMIT,6993644,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT04.webp,COMMIT,4570968,Fotografia runtime real/optimizada; mantener ruta y galeria
+??,references/desktop/desktop-stage-reference.png,COMMIT,2063223,Referencia o fotografia real aprobada; no runtime; conservar versionada
+??,references/desktop/padel-court-background-clean.png,COMMIT,2675437,Referencia o fotografia real aprobada; no runtime; conservar versionada
+??,references/desktop/padel-court-background.jpg,COMMIT,3182552,Referencia o fotografia real aprobada; no runtime; conservar versionada
+??,references/mobile/Mochila Hard EVA Black referencia.png,COMMIT,1969864,Referencia o fotografia real aprobada; no runtime; conservar versionada
+??,references/mobile/NECESER STARVIE MOSS.PT01.png,COMMIT,6728444,Referencia o fotografia real aprobada; no runtime; conservar versionada
+??,references/mobile/NECESER STARVIE NAVY.PT01.png,COMMIT,6576034,Referencia o fotografia real aprobada; no runtime; conservar versionada
+??,references/mobile/Paletero StarVie Hard Eva Black.png,COMMIT,1830873,Referencia o fotografia real aprobada; no runtime; conservar versionada
+??,references/mobile/accesorios StarVie.png,COMMIT,1964744,Referencia o fotografia real aprobada; no runtime; conservar versionada
+??,scripts/build-product-originals.mjs,COMMIT,2568,Pipeline de imagenes/checks o exclusion de temporales de tests
+??,scripts/check-product-masters.mjs,COMMIT,1266,Pipeline de imagenes/checks o exclusion de temporales de tests
+??,scripts/lib/product-master-source.mjs,COMMIT,1104,Pipeline de imagenes/checks o exclusion de temporales de tests
+??,scripts/lib/product-master-source.test.mjs,COMMIT,1358,Pipeline de imagenes/checks o exclusion de temporales de tests
+??,source-assets/product-masters/README.md,COMMIT,2595,Metadatos/procedencia livianos; necesarios para checks e inventario
+??,source-assets/product-masters/manifest.json,COMMIT,64952,Metadatos/procedencia livianos; necesarios para checks e inventario
+??,src/assets/desktop/padel-court-background.webp,COMMIT,520908,"Referencia historica documentada, 0.52 MB, fuera del bundle actual"
+??,src/assets/desktop/padel-court-clean-wide.webp,COMMIT,266768,WebP importado por CSS/componentes desktop o mobile; necesario en build
+??,src/assets/desktop/padel-court-clean.webp,COMMIT,163576,WebP importado por CSS/componentes desktop o mobile; necesario en build
+??,src/assets/desktop/starvie-wall-logo.webp,COMMIT,24198,WebP importado por CSS/componentes desktop o mobile; necesario en build
+??,src/components/DesktopStageBackground.tsx,COMMIT,8345,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/desktop-stage.css,COMMIT,7429,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/desktopLogoFlight.test.ts,COMMIT,5328,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/desktopLogoFlight.ts,COMMIT,4989,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobileAccessories.test.tsx,COMMIT,23160,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobileAccessories.tsx,COMMIT,9172,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobileAccessoryEditorial.test.tsx,COMMIT,1808,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobileAccessoryEditorial.tsx,COMMIT,1621,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobileAccessoryShowcase.test.tsx,COMMIT,3425,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobileAccessoryShowcase.tsx,COMMIT,3032,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobileCourtBackground.tsx,COMMIT,444,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobileEternalEditorial.test.tsx,COMMIT,1784,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobileEternalEditorial.tsx,COMMIT,672,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobilePortraitCover.tsx,COMMIT,1260,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobileStarNews.test.tsx,COMMIT,5000,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/MobileStarNews.tsx,COMMIT,4479,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/mobile-accessories.css,COMMIT,14298,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/mobile-accessory-editorial.css,COMMIT,1572,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/mobile-accessory-showcase.css,COMMIT,4041,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/mobile-court.css,COMMIT,13328,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/mobile-eternal-editorial.css,COMMIT,2199,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/mobile-portrait-cover.css,COMMIT,4396,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/mobilePortraitAssets.test.ts,COMMIT,939,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/components/mobile/mobilePortraitAssets.ts,COMMIT,742,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/data/mobileAccessoryEditorialPresentation.ts,COMMIT,1654,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/data/mobileAccessoryPresentation.ts,COMMIT,7687,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/data/mobileAccessoryShowcase.ts,COMMIT,1907,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+??,src/data/starNewsContent.ts,COMMIT,1599,Implementacion/perfiles aprobados de desktop y mobile o regresion asociada
+ignored,source-assets/product-masters/products/bolsos/accesorio/Gorra 1.png,KEEP LOCAL / GITIGNORE,32119107,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/accesorio/Gorra 2.png,KEEP LOCAL / GITIGNORE,32900253,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/accesorio/Gorra 3.png,KEEP LOCAL / GITIGNORE,25117322,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/accesorio/Gorra 4.png,KEEP LOCAL / GITIGNORE,24532359,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/accesorio/Gorra 5.png,KEEP LOCAL / GITIGNORE,67905729,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/accesorio/Muñequera blanca 1.png,KEEP LOCAL / GITIGNORE,30672835,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/accesorio/Muñequera blanca 4.png,KEEP LOCAL / GITIGNORE,29798980,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/accesorio/Muñequera negra pack 2 2.png,KEEP LOCAL / GITIGNORE,23512543,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/accesorio/Muñequera negra pack 2 3.png,KEEP LOCAL / GITIGNORE,25335324,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.MAIN.png,KEEP LOCAL / GITIGNORE,15923638,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT01.png,KEEP LOCAL / GITIGNORE,14846327,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT02.png,KEEP LOCAL / GITIGNORE,19339988,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT03.png,KEEP LOCAL / GITIGNORE,34514557,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.MAIN.png,KEEP LOCAL / GITIGNORE,17277352,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT01.png,KEEP LOCAL / GITIGNORE,16709212,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT02.png,KEEP LOCAL / GITIGNORE,15698326,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT03.png,KEEP LOCAL / GITIGNORE,35984437,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.MAIN.png,KEEP LOCAL / GITIGNORE,19383330,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT01.png,KEEP LOCAL / GITIGNORE,21125000,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT02.png,KEEP LOCAL / GITIGNORE,19384169,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT03.png,KEEP LOCAL / GITIGNORE,38138613,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE MOSS.MAIN.png,KEEP LOCAL / GITIGNORE,8611206,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE MOSS.PT01.png,KEEP LOCAL / GITIGNORE,6728444,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE MOSS.PT02.png,KEEP LOCAL / GITIGNORE,7136131,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE MOSS.PT03.png,KEEP LOCAL / GITIGNORE,30491377,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE NAVY.MAIN.png,KEEP LOCAL / GITIGNORE,6444809,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE NAVY.PT01.png,KEEP LOCAL / GITIGNORE,6576034,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE NAVY.PT02.png,KEEP LOCAL / GITIGNORE,5950793,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE NAVY.PT03.png,KEEP LOCAL / GITIGNORE,31132289,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT01.png,KEEP LOCAL / GITIGNORE,15194917,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT02.png,KEEP LOCAL / GITIGNORE,19279468,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT03.png,KEEP LOCAL / GITIGNORE,15966808,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT04.png,KEEP LOCAL / GITIGNORE,36474698,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT06.png,KEEP LOCAL / GITIGNORE,17749642,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT01.png,KEEP LOCAL / GITIGNORE,16430253,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT02.png,KEEP LOCAL / GITIGNORE,16401345,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT03.png,KEEP LOCAL / GITIGNORE,15098320,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT04.png,KEEP LOCAL / GITIGNORE,20009451,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT05.png,KEEP LOCAL / GITIGNORE,34860193,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT06.png,KEEP LOCAL / GITIGNORE,41301591,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT07.png,KEEP LOCAL / GITIGNORE,17584561,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.MAIN.png,KEEP LOCAL / GITIGNORE,14996512,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT01.png,KEEP LOCAL / GITIGNORE,20091233,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT03.png,KEEP LOCAL / GITIGNORE,25244905,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT04.png,KEEP LOCAL / GITIGNORE,33616711,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.MAIN.png,KEEP LOCAL / GITIGNORE,14236569,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT01.png,KEEP LOCAL / GITIGNORE,15582944,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT02.png,KEEP LOCAL / GITIGNORE,19972329,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT05.png,KEEP LOCAL / GITIGNORE,33035758,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroStar/PALETERO STARVIE STAR.MAIN.png,KEEP LOCAL / GITIGNORE,17572141,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT01.png,KEEP LOCAL / GITIGNORE,17405558,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT02.png,KEEP LOCAL / GITIGNORE,14942951,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT04.png,KEEP LOCAL / GITIGNORE,34371306,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT05.png,KEEP LOCAL / GITIGNORE,33090734,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.MAIN.png,KEEP LOCAL / GITIGNORE,19642605,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT01.png,KEEP LOCAL / GITIGNORE,20951241,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT02.png,KEEP LOCAL / GITIGNORE,23704629,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT03.png,KEEP LOCAL / GITIGNORE,38338089,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT04.png,KEEP LOCAL / GITIGNORE,24555265,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"
+ignored,source-assets/product-masters/catalog-before.xlsx,KEEP LOCAL / GITIGNORE,13276,"Master original o respaldo Excel; no runtime; preservado localmente, no versionar"

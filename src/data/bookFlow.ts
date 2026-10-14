@@ -46,6 +46,12 @@ export const TAMARA_ORIGINAL_PAGE = 30;
 export const TAMARA_EDITORIAL_ID = "tamara-2027-editorial";
 export const TAMARA_EDITORIAL_LABEL = "TAMARA";
 
+/** Existing virtual leaves become introductions only on portrait phones. */
+export const MOBILE_ACCESSORY_EDITORIALS = [
+  { originalNumber: SANYO_ORIGINAL_PAGE, id: SANYO_EDITORIAL_ID },
+  { originalNumber: TAMARA_ORIGINAL_PAGE, id: TAMARA_EDITORIAL_ID },
+] as const;
+
 export function buildBookPages(catalog: CatalogMetadata): BookPage[] {
   // La contratapa (P39) queda fuera del recorrido abierto: sólo P1–P38
   // alimentan a StPageFlip, por lo que la paridad del book no cambia.
@@ -118,6 +124,20 @@ export function bookIndexForOriginalPage(pages: BookPage[], originalNumber: numb
   return pages.findIndex(
     (page) => page.kind === "pdf" && page.originalNumber === originalNumber,
   );
+}
+
+/** Portrait reuses the existing editorial leaves as intros, without adding leaves
+ * or changing any PDF identity, subsequent index, or native desktop spread. */
+export function mobilePortraitBookPages(pages: BookPage[]): BookPage[] {
+  let portrait = pages;
+  for (const intro of MOBILE_ACCESSORY_EDITORIALS) {
+    const productIndex = bookIndexForOriginalPage(portrait, intro.originalNumber);
+    const introIndex = portrait.findIndex(page => page.id === intro.id);
+    if (productIndex < 0 || introIndex !== productIndex + 1) continue;
+    if (portrait === pages) portrait = [...pages];
+    [portrait[productIndex], portrait[introIndex]] = [portrait[introIndex], portrait[productIndex]];
+  }
+  return portrait;
 }
 
 export function isStarLabOriginalPage(originalNumber: number): boolean {

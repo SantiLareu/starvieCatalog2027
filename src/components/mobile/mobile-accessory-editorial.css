@@ -1,0 +1,16 @@
+/* Only Tamara's real crops need a different composition; Eternal stays approved. */
+@media (max-width: 599px) and (orientation: portrait) {
+  .mobile-accessory-editorial--tamara.mobile-accessory-editorial { display: block; overflow: hidden; container-type: size; isolation: isolate;
+    background: #f5f3ef; color: #363735; font-family: "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+    --eternal-unit: min(1cqw, .68cqh); }
+  .mobile-accessory-editorial--tamara .mobile-eternal-editorial__heading { top: 8%; }
+  .mobile-accessory-editorial--tamara .mobile-eternal-editorial__heading > span { font-style: italic; font-weight: 650; font-size: calc(4.5 * var(--eternal-unit)); letter-spacing: .05em; }
+  .mobile-accessory-editorial--tamara .mobile-eternal-editorial__heading h1 { color: #8c1736; font-size: calc(15 * var(--eternal-unit)); margin-block: .5cqh 1cqh; }
+  .mobile-accessory-editorial--tamara .mobile-eternal-editorial__heading p { font-size: calc(3.6 * var(--eternal-unit)); }
+  .mobile-accessory-editorial--tamara .mobile-eternal-editorial__signature { top: 28%; left: 34%; width: 32%; height: 7%;
+    mask-image: linear-gradient(90deg, transparent, #000 6% 94%, transparent), linear-gradient(transparent, #000 6% 94%, transparent);
+    mask-composite: intersect; }
+  .mobile-accessory-editorial--tamara .mobile-eternal-editorial__portrait { top: 36%; left: 6%; width: 88%; height: 59%;
+    mask-image: linear-gradient(90deg, transparent, #000 4% 96%, transparent), linear-gradient(transparent, #000 3% 95%, transparent);
+    mask-composite: intersect; }
+}

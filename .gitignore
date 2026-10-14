@@ -17,3 +17,10 @@ __pycache__/
 .dev.vars
 .dev.vars.*
 .wrangler/
+
+# Local editing masters: version provenance, not the binary archive.
+/source-assets/*
+!/source-assets/product-masters/
+/source-assets/product-masters/*
+!/source-assets/product-masters/manifest.json
+!/source-assets/product-masters/README.md

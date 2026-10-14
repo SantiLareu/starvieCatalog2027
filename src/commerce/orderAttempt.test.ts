@@ -8,7 +8,6 @@ import {
   getStoredAttemptStatus,
   getStoredSessionPresence,
   hasPendingAttempt,
-  hasStoredAttempt,
   isStoredAttemptExpired,
   prepareAttempt,
   resolveAttemptForNewPurchase,
@@ -16,9 +15,6 @@ import {
   saveAttemptSession,
   updateAttempt,
   updateAttemptSession,
-  type OrderAttemptSnapshot,
-  type OrderAttemptSession,
-  type OrderAttemptStatus,
   type PreparedAttemptPayload,
 } from "./orderAttempt";
 

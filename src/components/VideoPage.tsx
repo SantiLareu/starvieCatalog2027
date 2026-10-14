@@ -1,4 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePilotViewport } from "./mobile/mobilePilot";
+import { MobileStarNews } from "./mobile/MobileStarNews";
 
 type VideoPageProps = {
   src: string;
@@ -7,6 +9,7 @@ type VideoPageProps = {
 };
 
 export function VideoPage({ src, visible, playbackAllowed = true }: VideoPageProps) {
+  const portrait = usePilotViewport();
   const videoRef = useRef<HTMLVideoElement>(null);
   const [ready, setReady] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -25,8 +28,9 @@ export function VideoPage({ src, visible, playbackAllowed = true }: VideoPagePro
     if (playbackAllowed) void video.play().catch(() => undefined);
     else video.pause();
     return () => video.pause();
-  }, [failed, playbackAllowed, ready, visible]);
+  }, [failed, playbackAllowed, portrait, ready, visible]);
 
+  if (portrait) return <MobileStarNews videoSrc={src} visible={visible} playbackAllowed={playbackAllowed} />;
   return (
     <div
       className="pdf-page video-page"

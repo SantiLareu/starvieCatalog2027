@@ -117,13 +117,13 @@ async function originalEntryProduct(page: Page) {
   return dialog;
 }
 
-test("Eternal remains the original PDF outside the opt-in portrait pilot", async ({ page }) => {
+test("Eternal is active on habitual portrait entry and remains the PDF on other formats", async ({ page }) => {
   const heroes: string[] = [];
   page.on("request", request => { if (new URL(request.url()).pathname.startsWith("/hero/")) heroes.push(request.url()); });
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto("/"); await goTo(page, 15);
-  await expect(page.getByTestId("mobile-editorial-page")).toHaveCount(0);
-  await expect(page.locator('img[data-catalog-page="15"]')).toHaveAttribute("data-full-src", "/catalog/pages/page-15.webp");
+  await ready(page, 15);
+  await expect(page.locator('.mobile-premium-product-page--court:visible')).toHaveCount(1);
   for (const viewport of [{ width: 1440, height: 900 }, { width: 800, height: 1000 }, { width: 600, height: 900 }, { width: 844, height: 390 }]) {
     await page.setViewportSize(viewport); await page.goto("/?mobile-pilot=15");
     await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
@@ -137,8 +137,8 @@ test("Eternal remains the original PDF outside the opt-in portrait pilot", async
 test.describe("Premium mobile scene and explicit product accents", () => {
   test.use({ deviceScaleFactor: 3 });
   test.beforeEach(({ isMobile }) => { test.skip(!isMobile, "Portrait phones only"); });
-  for (const product of [{ number: 15, name: "Eternal", id: "eternal", accent: "#e8b957", hero: "/hero/eternal-mobile.png" },
-    { number: 17, name: "Raptor+", id: "raptor+", accent: "#e84b3e", hero: "/hero/raptor-mobile.webp" }]) {
+  for (const product of [{ number: 15, name: "Eternal", id: "eternal", accent: "#e8b957" },
+    { number: 17, name: "Raptor+", id: "raptor+", accent: "#e84b3e" }]) {
     test(`${product.name}: full-bleed scene, readable unchanged layout and matching control/focus/pressed accents`, async ({ page, context }) => {
       await page.setViewportSize({ width: 390, height: 844 });
       const heroes: string[] = [];
@@ -146,40 +146,36 @@ test.describe("Premium mobile scene and explicit product accents", () => {
       await page.goto(`/?mobile-pilot=${product.number}`); await ready(page, product.number);
       const leaf = page.getByRole("article", { name: `Página ${product.number}, edición vertical StarVie`, exact: true });
       const leafBox = (await leaf.boundingBox())!;
-      const scene = leaf.locator(".mobile-premium-product-page__scene");
-      const overlay = leaf.locator(".mobile-premium-product-page__readability");
+      const scene = leaf.locator(".mobile-court-scene--product");
       await expect(scene).toHaveAttribute("aria-hidden", "true");
-      await expect(overlay).toHaveAttribute("aria-hidden", "true");
-      const sceneBox = (await scene.boundingBox())!, overlayBox = (await overlay.boundingBox())!;
+      const sceneBox = (await scene.boundingBox())!;
       expect(sceneBox.x).toBeLessThanOrEqual(leafBox.x); expect(sceneBox.y).toBeLessThanOrEqual(leafBox.y);
       expect(sceneBox.x + sceneBox.width).toBeGreaterThanOrEqual(leafBox.x + leafBox.width);
       expect(sceneBox.y + sceneBox.height).toBeGreaterThanOrEqual(leafBox.y + leafBox.height);
-      expect(overlayBox).toEqual(leafBox);
       await expect(scene.locator("img")).toHaveCount(0); // No duplicate accessible/product image.
-      const heroUrl = new URL(product.hero, page.url()).href;
-      expect(await scene.locator("span").evaluateAll(nodes => nodes.map(el => ({ image: getComputedStyle(el).backgroundImage, size: getComputedStyle(el).backgroundSize }))))
-        .toEqual(Array(2).fill({ image: `url("${heroUrl}")`, size: "800% 100%" }));
+      expect(await scene.evaluate(el => getComputedStyle(el, "::before").backgroundImage)).toContain("padel-court-clean");
+      await expect(leaf.locator(".mobile-premium-product-page__scene")).toHaveCount(0);
       expect(await leaf.evaluate(el => getComputedStyle(el).getPropertyValue("--mobile-premium-accent").trim())).toBe(product.accent);
       const bag = leaf.getByRole("button", { name: `Ver ficha y opciones de pedido de ${product.name}`, exact: true });
       const cta = leaf.getByRole("button", { name: `Explorar ${product.name}`, exact: true });
       const colors = await leaf.evaluate(el => {
         const bag = el.querySelector(".mobile-premium-product-page__product-button")!, cta = el.querySelector(".mobile-premium-product-page__explore")!;
-        const overlay = el.querySelector(".mobile-premium-product-page__readability")!, hero = el.querySelector(".mobile-premium-product-page__hero")!, rail = el.querySelector(".mobile-premium-product-page__technologies")!;
+        const scene = el.querySelector(".mobile-court-scene")!, hero = el.querySelector(".mobile-premium-product-page__hero")!, rail = el.querySelector(".mobile-premium-product-page__technologies")!;
         return { bag: getComputedStyle(bag).borderColor, cta: getComputedStyle(cta).borderColor,
-          sceneEvents: getComputedStyle(el.querySelector(".mobile-premium-product-page__scene")!).pointerEvents,
-          overlayEvents: getComputedStyle(overlay).pointerEvents, overlayImage: getComputedStyle(overlay).backgroundImage,
-          heroZ: Number(getComputedStyle(hero).zIndex), overlayZ: Number(getComputedStyle(overlay).zIndex), dataZ: Number(getComputedStyle(rail).zIndex) };
+          sceneEvents: getComputedStyle(scene).pointerEvents,
+          overlayImage: getComputedStyle(scene, "::after").backgroundImage,
+          heroZ: Number(getComputedStyle(hero).zIndex), sceneZ: Number(getComputedStyle(scene).zIndex), dataZ: Number(getComputedStyle(rail).zIndex) };
       });
       expect(colors.cta).toBe(colors.bag); expect(colors.cta).not.toBe("rgba(0, 0, 0, 0)");
-      expect(colors.sceneEvents).toBe("none"); expect(colors.overlayEvents).toBe("none");
+      expect(colors.sceneEvents).toBe("none");
       expect(colors.overlayImage).toContain("linear-gradient");
-      expect(colors.heroZ).toBeLessThan(colors.overlayZ); expect(colors.dataZ).toBeGreaterThan(colors.overlayZ);
+      expect(colors.heroZ).toBeGreaterThan(colors.sceneZ); expect(colors.dataZ).toBeGreaterThan(colors.sceneZ);
       const hero = leaf.getByRole("button", { name: `Abrir ficha de ${product.name}`, exact: true });
       const heroBox = (await hero.boundingBox())!;
       expect(heroBox.y - leafBox.y).toBeCloseTo(leafBox.height * .18, 0);
       expect(heroBox.height).toBeCloseTo(leafBox.height * .63, 0);
       expect(await hero.locator("img").evaluate(el => ({ fit: getComputedStyle(el).objectFit, transform: getComputedStyle(el).transform })))
-        .toEqual({ fit: "contain", transform: "matrix(1, 0, 0, 1, 0, 0)" });
+        .toEqual({ fit: "contain", transform: "matrix(0.9, 0, 0, 0.9, 0, 0)" });
       expect((await bag.boundingBox())!.width).toBe(44); expect((await bag.boundingBox())!.height).toBe(44);
       await expect(cta).toBeInViewport();
       await page.keyboard.press("Tab"); await bag.focus();
@@ -207,7 +203,7 @@ test.describe("Premium mobile scene and explicit product accents", () => {
       await bag.tap(); await expect(dialog).toHaveClass("product-modal");
       await dialog.getByRole("button", { name: "Cerrar ficha", exact: true }).tap(); await settled(page, product.number);
       expect(await page.evaluate(() => localStorage.getItem("starvie-cart-v1"))).toBe(cartBefore);
-      expect(heroes).toEqual([product.hero]); // Foreground + two scene strips share one resource.
+      expect(heroes).toEqual([]); // The court replaces editorial photo environments.
       await swipe(page, context, hero, -145); await settled(page, product.number + 1);
       await expect(page.getByRole("dialog")).toHaveCount(0);
     });
@@ -248,7 +244,7 @@ test.describe("Eternal / P15 activated premium leaf", () => {
           const b = node.getBoundingClientRect(); return b.left >= rect.left && b.right <= rect.right + 1 && b.top >= rect.top && b.bottom <= rect.bottom + 1;
         });
       })).toBe(true);
-      expect(heroes).toEqual(["/hero/eternal-mobile.png"]);
+      expect(heroes).toEqual([]);
       await leaf.evaluate(async el => {
         await Promise.all([...el.querySelectorAll("img")].map(image => image.decode()));
         await Promise.all([...el.querySelectorAll<HTMLElement>(".mobile-premium-product-page__technology-icon")].map(async icon => {
@@ -299,8 +295,8 @@ test.describe("Eternal / P15 activated premium leaf", () => {
     await goTo(page, 15); await ready(page, 15);
     await swipe(page, context, page.getByRole("button", { name: "Abrir ficha de Eternal", exact: true }), -180);
     await settled(page, 16); await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.locator(".mobile-p17-frame")).toHaveCount(0);
-    await expect(page.locator('img[data-catalog-page="16"]')).toHaveAttribute("data-full-src", "/catalog/pages/page-16.webp");
+    await expect(page.locator(".mobile-p17-frame")).toHaveCount(1);
+    await expect(page.getByRole("article", { name: "Página 16, edición vertical StarVie", exact: true })).toBeVisible();
     await goTo(page, 17); await ready(page);
     expect(await premiumLeafFingerprint(raptorLeaf)).toBe(raptor);
     await expect(engine).toHaveAttribute("data-instance-probe", "same");
@@ -317,7 +313,7 @@ test.describe("Eternal / P15 activated premium leaf", () => {
     await page.getByRole("button", { name: "Página anterior", exact: true }).tap();
     await expect(page.getByTestId("page-indicator")).toHaveText("VIDEO / 39");
     await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
-    await expect(page.locator(".mobile-p17-frame")).toHaveCount(0);
+    await expect(page.locator(".mobile-p17-frame")).toHaveCount(1);
     const video = await page.locator('.catalog-leaf > .video-page video').elementHandle();
     expect(video).not.toBeNull();
     await expect.poll(() => video!.evaluate(el => !(el as HTMLVideoElement).paused)).toBe(true);
@@ -351,7 +347,7 @@ test("same native viewer; custom P17 only on portrait phones, rotation without r
   await expect(page.getByTestId("page-indicator")).toHaveText("1 / 39");
 });
 
-test("no hero request on approved entry, tablet, desktop or phone landscape", async ({ page }) => {
+test("no old hero environment request on habitual entry, tablet, desktop or landscape", async ({ page, isMobile }) => {
   const heroes: string[] = [];
   page.on("request", request => { if (new URL(request.url()).pathname.startsWith("/hero/")) heroes.push(request.url()); });
   await page.goto("/"); await expect(page.getByTestId("page-flip-engine")).toBeVisible();
@@ -359,8 +355,11 @@ test("no hero request on approved entry, tablet, desktop or phone landscape", as
   await page.locator("#page-number").fill("17");
   await page.locator(".page-picker button").click();
   await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
-  await expect(page.locator('[data-testid="mobile-editorial-page"]:visible')).toHaveCount(0);
-  await expect(page.locator('img[data-catalog-page="17"]')).toHaveAttribute("data-full-src", "/catalog/pages/page-17.webp");
+  if (isMobile) await ready(page);
+  else {
+    await expect(page.locator('[data-testid="mobile-editorial-page"]:visible')).toHaveCount(0);
+    await expect(page.locator('img[data-catalog-page="17"]')).toHaveAttribute("data-full-src", "/catalog/pages/page-17.webp");
+  }
   for (const viewport of [{ width: 844, height: 390 }, { width: 800, height: 1000 }, { width: 1440, height: 900 }]) {
     await page.setViewportSize(viewport); await page.goto("/?mobile-pilot=17");
     await expect(page.getByTestId("page-flip-engine")).toBeVisible();
@@ -425,7 +424,7 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
       const sweetSpot = (await leaf.locator(".mobile-premium-product-page__sweet-spot").boundingBox())!;
       expect(sweetSpot.width / sweetSpot.height).toBeCloseTo(100 / 156, 2);
       expect(await leaf.locator(".mobile-premium-product-page__hero img").evaluate(el => ({ fit: getComputedStyle(el).objectFit, transform: getComputedStyle(el).transform })))
-        .toEqual({ fit: "contain", transform: "matrix(1, 0, 0, 1, 0, 0)" });
+        .toEqual({ fit: "contain", transform: "matrix(0.9, 0, 0, 0.9, 0, 0)" });
       expect(await exterior()).toEqual(originalExterior);
       expect(await page.evaluate(() => {
         const root = document.scrollingElement!;
@@ -479,7 +478,7 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
     expect(Math.abs(box.y - 64)).toBeLessThan(1.1);
     expect(Math.abs(box.y + box.height - guide.y)).toBeLessThan(1.1);
   });
-  test("P17 reflows on viewport resize and restores the original leaf geometry on P18", async ({ page }) => {
+  test("P17 reflows on viewport resize and retains the shared portrait frame on P18", async ({ page }) => {
     const initialViewport = page.viewportSize()!;
     await page.goto("/"); await goTo(page, 18);
     const original = (await page.locator('.catalog-leaf[data-book-index="18"]').boundingBox())!;
@@ -493,7 +492,7 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
     }
     await page.setViewportSize(initialViewport);
     await page.getByRole("button", { name: "Página siguiente", exact: true }).click(); await settled(page, 18);
-    await expect(page.locator(".mobile-p17-frame")).toHaveCount(0);
+    await expect(page.locator(".mobile-p17-frame")).toHaveCount(1);
     const restored = (await page.locator('.catalog-leaf[data-book-index="18"]').boundingBox())!;
     expect(restored).toEqual(original);
   });
@@ -502,7 +501,7 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
     await page.getByTestId("page-flip-engine").evaluate(el => el.setAttribute("data-instance-probe", "same"));
     await swipe(page, context, page.locator(".mobile-premium-product-page__hero:visible"), -145);
     await settled(page, 18); await expect(page.getByRole("dialog")).toHaveCount(0);
-    await expect(page.locator(".mobile-p17-frame")).toHaveCount(0);
+    await expect(page.locator(".mobile-p17-frame")).toHaveCount(1);
     await page.getByRole("button", { name: "Página anterior", exact: true }).click(); await ready(page);
     await swipe(page, context, page.locator(".mobile-premium-product-page__hero:visible"), 2, 70);
     await settled(page); await expect(page.getByRole("dialog")).toHaveCount(0);
@@ -660,15 +659,16 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
   });
   test("failed hero fallback; reduced motion and compact viewport keep ordering usable", async ({ page }) => {
     await page.setViewportSize({ width: 320, height: 568 }); await page.emulateMedia({ reducedMotion: "reduce" });
-    await page.route("**/hero/raptor-mobile.webp", route => route.abort());
+    await page.route("**/catalog/product-images/5f286e60eb031167-*.webp", route => route.abort());
+    await page.route("**/products/palas/RAPTOR/RAPTOR1.3.webp", route => route.abort());
     await page.goto("/?mobile-pilot=17"); await ready(page);
-    await expect(page.locator(".mobile-premium-product-page__hero:visible img")).not.toHaveAttribute("src", /\/hero\//);
+    await expect(page.locator(".mobile-premium-product-page__hero:visible img")).not.toHaveAttribute("data-mobile-hero-source", "products/palas/RAPTOR/RAPTOR1.3.webp");
     const dialog = await openProduct(page);
     await dialog.getByRole("button", { name: "Agregar al pedido", exact: true }).scrollIntoViewIfNeeded();
     await expect(dialog.getByRole("button", { name: "Agregar al pedido", exact: true })).toBeInViewport();
     await expect(dialog.getByRole("button", { name: "Cerrar ficha" })).toBeVisible();
   });
-  test("Galaxy S25: unchanged exterior, larger portrait leaf, one hero, real gallery", async ({ page }, testInfo) => {
+  test("Galaxy S25: habitual and deep-link entries share portrait frame, photos and real gallery", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 360, height: 780 }); mkdirSync("tmp/p17-original-detail-review", { recursive: true });
     await page.goto("/"); await goTo(page, 17);
     const exterior = async () => page.locator(".catalog-toolbar, .page-controls, .mobile-gesture-hint").evaluateAll(elements => elements.map(el => ({ html: el.outerHTML, box: el.getBoundingClientRect().toJSON() })));
@@ -682,8 +682,8 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
     const newBox = (await page.locator('[data-testid="mobile-editorial-page"]:visible').boundingBox())!;
     const guideBox = (await page.locator(".mobile-gesture-hint").boundingBox())!;
     expect(newBox.y + newBox.height).toBeLessThanOrEqual(guideBox.y);
-    expect(newBox.height / newBox.width).toBeGreaterThan(1.6); expect(newBox.height).toBeGreaterThan(originalBox.height * 2);
-    expect(heroes).toEqual(["/hero/raptor-mobile.webp"]); expect(productImages.filter(path => path.includes("raptor"))).toEqual([]);
+    expect(newBox.height / newBox.width).toBeGreaterThan(1.6); expect(newBox).toEqual(originalBox);
+    expect(heroes).toEqual([]); expect(productImages.length).toBeGreaterThan(0);
     expect(iconArtwork).toEqual(["/catalog/pages/page-17.webp"]);
     const leaf = page.locator('[data-testid="mobile-editorial-page"]:visible');
     await expect(leaf.locator(".mobile-premium-product-page__technologies li")).toHaveCount(9);
@@ -711,7 +711,7 @@ test.describe("P17 leaf in the approved portrait viewer", () => {
     await dialog.getByRole("button", { name: "Cerrar ficha" }).click();
     await expect(dialog).toHaveCount(0); await settled(page);
     expect(await leaf.boundingBox()).toEqual(newBox);
-    expect(heroes).toEqual(["/hero/raptor-mobile.webp"]);
+    expect(heroes).toEqual([]);
   });
   test("portrait image area is dark, larger and contained; captures P17, product and 4x", async ({ page }, testInfo) => {
     await page.setViewportSize({ width: 360, height: 780 });

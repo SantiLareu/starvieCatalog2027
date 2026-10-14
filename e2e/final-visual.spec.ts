@@ -38,23 +38,42 @@ test("contratapa conserva caras orientadas, bisagra y estado en cierres rápidos
     }; requestAnimationFrame(read);
     return { stop: () => { running = false; return samples; } };
   });
+  const reversal = await page.evaluateHandle(() => {
+    const delivered: string[] = [];
+    return {
+      arm: (state: string, key: string) => {
+        const app = document.querySelector<HTMLElement>('main.catalog-app')!;
+        // Dispatch at the actual transition boundary. Waiting for an assertion
+        // then sending another command can instead reach an already open book.
+        const observer = new MutationObserver(() => {
+          if (app.dataset.backCoverState !== state) return;
+          observer.disconnect();
+          delivered.push(state);
+          window.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
+        });
+        observer.observe(app, { attributes: true, attributeFilter: ['data-back-cover-state'] });
+      },
+      delivered: () => delivered,
+    };
+  });
   for (let round = 0; round < 3; round++) {
+    await reversal.evaluate(probe => probe.arm('closing', 'ArrowLeft'));
     if (round === 0) await page.getByRole("button", { name: "Página siguiente", exact: true }).click();
     else await page.keyboard.press("ArrowRight");
     await expect(app).toHaveAttribute("data-back-cover-state", "closing");
-    await page.keyboard.press("ArrowLeft"); // Opposite request must not queue another turn.
     await expect(app).toHaveAttribute("data-back-cover-state", "closed");
     await expect(app).toHaveAttribute("data-book-transition", "idle");
     await expect(indicator).toContainText("CONTRATAPA / 39");
     if (round === 0) await page.screenshot({ path: testInfo.outputPath("rear-closed.png") });
+    await reversal.evaluate(probe => probe.arm('opening', 'ArrowRight'));
     if (round === 0) await page.keyboard.press("ArrowLeft");
     else await page.getByRole("button", { name: "Página anterior", exact: true }).click();
     await expect(app).toHaveAttribute("data-back-cover-state", "opening");
-    await page.keyboard.press("ArrowRight");
     await expect(app).toHaveAttribute("data-back-cover-state", "open");
     await expect(app).toHaveAttribute("data-book-transition", "idle");
   }
   const samples = await monitor.evaluate(object => object.stop());
+  expect(await reversal.evaluate(probe => probe.delivered())).toEqual(['closing', 'opening', 'closing', 'opening', 'closing', 'opening']);
   expect(samples.filter(sample => sample.state === "closing").length).toBeGreaterThan(10);
   expect(samples.filter(sample => sample.state === "opening").length).toBeGreaterThan(10);
   expect(samples.every(sample => !sample.mirrored && !sample.wrongBackface && sample.count <= 1)).toBe(true);

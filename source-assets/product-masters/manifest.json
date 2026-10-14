@@ -1,0 +1,1527 @@
+{
+  "schemaVersion": 1,
+  "encoding": {
+    "format": "webp",
+    "lossless": true,
+    "quality": 75,
+    "effort": 3,
+    "alphaQuality": 100,
+    "resize": false,
+    "icc": "preserve original"
+  },
+  "files": [
+    {
+      "originalPath": "public/products/bolsos/accesorio/Gorra 1.png",
+      "canonicalSource": "products/bolsos/accesorio/Gorra 1.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/accesorio/Gorra 1.png",
+      "runtimePath": "products/bolsos/accesorio/Gorra 1.webp",
+      "width": 4000,
+      "height": 4000,
+      "bytes": 32119107,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Untagged RGB",
+      "iccSha256": null,
+      "sha256": "2b5393483459c4a21b90cc636af2b7ad80a8ed934b5b532e11160fa7dbc05b85",
+      "optimizedBytes": 3538060,
+      "optimizedSha256": "21096782b83e749f9390324463853c180e3c007057133300e56dd0fb91a1902b",
+      "productIds": [
+        "black cap"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/accesorio/Gorra 2.png",
+      "canonicalSource": "products/bolsos/accesorio/Gorra 2.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/accesorio/Gorra 2.png",
+      "runtimePath": "products/bolsos/accesorio/Gorra 2.webp",
+      "width": 4000,
+      "height": 4000,
+      "bytes": 32900253,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Untagged RGB",
+      "iccSha256": null,
+      "sha256": "a5a661f7aa1cf5c6c007497274981be184265924a99f6dc8e9d9086bb0add9f8",
+      "optimizedBytes": 3414584,
+      "optimizedSha256": "870d3786448b218a036ba390c9308373f8d3be4104cc69b242c1eeea2315ea3f",
+      "productIds": [
+        "black cap"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/accesorio/Gorra 3.png",
+      "canonicalSource": "products/bolsos/accesorio/Gorra 3.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/accesorio/Gorra 3.png",
+      "runtimePath": "products/bolsos/accesorio/Gorra 3.webp",
+      "width": 4000,
+      "height": 4000,
+      "bytes": 25117322,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Untagged RGB",
+      "iccSha256": null,
+      "sha256": "9f22d18996cc351286285566d43f6b519fc0887e6aec7abc87477ec77989ea7b",
+      "optimizedBytes": 3146028,
+      "optimizedSha256": "2e50d5b1562d1e37e914be3b46c51eb7f7fa15009a20d55267ac4293fa4c70cd",
+      "productIds": [
+        "black cap"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/accesorio/Gorra 4.png",
+      "canonicalSource": "products/bolsos/accesorio/Gorra 4.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/accesorio/Gorra 4.png",
+      "runtimePath": "products/bolsos/accesorio/Gorra 4.webp",
+      "width": 4000,
+      "height": 4000,
+      "bytes": 24532359,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Untagged RGB",
+      "iccSha256": null,
+      "sha256": "5f2bad99b2f8f9990aec7d57f4dec40fa60bd668fbcfb8a5649343758ee4ee8f",
+      "optimizedBytes": 3041848,
+      "optimizedSha256": "c19e21912d1746fffbd69e01733a7a450e49c98bb40d05668e0ecb83d0b2ff40",
+      "productIds": [
+        "black cap"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/accesorio/Gorra 5.png",
+      "canonicalSource": "products/bolsos/accesorio/Gorra 5.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/accesorio/Gorra 5.png",
+      "runtimePath": "products/bolsos/accesorio/Gorra 5.webp",
+      "width": 4000,
+      "height": 4000,
+      "bytes": 67905729,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Untagged RGB",
+      "iccSha256": null,
+      "sha256": "da05527cb38bc27fcf31e9053cff0615354fb5830dee8adfeb2aa9f890510896",
+      "optimizedBytes": 11239868,
+      "optimizedSha256": "cd5164dcad4bb497cc5b0459dc39ab4ee815dd2406259900ee3790dd9240a950",
+      "productIds": [
+        "black cap"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/accesorio/Muñequera blanca 1.png",
+      "canonicalSource": "products/bolsos/accesorio/Muñequera blanca 1.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/accesorio/Muñequera blanca 1.png",
+      "runtimePath": "products/bolsos/accesorio/Muñequera blanca 1.webp",
+      "width": 4000,
+      "height": 4000,
+      "bytes": 30672835,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Untagged RGB",
+      "iccSha256": null,
+      "sha256": "30f550670b284517fecb5e3acc46d7087a7886f33c94a7f8d944c0ed54bd4303",
+      "optimizedBytes": 1933892,
+      "optimizedSha256": "39c4c610984d9c93c30430fc1d8e34e3b4138bf0757b3b335178bbcbcdd54cd4",
+      "productIds": [
+        "muñequera Wristband white"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/accesorio/Muñequera blanca 4.png",
+      "canonicalSource": "products/bolsos/accesorio/Muñequera blanca 4.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/accesorio/Muñequera blanca 4.png",
+      "runtimePath": "products/bolsos/accesorio/Muñequera blanca 4.webp",
+      "width": 4000,
+      "height": 4000,
+      "bytes": 29798980,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Untagged RGB",
+      "iccSha256": null,
+      "sha256": "b7f50040e4c9fbbf905f5b578bf2e0a23911b072b71ca594cd8d61013c090a98",
+      "optimizedBytes": 3151988,
+      "optimizedSha256": "5b9d30e94930c4e0b7e6851d8d0879865e502578aea7fd8227992302a0e2842f",
+      "productIds": [
+        "muñequera Wristband white"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/accesorio/Muñequera negra pack 2 2.png",
+      "canonicalSource": "products/bolsos/accesorio/Muñequera negra pack 2 2.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/accesorio/Muñequera negra pack 2 2.png",
+      "runtimePath": "products/bolsos/accesorio/Muñequera negra pack 2 2.webp",
+      "width": 4000,
+      "height": 4000,
+      "bytes": 23512543,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Untagged RGB",
+      "iccSha256": null,
+      "sha256": "6a09eea6de1e2394deb224b5b97a91f792b3c906f64a312aba56d80b14a5c1f5",
+      "optimizedBytes": 5141868,
+      "optimizedSha256": "74672960ba7624d81cd4933182504b7d53f8e6f15486f5713740d6f02d1d4362",
+      "productIds": [
+        "muñequera Wristband black x2"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/accesorio/Muñequera negra pack 2 3.png",
+      "canonicalSource": "products/bolsos/accesorio/Muñequera negra pack 2 3.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/accesorio/Muñequera negra pack 2 3.png",
+      "runtimePath": "products/bolsos/accesorio/Muñequera negra pack 2 3.webp",
+      "width": 4000,
+      "height": 4000,
+      "bytes": 25335324,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Untagged RGB",
+      "iccSha256": null,
+      "sha256": "7ea136e480eade75a3a682984fe356ea73353c68893d07367f9073a1418160a0",
+      "optimizedBytes": 5496748,
+      "optimizedSha256": "7832b9b72221c9ba44bfef0465165f9a45668c2bee4904447c19aa93d9da3096",
+      "productIds": [
+        "muñequera Wristband black x2"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.MAIN.png",
+      "canonicalSource": "products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.MAIN.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.MAIN.png",
+      "runtimePath": "products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.MAIN.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 15923638,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "d73b6dc3666fdc424cde125b92b156f8ca3b385bbf46e7306d25c5cb259999c6",
+      "optimizedBytes": 4042478,
+      "optimizedSha256": "bcad44a4dde7ef4ee706b8f7cdcde4a42314cb59a946f96befcd04874cc24c7a",
+      "productIds": [
+        "artic sport"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT01.png",
+      "canonicalSource": "products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT01.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT01.png",
+      "runtimePath": "products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT01.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 14846327,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "456d9578e54cc388e5530077be8dc465fc4d91a893d158fda4342d9ebb2500e2",
+      "optimizedBytes": 3850648,
+      "optimizedSha256": "0f2510643928d0ab2f67ecd7f34d844966ad8e4c319a90f9fef2ef9f37995b81",
+      "productIds": [
+        "artic sport"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT02.png",
+      "canonicalSource": "products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT02.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT02.png",
+      "runtimePath": "products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT02.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 19339988,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "b5e736005c52615eb4b3977478217795ae1593f055eafc7823c5243e2e6e7b38",
+      "optimizedBytes": 4062830,
+      "optimizedSha256": "2a52e66ade5cc32fd8bfb8d5f8a490072f4c18afd3cc628d4773fbfeca84a2d7",
+      "productIds": [
+        "artic sport"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT03.png",
+      "canonicalSource": "products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT03.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT03.png",
+      "runtimePath": "products/bolsos/mochilaArtic/MOCHILA STARVIE ARTIC SPORT.PT03.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 34514557,
+      "bits": 16,
+      "alpha": false,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "80e516412ce129d4c66d7f3f317960adaa2b3c34f8a3cadfac070eed688e317d",
+      "optimizedBytes": 7279622,
+      "optimizedSha256": "be42e74393b2eff998d13493b0edf37f0821856e26d8fd4d31cb7c9885edbf88",
+      "productIds": [
+        "artic sport"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.MAIN.png",
+      "canonicalSource": "products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.MAIN.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.MAIN.png",
+      "runtimePath": "products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.MAIN.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 17277352,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "5d034964f51b0c966790feeea30a192faa8ffc373d910cf8155ec1457eaf16a2",
+      "optimizedBytes": 3858214,
+      "optimizedSha256": "bd9db371cd69c1c38d65caa14f3324a2cee3f6535236e6f77e29afe890e1a5a0",
+      "productIds": [
+        "m hard eva black"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT01.png",
+      "canonicalSource": "products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT01.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT01.png",
+      "runtimePath": "products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT01.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 16709212,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "73d6bad6e1d37a9fd7a84ec4b371910be2a550dfda282ee9a23e0037d8762ce3",
+      "optimizedBytes": 2384664,
+      "optimizedSha256": "754889d523cb018825d4163cc7388c166f57b69694eca5625b59276aa868d3a7",
+      "productIds": [
+        "m hard eva black"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT02.png",
+      "canonicalSource": "products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT02.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT02.png",
+      "runtimePath": "products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT02.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 15698326,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "f2ae687345aad5a4ddeefcc836ce86cf5d1d3b80f69e6785bf503deaf9f39166",
+      "optimizedBytes": 3442562,
+      "optimizedSha256": "a054717bcebcb08e3449276b14dde3c7d57cc42f8c786fb231e1fbde6fb9daaa",
+      "productIds": [
+        "m hard eva black"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT03.png",
+      "canonicalSource": "products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT03.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT03.png",
+      "runtimePath": "products/bolsos/mochilaHardEva/MOCHILA STARVIE HARD EVA BLACK.PT03.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 35984437,
+      "bits": 16,
+      "alpha": false,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "cb089c2fd13cb04858adb10113eea220ae5bf5837dd15aa959d1c58ab73cbd36",
+      "optimizedBytes": 8218258,
+      "optimizedSha256": "09647aedf462cacec57e22a90128858faf6943eb8386ef713361b5698f3d716a",
+      "productIds": [
+        "m hard eva black"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.MAIN.png",
+      "canonicalSource": "products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.MAIN.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.MAIN.png",
+      "runtimePath": "products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.MAIN.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 19383330,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "95da0f0c404939af15feed7084a5a186751c2f4a2b717ba2349466a44fdd0ae3",
+      "optimizedBytes": 2667520,
+      "optimizedSha256": "b5a81ce98b7ebc03f58860ff28f8d04e41a0f05d7b65687e963aa45b6849dc80",
+      "productIds": [
+        "black voltage"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT01.png",
+      "canonicalSource": "products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT01.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT01.png",
+      "runtimePath": "products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT01.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 21125000,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "303c2335788bb4bc36d0049e6f028bf669280c0b108f68b80d939c41adeb5f34",
+      "optimizedBytes": 3541274,
+      "optimizedSha256": "4075ecef1350d73c6b687ba357f6c7755e5583855d36ec784341fdc57b0b4b58",
+      "productIds": [
+        "black voltage"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT02.png",
+      "canonicalSource": "products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT02.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT02.png",
+      "runtimePath": "products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT02.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 19384169,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "33144d6f3e3b45f56a30e9326d6bbed15c5a49204800046b700efc286f9822f0",
+      "optimizedBytes": 2900552,
+      "optimizedSha256": "7db908514143ada2c4e63f3a0d2ddc5f181d1b4c21789fb5a7a4b7a05bef0428",
+      "productIds": [
+        "black voltage"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT03.png",
+      "canonicalSource": "products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT03.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT03.png",
+      "runtimePath": "products/bolsos/mochilaVoltage/MOCHILA STARVIE BLACK VOLTAGE.PT03.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 38138613,
+      "bits": 16,
+      "alpha": false,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "1274a1d52536ad98683a6dfcdbcb8ab846da4a6cb2f8165423eeaa21f0516c1a",
+      "optimizedBytes": 11419514,
+      "optimizedSha256": "b847b0bac528e9555f3522c4564ab25506a5692efcba5d90c77d408b45c9baee",
+      "productIds": [
+        "black voltage"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/neceser/NECESER STARVIE MOSS.MAIN.png",
+      "canonicalSource": "products/bolsos/neceser/NECESER STARVIE MOSS.MAIN.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE MOSS.MAIN.png",
+      "runtimePath": "products/bolsos/neceser/NECESER STARVIE MOSS.MAIN.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 8611206,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "7b778a08ae9f0f883e824b918347062f6b317d8bbf6cfdc3565b17b836231068",
+      "optimizedBytes": 1109292,
+      "optimizedSha256": "2b011ae509e87e13fb5f5c3eae163b6747babd1eda2d58cb90ab7cc5260cd9ee",
+      "productIds": [
+        "neceser moss"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/neceser/NECESER STARVIE MOSS.PT01.png",
+      "canonicalSource": "products/bolsos/neceser/NECESER STARVIE MOSS.PT01.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE MOSS.PT01.png",
+      "runtimePath": "products/bolsos/neceser/NECESER STARVIE MOSS.PT01.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 6728444,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "bd6b8a39f2cb40f6b879833c90a8b9babdf91693c3abefe9ec99593661056f10",
+      "optimizedBytes": 961026,
+      "optimizedSha256": "cf33f0b63649b990e1f17a16b0725ecbba9a349c0f8f34e12c20f1f8e68307ab",
+      "productIds": [
+        "neceser moss"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/neceser/NECESER STARVIE MOSS.PT02.png",
+      "canonicalSource": "products/bolsos/neceser/NECESER STARVIE MOSS.PT02.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE MOSS.PT02.png",
+      "runtimePath": "products/bolsos/neceser/NECESER STARVIE MOSS.PT02.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 7136131,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "0afc8208cd778c98bede6f1ebab880044129f7d105e71aaa910bad8ccbd8403b",
+      "optimizedBytes": 987252,
+      "optimizedSha256": "ff6ad320570b352d5e04f3ff1f1e72ab1c8adec74182610fce9121beaf3b1bda",
+      "productIds": [
+        "neceser moss"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/neceser/NECESER STARVIE MOSS.PT03.png",
+      "canonicalSource": "products/bolsos/neceser/NECESER STARVIE MOSS.PT03.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE MOSS.PT03.png",
+      "runtimePath": "products/bolsos/neceser/NECESER STARVIE MOSS.PT03.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 30491377,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "a560d8e86be4109c505252f7875faa6f79d6716c2e8fbcf22505f0c093e183ff",
+      "optimizedBytes": 3567172,
+      "optimizedSha256": "20a4fca7bc007a25ea793fad13f373a42d0ab92656e04141d092cd022b305708",
+      "productIds": [
+        "neceser moss"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/neceser/NECESER STARVIE NAVY.MAIN.png",
+      "canonicalSource": "products/bolsos/neceser/NECESER STARVIE NAVY.MAIN.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE NAVY.MAIN.png",
+      "runtimePath": "products/bolsos/neceser/NECESER STARVIE NAVY.MAIN.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 6444809,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "b29ac58d7f4efa8b18e76798ea9718f74774cee27ab7a8a7b7b9a20f841e9ecb",
+      "optimizedBytes": 1107498,
+      "optimizedSha256": "1d1c6c2a4e874e30c88b7351dfd0d56e39167e59e11ee938e1c7426c41a0d15b",
+      "productIds": [
+        "neceser navy"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/neceser/NECESER STARVIE NAVY.PT01.png",
+      "canonicalSource": "products/bolsos/neceser/NECESER STARVIE NAVY.PT01.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE NAVY.PT01.png",
+      "runtimePath": "products/bolsos/neceser/NECESER STARVIE NAVY.PT01.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 6576034,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "241c6de259cbc9329a8aa400ea2099e56fc9a2d531c9796bc0639d143cd950bf",
+      "optimizedBytes": 1026990,
+      "optimizedSha256": "03138a2752a53bf61a60d6f6e2d2e490f7763cb0fbf51dc3b046edf84cbe8e3f",
+      "productIds": [
+        "neceser navy"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/neceser/NECESER STARVIE NAVY.PT02.png",
+      "canonicalSource": "products/bolsos/neceser/NECESER STARVIE NAVY.PT02.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE NAVY.PT02.png",
+      "runtimePath": "products/bolsos/neceser/NECESER STARVIE NAVY.PT02.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 5950793,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "878d5afe0a1034659fda5cad6cf89c7de3c1cf0ce7233d53e4423243ee94f31b",
+      "optimizedBytes": 790510,
+      "optimizedSha256": "d70480445a5046150baa6ff27effdc55847a5ee8cc43aa14ddafcab4733c1243",
+      "productIds": [
+        "neceser navy"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/neceser/NECESER STARVIE NAVY.PT03.png",
+      "canonicalSource": "products/bolsos/neceser/NECESER STARVIE NAVY.PT03.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/neceser/NECESER STARVIE NAVY.PT03.png",
+      "runtimePath": "products/bolsos/neceser/NECESER STARVIE NAVY.PT03.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 31132289,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "6003d36efe9cd9a7decc6b5f822a2849505f2d04f36b7711ef64b3c4f43795fe",
+      "optimizedBytes": 4176178,
+      "optimizedSha256": "1d874d57b07ab66a4198c9613b3aab6df9b5ed31f952dcaa74d80db513466e42",
+      "productIds": [
+        "neceser navy"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT01.png",
+      "canonicalSource": "products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT01.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT01.png",
+      "runtimePath": "products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT01.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 15194917,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "4026c054f1aa2c9a4fb600aa77ac4857a111f8f5cb8d81a43f4a3725fd349dc2",
+      "optimizedBytes": 1703168,
+      "optimizedSha256": "40962431535e98ed5d3da98185f0b9991cf96daa360ea4c77e3d4d75de557f6a",
+      "productIds": [
+        "hard eva eternal"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT02.png",
+      "canonicalSource": "products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT02.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT02.png",
+      "runtimePath": "products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT02.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 19279468,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "41d8804775c00d53e7bf70c0790f25c3481ea5087c343eed773000e1ab256d42",
+      "optimizedBytes": 2242976,
+      "optimizedSha256": "70e40c536ef6a0a1d3982afb95876ffe6ade00175dad48a9aff068d7ea3c3bac",
+      "productIds": [
+        "hard eva eternal"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT03.png",
+      "canonicalSource": "products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT03.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT03.png",
+      "runtimePath": "products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT03.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 15966808,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "36d7dafbad4880b463407da11969e032d357b886ab95a7589ea9dbd1190623fb",
+      "optimizedBytes": 2346748,
+      "optimizedSha256": "f2752d67160748d81668f6678bb36548fa70a6d0a839626faea015fe40b7d292",
+      "productIds": [
+        "hard eva eternal"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT04.png",
+      "canonicalSource": "products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT04.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT04.png",
+      "runtimePath": "products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT04.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 36474698,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "21db628227f3c0bcd1507bac535428ad17ce48999dfd206e3123867f6d8db618",
+      "optimizedBytes": 5739460,
+      "optimizedSha256": "cf80146bf8f5bd7d5cad8e3d48315b459f7047bb8db9a0b263fc8ebbfe1a66c7",
+      "productIds": [
+        "hard eva eternal"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT06.png",
+      "canonicalSource": "products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT06.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT06.png",
+      "runtimePath": "products/bolsos/paleteroEternal/PALETERO STARVIE HARD EVA ETERNAL.PT06.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 17749642,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "d77e38081972276563e7ae7929e3bc13694745731a0d58d1a95336fe470d5d35",
+      "optimizedBytes": 3148682,
+      "optimizedSha256": "b8b31463f882dfcee0665a7bd5b0f9c49ad9ab0f0ad377e73c6ea2b7f60c7a1c",
+      "productIds": [
+        "hard eva eternal"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT01.png",
+      "canonicalSource": "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT01.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT01.png",
+      "runtimePath": "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT01.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 16430253,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "81171bd05301c59adee56d4572fb4e7ce66f32625f0acb602499f06bef2a81bc",
+      "optimizedBytes": 2577644,
+      "optimizedSha256": "12d6ad550767ea2dfabafcc1e7021693ab984b4dcb0e41c3efe4958646408e7e",
+      "productIds": [
+        "hard eva black bag"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT02.png",
+      "canonicalSource": "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT02.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT02.png",
+      "runtimePath": "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT02.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 16401345,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "afe730bf8d948c0a2519e0f571b71655d34d7eb85c6efeed421f8554a2a31e97",
+      "optimizedBytes": 2449252,
+      "optimizedSha256": "81f46ab461c4f04bd9d782cd41017dc56b14194ea0945c1e94003ffd598ea1fb",
+      "productIds": [
+        "hard eva black bag"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT03.png",
+      "canonicalSource": "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT03.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT03.png",
+      "runtimePath": null,
+      "width": 2654,
+      "height": 2654,
+      "bytes": 15098320,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "175f40809f605b20ea55ce5c80cd8f16fd58e1c91387969e71f5aabb74585ef6",
+      "optimizedBytes": 0,
+      "optimizedSha256": null,
+      "productIds": [],
+      "category": "SOURCE/REFERENCE ONLY",
+      "comparison": null
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT04.png",
+      "canonicalSource": "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT04.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT04.png",
+      "runtimePath": "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT04.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 20009451,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "9be3f4fd02e01ce22699d89f460b0d82f444a29f32fed41431c67c422c815d09",
+      "optimizedBytes": 2570162,
+      "optimizedSha256": "31ff784dc2647046c3739dac01d1365b55ec7ee74701cfec4b3356c5f58186f1",
+      "productIds": [
+        "hard eva black bag"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT05.png",
+      "canonicalSource": "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT05.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT05.png",
+      "runtimePath": null,
+      "width": 2654,
+      "height": 2654,
+      "bytes": 34860193,
+      "bits": 16,
+      "alpha": false,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "9856cb71db25fb65c658ba2625bc436a619c0f593153b60a58e2c457f551c54a",
+      "optimizedBytes": 0,
+      "optimizedSha256": null,
+      "productIds": [],
+      "category": "SOURCE/REFERENCE ONLY",
+      "comparison": null
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT06.png",
+      "canonicalSource": "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT06.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT06.png",
+      "runtimePath": "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT06.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 41301591,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "b2db536123cfb90bd33f11ca0c2e5ec983c8ebe3ecac32d3c88075f5c8ad2515",
+      "optimizedBytes": 8726470,
+      "optimizedSha256": "d8a6a15c5ac254e2f898c1e8d1e5445a37c246f365357d58529b81ef7dce6b20",
+      "productIds": [
+        "hard eva black bag"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT07.png",
+      "canonicalSource": "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT07.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT07.png",
+      "runtimePath": null,
+      "width": 2654,
+      "height": 2654,
+      "bytes": 17584561,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "b0498b30b1001e5096a999af89b771012ed9f5b00d1ffbc1fb4348413baeb78c",
+      "optimizedBytes": 0,
+      "optimizedSha256": null,
+      "productIds": [],
+      "category": "SOURCE/REFERENCE ONLY",
+      "comparison": null
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.MAIN.png",
+      "canonicalSource": "products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.MAIN.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.MAIN.png",
+      "runtimePath": "products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.MAIN.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 14996512,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "c9ca940a5f78f81a973e8317c09de5d30add2e8efe10c9c71b70e299298fe9bc",
+      "optimizedBytes": 2776530,
+      "optimizedSha256": "d1775b8d06b65c1eb5bf201d23f554a9c20ea5680fe3674cbf9375cfd8f6bbcf",
+      "productIds": [
+        "neon strike"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT01.png",
+      "canonicalSource": "products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT01.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT01.png",
+      "runtimePath": "products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT01.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 20091233,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "fb2cb4d7eac233c642d76ffa1ff093c884e5231d06bd3b8f8590303e912c3ba4",
+      "optimizedBytes": 3063250,
+      "optimizedSha256": "56dbc815e6a82e2cada5d0df3308460c0fa682013d74f3ca6940dc186b136cd0",
+      "productIds": [
+        "neon strike"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT03.png",
+      "canonicalSource": "products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT03.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT03.png",
+      "runtimePath": "products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT03.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 25244905,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "ca9a2ce1d2e633bd5453f75020884f0d5ce0a108a7c395379f2005e940227fac",
+      "optimizedBytes": 4004882,
+      "optimizedSha256": "d3cb7b11b6cc045bc0615889a1f6d0c373d504fe68f75a15951bb2a50e4f1f70",
+      "productIds": [
+        "neon strike"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT04.png",
+      "canonicalSource": "products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT04.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT04.png",
+      "runtimePath": "products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT04.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 33616711,
+      "bits": 16,
+      "alpha": false,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "4d34a9e8f4d2a4fb79231562f446e4e9de66758a1b8112f752159d68e39dfcd2",
+      "optimizedBytes": 6085194,
+      "optimizedSha256": "8231b5babd352d4a3f877161fded9233807431502998cebf11ca3882f6f5a042",
+      "productIds": [
+        "neon strike"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.MAIN.png",
+      "canonicalSource": "products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.MAIN.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.MAIN.png",
+      "runtimePath": "products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.MAIN.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 14236569,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "414b9a8692632587c9a9236ea1e11229826a7f25abcf80c83e60774838d5fd11",
+      "optimizedBytes": 2133842,
+      "optimizedSha256": "c2db6b42b92df2890499fa0e98d3c4814e3a8b6bdfcaff45b5d200fdf26a8492",
+      "productIds": [
+        "pro master"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT01.png",
+      "canonicalSource": "products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT01.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT01.png",
+      "runtimePath": "products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT01.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 15582944,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "94eaf14c48b84a1e1442df92ecaedf81b10d414d03d9a572b3377b3b3893afcb",
+      "optimizedBytes": 2473026,
+      "optimizedSha256": "825d9089c065200be051c15fd85d7704bf2b8bf1bf64ffac77d51a03d4f14e2f",
+      "productIds": [
+        "pro master"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT02.png",
+      "canonicalSource": "products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT02.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT02.png",
+      "runtimePath": "products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT02.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 19972329,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "4b9f35453ef983634b82763b0736ced5b96d1eb3cf1549a01ba59242be882cf9",
+      "optimizedBytes": 2449358,
+      "optimizedSha256": "d478d74810db93218d6bafa55e600646c377b27b07e3e91f745ee079f1741c39",
+      "productIds": [
+        "pro master"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT05.png",
+      "canonicalSource": "products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT05.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT05.png",
+      "runtimePath": "products/bolsos/paleteroPromaster/PALETERO STARVIE PRO MASTER.PT05.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 33035758,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "a1b8d2706d417342299c36453c60ab287d9cccef9b821a87f941b0fa96f4aea6",
+      "optimizedBytes": 4929276,
+      "optimizedSha256": "ced36edae1ce98e31db7ea74b4f3f6d98832fec4b6f70dcac24160cbe6f60dd1",
+      "productIds": [
+        "pro master"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.MAIN.png",
+      "canonicalSource": "products/bolsos/paleteroStar/PALETERO STARVIE STAR.MAIN.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroStar/PALETERO STARVIE STAR.MAIN.png",
+      "runtimePath": "products/bolsos/paleteroStar/PALETERO STARVIE STAR.MAIN.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 17572141,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "1b176a4a72ff0842903308ecb47c5073a101e3adb8d779c4c8606abb2c77b1f6",
+      "optimizedBytes": 3027592,
+      "optimizedSha256": "61a8fbfd48a80167e4373a4a8059caf5ed9451077076e0d0b5bef3bdb8f8c669",
+      "productIds": [
+        "star"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT01.png",
+      "canonicalSource": "products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT01.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT01.png",
+      "runtimePath": "products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT01.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 17405558,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "1c10b143feab5647f3f9a7b8598f58cc4d19842e285754689a6af781309d4db4",
+      "optimizedBytes": 3544434,
+      "optimizedSha256": "c752290147bbe78886194187fa7c76f18bc9514611ace299afea72596bcb9516",
+      "productIds": [
+        "star"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT02.png",
+      "canonicalSource": "products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT02.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT02.png",
+      "runtimePath": "products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT02.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 14942951,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "9212af0e24b950e4c382d8def5310e3eeecf9b59265ac0e6ffd2a3d6fcb27946",
+      "optimizedBytes": 3017110,
+      "optimizedSha256": "5f2842057a6c9d2c99f0449cd0c47d36b206ad3f9e9f537b21aa64517a04535c",
+      "productIds": [
+        "star"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT04.png",
+      "canonicalSource": "products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT04.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT04.png",
+      "runtimePath": "products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT04.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 34371306,
+      "bits": 16,
+      "alpha": false,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "b6704b59baf3799f3edc6c1c84833a18855d15ebd86dc37d82e4ce6806810a8a",
+      "optimizedBytes": 8572834,
+      "optimizedSha256": "df8a5d5881b45cc0674849135b154aa9f7e4d72d428ad86e4079789e1fde96ac",
+      "productIds": [
+        "star"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT05.png",
+      "canonicalSource": "products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT05.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT05.png",
+      "runtimePath": "products/bolsos/paleteroStar/PALETERO STARVIE STAR.PT05.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 33090734,
+      "bits": 16,
+      "alpha": false,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "ceffabf12129767d12428478de427f871b655fcfaf9f2c5f8c7ea6b3e166a33c",
+      "optimizedBytes": 6389104,
+      "optimizedSha256": "e9d0bc3a3ebfd6f663a23c0f1a9be3cf737be1b5367955d3dcfe1218e47ffd22",
+      "productIds": [
+        "star"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.MAIN.png",
+      "canonicalSource": "products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.MAIN.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.MAIN.png",
+      "runtimePath": "products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.MAIN.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 19642605,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "44221344499376b02740a36ef01d9d3d8bca635b630606f0f19d98bf0c270dcb",
+      "optimizedBytes": 3742062,
+      "optimizedSha256": "1db376ab9a2c2f04ea900fa5e05a380922861c2614b0129a8a7e3386a386d13d",
+      "productIds": [
+        "t-one pro"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT01.png",
+      "canonicalSource": "products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT01.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT01.png",
+      "runtimePath": "products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT01.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 20951241,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "37e7c6afac16cf001fbfefbda1ef6541e73a9c5034e7457c88dc11bbc00d27f3",
+      "optimizedBytes": 4084290,
+      "optimizedSha256": "5e394965e598f66582cf1f99d06a3f31f8a3712b92302d7b301e7d17a793933f",
+      "productIds": [
+        "t-one pro"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT02.png",
+      "canonicalSource": "products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT02.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT02.png",
+      "runtimePath": "products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT02.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 23704629,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "647a31e25aa87513c26326fa07008c755f74cb572bcf766891d986797a2ee8dc",
+      "optimizedBytes": 4485524,
+      "optimizedSha256": "0e7c3a0d22fc4c112453229a4c20b8fbc57aeaddfead7a13175a801507574231",
+      "productIds": [
+        "t-one pro"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT03.png",
+      "canonicalSource": "products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT03.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT03.png",
+      "runtimePath": "products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT03.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 38338089,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "5f36d07b6357bc553f3a3f52e03c3210230eaf10a9fad0594705711d02096104",
+      "optimizedBytes": 6993644,
+      "optimizedSha256": "eb4632ef2fe561d513cd50dd34c26c615a020cb7f9e4ef42b843bbc1b912db80",
+      "productIds": [
+        "t-one pro"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    },
+    {
+      "originalPath": "public/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT04.png",
+      "canonicalSource": "products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT04.png",
+      "masterPath": "source-assets/product-masters/products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT04.png",
+      "runtimePath": "products/bolsos/paleteroTone/PALETERO STARVIE T-ONE PRO.PT04.webp",
+      "width": 2654,
+      "height": 2654,
+      "bytes": 24555265,
+      "bits": 16,
+      "alpha": true,
+      "colourProfile": "Adobe RGB (1998)",
+      "iccSha256": "e5f6ffb83b6d3491301dd750975684cc5cc2a1951c994a14b08cfdaa0d75a041",
+      "sha256": "28a2655485508ee396efc889ed5a299835afa60be94929d9eab67e2b5d55cf82",
+      "optimizedBytes": 4570968,
+      "optimizedSha256": "06bffe79f4c3c69f2bb242e455708442ff0d7e8456214032dacd9bbfddceed2c",
+      "productIds": [
+        "t-one pro"
+      ],
+      "category": "DUPLICATE/REPLACEABLE",
+      "comparison": {
+        "visibleChanges": 0,
+        "alphaChanges": 0,
+        "colourSpace": "Original ICC preserved; 8-bit",
+        "fullResolution": true
+      }
+    }
+  ]
+}

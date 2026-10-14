@@ -4,6 +4,8 @@ import { createHardCoverPageFlipSettings } from "../data/hardCoverMotion";
 import type { CatalogPage } from "../types/catalog";
 
 type BackCoverRuntime = {
+  update: () => void;
+  getUI: () => { getWrapper: () => HTMLElement };
   getOrientation: () => "portrait" | "landscape";
   getRender: () => {
     orientation: "portrait" | "landscape";
@@ -26,6 +28,7 @@ type BackCoverProps = {
   rightPage: CatalogPage;
   active: boolean;
   live: boolean;
+  mobileCourtPortrait?: boolean;
   onMotionEnd: (state: "open" | "closed") => void;
 };
 
@@ -38,7 +41,7 @@ type BackCoverProps = {
  */
 export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
   function BackCover(
-    { coverPage, leftPage, rightPage, active, live, onMotionEnd },
+    { coverPage, leftPage, rightPage, active, live, mobileCourtPortrait = false, onMotionEnd },
     forwardedRef,
   ) {
     const rootRef = useRef<HTMLDivElement>(null);
@@ -46,8 +49,25 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
     const engineRef = useRef<PageFlip | null>(null);
     const motionRef = useRef<"closing" | "opening" | null>(null);
     const portraitMotionRef = useRef(false);
+    const courtPortraitRef = useRef(mobileCourtPortrait);
+    const fittedPortraitRef = useRef(false);
+    courtPortraitRef.current = mobileCourtPortrait;
     const onMotionEndRef = useRef(onMotionEnd);
     onMotionEndRef.current = onMotionEnd;
+
+    const syncFrame = (engine: PageFlip) => {
+      if (motionRef.current || (!courtPortraitRef.current && !fittedPortraitRef.current)) return;
+      const host = physicsRef.current;
+      if (!host?.clientWidth || !host.clientHeight) return;
+      const settings = engine.getSettings();
+      settings.width = 960;
+      settings.height = courtPortraitRef.current ? 960 * host.clientHeight / host.clientWidth : 540;
+      fittedPortraitRef.current = courtPortraitRef.current;
+      const runtime = engine as unknown as BackCoverRuntime;
+      runtime.update(); // Refresh the cached rect before capturing either hinge.
+      runtime.getUI().getWrapper().style.paddingBottom = courtPortraitRef.current ? "0" :
+        `${settings.height / settings.width * (runtime.getOrientation() === "portrait" ? 100 : 50)}%`;
+    };
 
     const captureHinge = (engine: PageFlip) => {
       const root = rootRef.current;
@@ -63,6 +83,7 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
       close: () => {
         const engine = engineRef.current;
         if (!engine || motionRef.current) return;
+        syncFrame(engine);
         captureHinge(engine);
         motionRef.current = "closing";
         const runtime = engine as unknown as BackCoverRuntime;
@@ -86,6 +107,7 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
       open: () => {
         const engine = engineRef.current;
         if (!engine || motionRef.current) return;
+        syncFrame(engine);
         captureHinge(engine);
         motionRef.current = "opening";
         const runtime = engine as unknown as BackCoverRuntime;
@@ -133,6 +155,17 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
         rootRef.current?.style.removeProperty("--back-cover-left-offset");
       };
     }, []);
+
+    useEffect(() => {
+      const engine = engineRef.current;
+      const host = physicsRef.current;
+      if (!engine || !host) return;
+      syncFrame(engine);
+      if (!mobileCourtPortrait) return;
+      const observer = new ResizeObserver(() => syncFrame(engine));
+      observer.observe(host);
+      return () => observer.disconnect();
+    }, [mobileCourtPortrait]);
 
     return (
       <div

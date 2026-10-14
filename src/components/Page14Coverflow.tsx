@@ -8,6 +8,7 @@ import { assetUrl } from "./ProductModal";
 import "swiper/css";
 import "swiper/css/effect-coverflow";
 import "./page14-coverflow.css";
+import { MobileCourtBackground } from "./mobile/MobileCourtBackground";
 
 export function coverflowProducts(products: CommerceProduct[]): CommerceProduct[] {
   return products
@@ -192,6 +193,7 @@ export function Page14Coverflow({ visible, activeProductId, onActiveProductChang
 
   return (
     <div className="pdf-page page14-coverflow" data-page-number="14" data-testid="page14-coverflow" data-presentation={visible && ready ? "interactive" : "snapshot"} data-live-ready={ready}>
+      <MobileCourtBackground variant="lineup" />
       <div className="page14-coverflow__heading">
         <span className="page14-coverflow__eyebrow">STARVIE / COLLECTION 2027</span>
         <strong>ENCUENTRA TU JUEGO</strong>

@@ -3,6 +3,7 @@ import { readFile, writeFile, mkdir, stat } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import sharp from "sharp";
+import { productMasterSources, productBuildSource } from "./lib/product-master-source.mjs";
 
 // The published catalog remains the only product source. This manifest only
 // maps existing image paths to assets; it contains no commercial information.
@@ -11,19 +12,23 @@ const publicRoot = path.join(root, "public");
 const outputRelative = "catalog/product-images";
 const output = path.join(publicRoot, outputRelative);
 const catalog = JSON.parse(await readFile(path.join(root, "generated/products.json"), "utf8"));
-const sources = [...new Set(catalog.products.flatMap(product => product.imagenes))].sort();
+const masters = await productMasterSources(root);
+const onlyMasters = process.argv.includes("--only-masters");
+const sources = [...new Set(catalog.products.flatMap(product => product.imagenes))].sort()
+  .filter(source => !onlyMasters || masters.has(source));
 const widths = { thumbnail: 160, standard: 768, large: 1280 };
 const encoding = { quality: 88, alphaQuality: 100, effort: 5 };
-const images = {};
+const images = onlyMasters
+  ? JSON.parse(await readFile(path.join(root, "src/data/productImageVariants.json"), "utf8")).images
+  : {};
 const totals = { original: 0, thumbnail: 0, standard: 0, large: 0 };
 await mkdir(output, { recursive: true });
 
 for (const relative of sources) {
-  const source = path.resolve(publicRoot, relative);
-  if (!source.startsWith(publicRoot + path.sep)) throw new Error(`Imagen fuera de public: ${relative}`);
+  const { target: source, identity } = productBuildSource(root, relative, masters);
   const input = await readFile(source);
   const metadata = await sharp(input).metadata();
-  const id = createHash("sha256").update(relative).update(input)
+  const id = createHash("sha256").update(identity).update(input)
     .update(JSON.stringify({ widths, encoding })).digest("hex").slice(0, 16);
   const variants = {};
   totals.original += input.length;
@@ -41,7 +46,13 @@ for (const relative of sources) {
   images[relative] = variants;
 }
 
-await writeFile(path.join(root, "src/data/productImageVariants.json"),
-  JSON.stringify({ schemaVersion: 1, images }, null, 2) + "\n");
+const manifestPath = path.join(root, "src/data/productImageVariants.json");
+const serialized = JSON.stringify({ schemaVersion: 1, images }, null, 2) + "\n";
+const existing = await readFile(manifestPath, "utf8").catch(error => {
+  if (error.code === "ENOENT") return null;
+  throw error;
+});
+// A reproducible rebuild should not rewrite an unchanged manifest.
+if (serialized !== existing) await writeFile(manifestPath, serialized);
 console.log(JSON.stringify({ images: sources.length, assets: sources.length * 3, bytes: totals,
   derivedTotal: totals.thumbnail + totals.standard + totals.large }, null, 2));

@@ -14,6 +14,7 @@ export type MobilePresentationText = string | {
 };
 export type MobileTechnology = {
   label: string;
+  isNew?: boolean;
   icon: {
     source: string;
     /** Optional window into existing artwork; standalone icons need only source. */
@@ -32,7 +33,12 @@ export type MobileSweetSpot = {
 export type MobileProductPresentation = {
   pageId: number;
   productId: string;
+  /** Optional editorial labels; identifier overrides never change commerce data. */
+  title?: string;
+  printedDetails?: { ref?: string; ean?: string; include?: string };
   rangeLabel: MobilePresentationText;
+  /** Defaults to GAMA; an empty prefix keeps complete labels such as PRO-LINE. */
+  rangePrefix?: string;
   audienceLabel: MobilePresentationText;
   claim: string;
   mobileHero: MobileAsset | null;
@@ -40,19 +46,32 @@ export type MobileProductPresentation = {
   themeAccent: string;
   /** Full-bleed ambience is the default for future premium heroes. */
   heroBackgroundMode?: "full-bleed" | "contained";
-  backgroundTheme: { background: string; asset?: { source: string; position?: string }; readabilityOverlay?: string };
+  backgroundTheme: {
+    background: string;
+    /** Independent environmental photograph without a product; displayed as cover. */
+    asset?: {
+      source: string;
+      position?: string;
+      /** False displays the prepared photo sharply, without a runtime blur filter. */
+      soften?: boolean;
+    };
+    readabilityOverlay?: string;
+  };
   technologies: readonly MobileTechnology[];
   sweetSpot: MobileSweetSpot | null;
   gameType: MobilePresentationText;
   specs: Record<"shape" | "surface" | "weight" | "balance", MobilePresentationText>;
+  /** Opt in only when a long editorial value needs to wrap in the shared table. */
+  wrapTechnicalSpecs?: boolean;
   gallery: MobileAsset[];
 };
 
-/** Editorial presentation only. Names, specs, availability and money live in commerce. */
+/** Editorial presentation only. Product identity, availability and money stay in commerce. */
 export const mobileProductPresentation: Record<string, MobileProductPresentation> = {
   "raptor+": {
     pageId: 17,
     productId: "raptor+",
+    printedDetails: { ref: "PSTRP41000", ean: "8436612942025" },
     rangeLabel: { field: "gama", part: 0 },
     audienceLabel: { field: "gama", part: 1 },
     claim: "BREAK THE RULES", // Brand inscription on the actual Raptor+ asset.
@@ -61,6 +80,8 @@ export const mobileProductPresentation: Record<string, MobileProductPresentation
     heroBackgroundMode: "full-bleed",
     backgroundTheme: {
       background: "radial-gradient(ellipse at 78% 46%, #64181150, transparent 62%), linear-gradient(130deg, #232326, #09090a 52%, #1a0909)",
+      asset: { source: "/hero/raptor-ambient.webp", soften: false },
+      readabilityOverlay: "linear-gradient(0deg, #070709b3, transparent 28%, transparent 78%, #07070966), linear-gradient(90deg, #07070999, #07070980 24%, transparent 42%, transparent 58%, #07070966 76%, #07070980)",
     },
     technologies: ([
       ["3D Carbon Hybrid", 178, 187], ["M-Eva Balance", 213, 251],
@@ -94,6 +115,7 @@ export const mobileProductPresentation: Record<string, MobileProductPresentation
   "eternal": {
     pageId: 15,
     productId: "eternal",
+    printedDetails: { ref: "PSTETE41000", ean: "8436612941998" },
     rangeLabel: "SUPER PRO",
     audienceLabel: "PROFESIONAL Y SEMI PRO",
     claim: "BREAK THE RULES",
@@ -102,6 +124,8 @@ export const mobileProductPresentation: Record<string, MobileProductPresentation
     heroBackgroundMode: "full-bleed",
     backgroundTheme: {
       background: "radial-gradient(ellipse at 78% 46%, #a6772640, transparent 62%), linear-gradient(130deg, #232326, #09090a 52%, #171207)",
+      asset: { source: "/hero/eternal-ambient.webp", soften: false },
+      readabilityOverlay: "linear-gradient(0deg, #070709b3, transparent 28%, transparent 78%, #07070966), linear-gradient(90deg, #07070999, #07070980 24%, transparent 42%, transparent 58%, #07070966 76%, #07070980)",
     },
     technologies: ([
       ["18K Carbon Hybrid", 143, 194], ["M-Eva Balance", 212, 250],
@@ -124,6 +148,303 @@ export const mobileProductPresentation: Record<string, MobileProductPresentation
       balance: "MEDIO",
     },
     gallery: [], // The original ProductModal keeps Eternal's real catalog gallery.
+  },
+  "triton t-one": {
+    pageId: 16,
+    productId: "triton t-one",
+    title: "TRITÓN T-ONE",
+    printedDetails: { include: "ECOFRIENDLY GYMSACK" },
+    rangeLabel: "SUPER PRO", // The shared masthead adds the existing GAMA prefix.
+    audienceLabel: "PROFESIONAL Y SEMI PRO",
+    claim: "BREAK THE RULES",
+    mobileHero: { source: "/hero/tone-mobile.png", role: "hero", scale: 1 },
+    themeAccent: "#8b3046",
+    heroBackgroundMode: "full-bleed",
+    backgroundTheme: {
+      background: "radial-gradient(ellipse at 78% 46%, #68233750, transparent 62%), linear-gradient(130deg, #232326, #09090a 52%, #190c11)",
+      asset: { source: "/hero/tone-ambient.webp", soften: false },
+      readabilityOverlay: "linear-gradient(0deg, #070709b3, transparent 28%, transparent 78%, #07070966), linear-gradient(90deg, #07070999, #07070980 24%, transparent 42%, transparent 58%, #07070966 76%, #07070980)",
+    },
+    technologies: ([
+      ["18K Carbon Hybrid", 143, 194, false], ["M-Eva Balance", 213, 251, false],
+      ["Air Booster", 297, 317, true], ["Tri-Force Core", 336, 382, true],
+      ["Hexa Cell", 363, 449, true], ["A-Shock", 381, 516, true],
+      ["Spin Boost Tech", 382, 586, false], ["Longer Handgrip", 387, 660, false],
+      ["Z-shock", 390, 729, false],
+    ] as const).map(([label, x, y, isNew]) => ({
+      label, isNew,
+      icon: { source: "catalog/pages/page-16.webp", crop: { x, y, size: 50, width: 1920, height: 1080 } },
+    })),
+    // Byte-identical runtime copy of the supplied references/mobile/tone.png.
+    sweetSpot: { kind: "asset", source: "mobile/tone.png", width: 186, height: 276 },
+    gameType: "VERSÁTIL",
+    specs: { shape: "DIAMANTE", surface: "18K CARBON", weight: "347-366 GR", balance: "MEDIO" },
+    gallery: [], // The original ProductModal keeps Tritón T-One's real catalog gallery.
+  },
+  "black titan": {
+    pageId: 18,
+    productId: "black titan",
+    title: "BLACK TITAN",
+    printedDetails: { ref: "PSTBT41000", ean: "8436612942018", include: "ECOFRIENDLY GYMSACK" },
+    rangeLabel: "SUPER PRO", // The shared masthead adds GAMA.
+    audienceLabel: "PROFESIONAL Y SEMI PRO",
+    claim: "BREAK THE RULES",
+    mobileHero: { source: "/hero/titan-mobile.png", role: "hero", scale: 1 },
+    themeAccent: "#36b9e8",
+    heroBackgroundMode: "full-bleed",
+    backgroundTheme: {
+      background: "radial-gradient(ellipse at 78% 46%, #174b6350, transparent 62%), linear-gradient(130deg, #232326, #09090a 52%, #09141b)",
+      asset: { source: "/hero/titan-ambient.webp", soften: false },
+      readabilityOverlay: "linear-gradient(0deg, #070709b3, transparent 28%, transparent 78%, #07070966), linear-gradient(90deg, #07070999, #07070980 24%, transparent 42%, transparent 58%, #07070966 76%, #07070980)",
+    },
+    technologies: ([
+      ["24K Carbon Master", 239, 254, 50], ["H-Eva Power", 297, 330, 50],
+      ["Spin Boost Tech", 331, 402, 50], ["Anti-Vibe", 357, 475, 50],
+      ["Dynamic Star", 382, 550, 50], ["Five Sides Tech", 393, 623, 50],
+      ["Reactive Holes", 404, 697, 50], ["Z-shock", 439, 776, 110],
+    ] as const).map(([label, x, y, size]) => ({
+      label,
+      icon: { source: "catalog/pages/page-18.webp", crop: { x, y, size, width: 1920, height: 1080 } },
+    })),
+    // Byte-identical runtime copy of references/mobile/dulcetitan.png.
+    sweetSpot: { kind: "asset", source: "mobile/dulcetitan.png", width: 303, height: 435 },
+    gameType: "ATAQUE",
+    specs: { shape: "HÍBRIDO", surface: "24K CARBON", weight: "350-370 GR", balance: "ALTO" },
+    gallery: [], // The original ProductModal keeps Black Titan's real catalog gallery.
+  },
+  "triton+ power": {
+    pageId: 19,
+    productId: "triton+ power",
+    title: "TRITÓN + POWER",
+    printedDetails: { ref: "PSTTP41000", ean: "8436612942056", include: "ECOFRIENDLY GYMSACK" },
+    rangeLabel: "PRO-LINE",
+    rangePrefix: "",
+    audienceLabel: "HIGH LEVEL",
+    claim: "BREAK THE RULES",
+    mobileHero: { source: "/hero/power-mobile.png", role: "hero", scale: 1 },
+    themeAccent: "#28bdf0",
+    heroBackgroundMode: "full-bleed",
+    backgroundTheme: {
+      background: "radial-gradient(ellipse at 78% 46%, #16516b50, transparent 62%), linear-gradient(130deg, #232326, #09090a 52%, #081620)",
+      asset: { source: "/hero/power-ambient.webp", soften: false },
+      readabilityOverlay: "linear-gradient(0deg, #070709b3, transparent 28%, transparent 78%, #07070966), linear-gradient(90deg, #07070999, #07070980 24%, transparent 42%, transparent 58%, #07070966 76%, #07070980)",
+    },
+    technologies: ([
+      ["18K Carbon Hybrid", 239, 254, 50], ["H-Eva Power", 297, 325, 50],
+      ["Spin Boost Tech", 331, 402, 50], ["TriTech Core", 363, 475, 54],
+      ["Five Sides Tech", 382, 548, 52], ["Anatomic Bridge Design", 393, 619, 52],
+      ["Longer Handgrip", 402, 697, 50], ["Z-shock", 417, 770, 110],
+    ] as const).map(([label, x, y, size]) => ({
+      label,
+      icon: { source: "catalog/pages/page-19.webp", crop: { x, y, size, width: 1920, height: 1080 } },
+    })),
+    // Byte-identical runtime copy of references/mobile/dulcepower.png.
+    sweetSpot: { kind: "asset", source: "mobile/dulcepower.png", width: 168, height: 285 },
+    gameType: "ATAQUE",
+    specs: { shape: "DIAMANTE", surface: "18K CARBON", weight: "350-370 GR", balance: "ALTO" },
+    gallery: [], // The original ProductModal keeps Tritón + Power's real catalog gallery.
+  },
+  "triton+ balance": {
+    pageId: 20,
+    productId: "triton+ balance",
+    title: "TRITÓN + BALANCE",
+    printedDetails: { ref: "PSTTB41000", ean: "8436612942049", include: "ECOFRIENDLY GYMSACK" },
+    rangeLabel: "PRO-LINE",
+    rangePrefix: "",
+    audienceLabel: "HIGH LEVEL",
+    claim: "BREAK THE RULES",
+    mobileHero: { source: "/hero/balance-mobile.png", role: "hero", scale: 1 },
+    themeAccent: "#f2d326",
+    heroBackgroundMode: "full-bleed",
+    backgroundTheme: {
+      background: "radial-gradient(ellipse at 78% 46%, #725d1650, transparent 62%), linear-gradient(130deg, #232326, #09090a 52%, #181507)",
+      asset: { source: "/hero/balance-ambient.webp", soften: false },
+      readabilityOverlay: "linear-gradient(0deg, #070709b3, transparent 28%, transparent 78%, #07070966), linear-gradient(90deg, #07070999, #07070980 24%, transparent 42%, transparent 58%, #07070966 76%, #07070980)",
+    },
+    technologies: ([
+      ["18K Carbon Hybrid", 239, 254, 50], ["M-Eva Balance", 299, 329, 50],
+      ["Spin Boost Tech", 331, 402, 50], ["TriTech Core", 363, 475, 54],
+      ["Five Sides Tech", 382, 548, 52], ["Anatomic Bridge Design", 393, 619, 52],
+      ["Longer Handgrip", 402, 697, 50], ["Z-shock", 417, 770, 110],
+    ] as const).map(([label, x, y, size]) => ({
+      label,
+      icon: { source: "catalog/pages/page-20.webp", crop: { x, y, size, width: 1920, height: 1080 } },
+    })),
+    // Byte-identical copy of Screenshot 2026-10-09 233808.png, confirmed by the user.
+    sweetSpot: { kind: "asset", source: "mobile/dulcebalance.png", width: 180, height: 268 },
+    gameType: "VERSÁTIL",
+    specs: { shape: "DIAMANTE", surface: "18K CARBON", weight: "350-370 GR", balance: "MEDIO" },
+    gallery: [], // The original ProductModal keeps Tritón + Balance's real catalog gallery.
+  },
+  "astrum+": {
+    pageId: 21,
+    productId: "astrum+",
+    title: "ASTRUM+",
+    printedDetails: { ref: "PSTAMP41000", ean: "8436612942032", include: "ECOFRIENDLY GYMSACK" },
+    rangeLabel: "PREMIUM", // The shared masthead adds GAMA.
+    audienceLabel: "INTERMEDIO",
+    claim: "BREAK THE RULES",
+    mobileHero: { source: "products/palas/ASTRUM/ASTRUM1.1.webp", role: "front", scale: 0.9 },
+    themeAccent: "#b7c4d2",
+    heroBackgroundMode: "contained",
+    backgroundTheme: { background: "#111418" }, // Shared court; no individual environment.
+    technologies: ([
+      ["12K Carbon Hyper", 239, 255, 52], ["M-Eva Balance", 302, 330, 50],
+      ["Spin Boost Tech", 331, 405, 50], ["Air Booster", 357, 475, 52],
+      ["Shock Shield", 380, 548, 54], ["Five Sides Tech", 393, 624, 52],
+      ["Z-shock", 409, 688, 110],
+    ] as const).map(([label, x, y, size]) => ({
+      label,
+      icon: { source: "catalog/pages/page-21.webp", crop: { x, y, size, width: 1920, height: 1080 } },
+    })),
+    // Byte-identical copy of references/mobile/Screenshot 2026-10-11 005709.png.
+    sweetSpot: { kind: "asset", source: "mobile/astrum-sweetspot.png", width: 165, height: 259 },
+    gameType: "VERSÁTIL",
+    specs: { shape: "LÁGRIMA", surface: "12K CARBON HYPER", weight: "350–370 GR", balance: "MEDIO" },
+    wrapTechnicalSpecs: true,
+    gallery: [], // ProductModal keeps the original commerce gallery.
+  },
+  "metheora+": {
+    pageId: 22,
+    productId: "metheora+",
+    title: "METHEORA+",
+    printedDetails: { ref: "PSTMP41000", ean: "8436612942063", include: "ECOFRIENDLY GYMSACK" },
+    rangeLabel: "PREMIUM", // The shared masthead adds GAMA.
+    audienceLabel: "INTERMEDIO",
+    claim: "BREAK THE RULES",
+    mobileHero: { source: "products/palas/METHEORA/METHE1.4.webp", role: "front", scale: 0.9 },
+    themeAccent: "#a6b6aa",
+    heroBackgroundMode: "contained",
+    backgroundTheme: { background: "#111418" }, // Shared court; no individual environment.
+    technologies: ([
+      ["12K Carbon Hyper", 221, 237, 52, false], ["M-Eva Balance", 276, 303, 50, false],
+      ["Spin Boost Tech", 312, 368, 50, false], ["Precision Bridge", 350, 437, 52, true],
+      ["Core Axis", 380, 499, 52, true], ["Reactive Holes", 380, 565, 52, false],
+      ["Longer Handgrip", 386, 639, 52, false], ["Z-shock", 398, 708, 110, false],
+    ] as const).map(([label, x, y, size, isNew]) => ({
+      label,
+      isNew,
+      icon: { source: "catalog/pages/page-22.webp", crop: { x, y, size, width: 1920, height: 1080 } },
+    })),
+    // Byte-identical copy of references/mobile/Screenshot 2026-10-11 100453.png.
+    sweetSpot: { kind: "asset", source: "mobile/metheora-sweetspot.png", width: 169, height: 286 },
+    gameType: "VERSÁTIL",
+    specs: { shape: "HÍBRIDA", surface: "12K CARBON HYPER", weight: "350–370 GR", balance: "MEDIO" },
+    wrapTechnicalSpecs: true,
+    gallery: [], // ProductModal keeps the original commerce gallery.
+  },
+  "phantom": {
+    pageId: 23,
+    productId: "phantom",
+    title: "PHANTOM",
+    printedDetails: { ref: "PSTP41000", ean: "8436612942070", include: "ECOFRIENDLY GYMSACK" },
+    rangeLabel: "PREMIUM", // The shared masthead adds GAMA.
+    audienceLabel: "INTERMEDIO",
+    claim: "BREAK THE RULES",
+    mobileHero: { source: "products/palas/PHANTOM/PHANTON1.1.webp", role: "front", scale: 0.9 },
+    themeAccent: "#c7aaa5",
+    heroBackgroundMode: "contained",
+    backgroundTheme: { background: "#111418" }, // Shared court; no individual environment.
+    technologies: ([
+      ["12K Carbon Hyper", 221, 237, 52, false], ["S-Eva Flex", 279, 296, 52, false],
+      ["Spin Boost Tech", 312, 368, 50, false], ["Precision Bridge", 350, 437, 52, true],
+      ["Core Axis", 380, 499, 52, true], ["Reactive Holes", 380, 565, 52, false],
+      ["Longer Handgrip", 386, 639, 52, false], ["Z-shock", 398, 708, 110, false],
+    ] as const).map(([label, x, y, size, isNew]) => ({
+      label,
+      isNew,
+      icon: { source: "catalog/pages/page-23.webp", crop: { x, y, size, width: 1920, height: 1080 } },
+    })),
+    // Byte-identical copy of references/mobile/Screenshot 2026-10-11 101639.png.
+    sweetSpot: { kind: "asset", source: "mobile/phantom-sweetspot.png", width: 157, height: 279 },
+    gameType: "CONTROL",
+    specs: { shape: "REDONDA", surface: "12K CARBON HYPER", weight: "347–365 GR", balance: "BAJO" },
+    wrapTechnicalSpecs: true,
+    gallery: [], // ProductModal keeps the original commerce gallery.
+  },
+  "drax+": {
+    pageId: 24,
+    productId: "drax+",
+    title: "DRAX+",
+    printedDetails: { ref: "PSTDP31000", ean: "8436612941073", include: "ECOFRIENDLY GYMSACK" },
+    rangeLabel: "PREMIUM", // The shared masthead adds GAMA.
+    audienceLabel: "INTERMEDIO",
+    claim: "BREAK THE RULES",
+    mobileHero: { source: "products/palas/DRAX/DRAX1.5.webp", role: "front", scale: 0.9 },
+    themeAccent: "#8eaad5",
+    heroBackgroundMode: "contained",
+    backgroundTheme: { background: "#111418" }, // Shared court; no individual environment.
+    technologies: ([
+      ["12K Carbon Hyper", 221, 237, 52], ["M-Eva Balance", 276, 303, 50],
+      ["Spin Boost Tech", 312, 368, 50], ["Hepta Bridge", 335, 435, 52],
+      ["Shock Shield", 365, 499, 52], ["Reactive Holes", 380, 565, 52],
+      ["Longer Handgrip", 390, 635, 54], ["Air Flow Design", 404, 710, 54],
+      ["Z-shock", 419, 791, 110],
+    ] as const).map(([label, x, y, size]) => ({
+      label,
+      icon: { source: "catalog/pages/page-24.webp", crop: { x, y, size, width: 1920, height: 1080 } },
+    })),
+    // Byte-identical copy of references/mobile/Screenshot 2026-10-11 102345.png.
+    sweetSpot: { kind: "asset", source: "mobile/drax-sweetspot.png", width: 139, height: 249 },
+    gameType: "CONTROL",
+    specs: { shape: "LÁGRIMA", surface: "12K CARBON HYPER", weight: "350–370 GR", balance: "MEDIO" },
+    wrapTechnicalSpecs: true,
+    gallery: [], // ProductModal keeps the original commerce gallery.
+  },
+  "shade": {
+    pageId: 25,
+    productId: "shade",
+    title: "SHADE",
+    printedDetails: { ref: "PSTS41000", ean: "8436612942094", include: "ECOFRIENDLY GYMSACK" },
+    rangeLabel: "ADVANCE", // The shared masthead adds GAMA.
+    audienceLabel: "PRINCIPIANTES",
+    claim: "BREAK THE RULES",
+    mobileHero: { source: "products/palas/SHADE/SHADE1.1.webp", role: "front", scale: 0.9 },
+    themeAccent: "#a0bf93",
+    heroBackgroundMode: "contained",
+    backgroundTheme: { background: "#111418" }, // Shared court; no individual environment.
+    technologies: ([
+      ["Aluminized X-Glass", 256, 253, 56, true], ["S-Eva Flex", 294, 330, 54, false],
+      ["Geo Bridge", 325, 401, 54, false], ["Reactive Holes", 348, 471, 54, false],
+      ["Longer Handgrip", 367, 543, 56, false],
+    ] as const).map(([label, x, y, size, isNew]) => ({
+      label,
+      isNew,
+      icon: { source: "catalog/pages/page-25.webp", crop: { x, y, size, width: 1920, height: 1080 } },
+    })),
+    // Byte-identical copy of references/mobile/Screenshot 2026-10-11 103147.png.
+    sweetSpot: { kind: "asset", source: "mobile/shade-sweetspot.png", width: 168, height: 274 },
+    gameType: "CONTROL",
+    specs: { shape: "REDONDA", surface: "ALUMINIZED X-GLASS", weight: "350–370 GR", balance: "BAJO" },
+    wrapTechnicalSpecs: true,
+    gallery: [], // ProductModal keeps the original commerce gallery.
+  },
+  "kyra": {
+    pageId: 26,
+    productId: "kyra",
+    title: "KYRA",
+    printedDetails: { ref: "PSTS41000", ean: "8436612942094", include: "ECOFRIENDLY GYMSACK" },
+    rangeLabel: "ADVANCE", // The shared masthead adds GAMA.
+    audienceLabel: "PRINCIPIANTES",
+    claim: "BREAK THE RULES",
+    mobileHero: { source: "products/palas/KYRA/KYRA1.2.webp", role: "front", scale: 0.9 },
+    themeAccent: "#cba393",
+    heroBackgroundMode: "contained",
+    backgroundTheme: { background: "#111418" }, // Shared court; no individual environment.
+    technologies: ([
+      ["X-Glass Tech", 256, 253, 58], ["S-Eva Flex", 294, 330, 54],
+      ["Geo Bridge", 337, 402, 54], ["Reactive Holes", 361, 479, 54],
+      ["Longer Handgrip", 375, 552, 56],
+    ] as const).map(([label, x, y, size]) => ({
+      label,
+      icon: { source: "catalog/pages/page-26.webp", crop: { x, y, size, width: 1920, height: 1080 } },
+    })),
+    // Byte-identical copy of references/mobile/Screenshot 2026-10-11 104224.png.
+    sweetSpot: { kind: "asset", source: "mobile/kyra-sweetspot.png", width: 154, height: 262 },
+    gameType: "CONTROL",
+    specs: { shape: "REDONDA", surface: "X-GLASS TECH", weight: "340–360 GR", balance: "BAJO" },
+    wrapTechnicalSpecs: true,
+    gallery: [], // ProductModal keeps the original commerce gallery.
   },
 };
 

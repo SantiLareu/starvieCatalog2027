@@ -1,0 +1,196 @@
+/* No scene image is requested outside the desktop media query. */
+.desktop-stage-background, .desktop-logo-flight { display: none; }
+
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .catalog-app {
+    /* Surface alpha only. PDF artwork remains opaque, including its background. */
+    --desktop-sheet-surface-alpha: 0.92;
+  }
+
+  .desktop-stage-background {
+    /* The landscape plate has no mural baked in; the wall mark stays independent. */
+    --desktop-court-image: url("../assets/desktop/padel-court-clean-wide.webp");
+    --desktop-court-anchor-y: 42%;
+    --desktop-wall-logo-width: min(64vw, 1200px);
+    --desktop-wall-logo-top: calc(var(--toolbar-height) + clamp(0px, 0.4dvh, 6px));
+    --desktop-wall-logo-skew-y: -5deg;
+    --desktop-wall-logo-scale-y: 0.82;
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+    overflow: hidden;
+    pointer-events: none;
+    user-select: none;
+    background: #151619;
+  }
+
+  /* The landscape clean plate covers the stage sharply, including the sides.
+     A second blurred copy is no longer needed. The book's frame is untouched. */
+  .desktop-stage-background__frame {
+    position: absolute;
+    inset: 0;
+  }
+
+  .desktop-stage-background__court {
+    position: absolute;
+    inset: 0;
+    background-image: var(--desktop-court-image);
+    background-size: cover;
+    background-position: 50% var(--desktop-court-anchor-y);
+    background-repeat: no-repeat;
+  }
+
+  .desktop-stage-background::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, rgba(7, 9, 12, 0.12), rgba(7, 9, 12, 0.05) 50%, rgba(7, 9, 12, 0.2));
+  }
+
+  .desktop-stage-background__wall-logo {
+    position: absolute;
+    z-index: 1;
+    left: 59%;
+    top: var(--desktop-wall-logo-top);
+    width: var(--desktop-wall-logo-width);
+    /* Keep the larger mural above the existing book, including short desktops. */
+    max-width: calc(max(44px, (100dvh + var(--toolbar-height) - 100vw * 9 / 32) / 2 - var(--toolbar-height) - 6px) * 2000 / 449 / 0.88);
+    aspect-ratio: 2000 / 449;
+    transform: translateX(-50%);
+    opacity: 0;
+  }
+
+  .desktop-stage-background__wall-mark {
+    position: absolute;
+    inset: 0;
+    background: url("../assets/desktop/starvie-wall-logo.webp") center / contain no-repeat;
+    transform: skewY(var(--desktop-wall-logo-skew-y)) scaleY(var(--desktop-wall-logo-scale-y));
+    /* The wall's light and grain remain visible through the painted mark. */
+    -webkit-mask-image: radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.88) 0.45px, #000 0.85px);
+    mask-image: radial-gradient(circle at 1px 1px, rgb(0 0 0 / 0.88) 0.45px, #000 0.85px);
+    -webkit-mask-size: 3px 3px;
+    mask-size: 3px 3px;
+  }
+
+  .desktop-stage-background[data-logo-state="wall"] .desktop-stage-background__wall-logo {
+    opacity: 0.62;
+  }
+
+  /* Sibling of the background: this layer can cross in front of the book,
+     below the toolbar/dialogs, without altering any of their stacking contexts. */
+  .desktop-logo-flight[data-active="true"] {
+    display: block;
+    position: absolute;
+    inset: 0;
+    z-index: 20;
+    overflow: hidden;
+    pointer-events: none;
+  }
+  .desktop-logo-flight__logo {
+    position: absolute;
+    transform-origin: 50% 50%;
+    background: url("../assets/desktop/starvie-wall-logo.webp") center / contain no-repeat;
+    filter: drop-shadow(0 7px 10px rgb(0 0 0 / 0.22));
+  }
+
+  /* Reuse the existing clean cover plate to erase ONLY the printed logo
+     during its flight. This decoration follows the real cover automatically. */
+  .catalog-app[data-desktop-logo-cover="front"] .catalog-leaf[data-book-index="0"] .pdf-page > .cover-base-image {
+    display: block;
+    z-index: 3;
+    animation: none;
+    opacity: 1;
+    /* Feather the existing plate into the artwork: the two source images have
+       slightly different compression/lighting, so a hard crop shows a patch. */
+    -webkit-mask-image: linear-gradient(90deg, transparent 26%, #000 30%, #000 70%, transparent 74%),
+      linear-gradient(180deg, transparent 37%, #000 41%, #000 57.5%, transparent 61.5%);
+    mask-image: linear-gradient(90deg, transparent 26%, #000 30%, #000 70%, transparent 74%),
+      linear-gradient(180deg, transparent 37%, #000 41%, #000 57.5%, transparent 61.5%);
+    mask-composite: intersect;
+  }
+  .catalog-app[data-desktop-logo-cover="back"] .back-cover-logo-overlay {
+    visibility: hidden;
+  }
+
+  .catalog-app > .magazine-stage {
+    background: transparent;
+    transition: opacity 140ms ease-out;
+  }
+  .catalog-app > .magazine-stage > .stage-glow { display: none; }
+
+  /* Only the paper surface changes; never fade a leaf, its bitmap or hotspots.
+     Flattened PDF images still cover this surface with their opaque pixels.
+     Covers, video and editorial leaves keep their existing surfaces. */
+  .catalog-app .catalog-leaf[data-density="soft"]:has(> .pdf-page) {
+    background: rgb(9 10 11 / var(--desktop-sheet-surface-alpha));
+  }
+  .catalog-app .catalog-leaf[data-density="soft"] > .pdf-page {
+    background: transparent;
+  }
+
+  /* ProductModal is a body portal. Select its actual presence without extra
+     React state, timers or changes to the engine. Checkout is explicitly excluded.
+     Hide immediately on entry so pages cannot flash through the light backdrop;
+     the mounted book fades back on close with its exact existing state. */
+  body:has(> .modal-backdrop > .product-modal:not(.checkout-modal)) .catalog-app > :is(.magazine-stage, .thumbnail-drawer) {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition: none;
+  }
+
+  .modal-backdrop:has(> .product-modal:not(.checkout-modal)) {
+    --desktop-product-surface-alpha: 0.9;
+    background: rgb(3 4 5 / 0.12);
+    backdrop-filter: none;
+    -webkit-backdrop-filter: none;
+    animation: none;
+  }
+
+  .modal-backdrop > .product-modal:not(.checkout-modal) {
+    background: linear-gradient(145deg,
+      rgb(24 25 28 / var(--desktop-product-surface-alpha)),
+      rgb(14 15 17 / var(--desktop-product-surface-alpha)));
+    animation: none;
+  }
+
+  /* One translucent base, not several stacked 90% layers. The light product
+     viewport, images, thumbnails, text and controls keep their original styles. */
+  .product-modal:not(.checkout-modal) .product-visual,
+  .product-modal:not(.checkout-modal) .gallery-thumbs {
+    background: transparent;
+  }
+  .product-modal:not(.checkout-modal) .product-main-image {
+    background: radial-gradient(circle at 50% 35%, rgb(230 70 55 / 0.06), transparent 46%);
+  }
+
+  .catalog-app > .catalog-toolbar {
+    background: rgba(16, 17, 19, 0.54);
+    border-bottom-color: rgba(255, 255, 255, 0.16);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+  }
+
+  .catalog-app > .catalog-toolbar .toolbar-hint,
+  .catalog-app > .catalog-toolbar .brand-lockup span,
+  .catalog-app > .catalog-toolbar .experience-nav button:not(.is-active) {
+    color: #bfc1c6;
+  }
+
+  .catalog-app > .catalog-toolbar .experience-nav button:hover,
+  .catalog-app > .catalog-toolbar .experience-nav button:focus-visible {
+    color: #fff;
+  }
+
+  @media (max-height: 700px) {
+    .desktop-stage-background__wall-logo {
+      top: calc(var(--toolbar-height) + 8px);
+      --desktop-wall-logo-top: calc(var(--toolbar-height) + 8px);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .catalog-app > .magazine-stage { transition: none; }
+  }
+}

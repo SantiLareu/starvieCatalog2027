@@ -1,0 +1,73 @@
+/* Cover-only finish. Court assets, framing and shared page styles stay intact. */
+@media (max-width: 599px) and (orientation: portrait) {
+  .mobile-portrait-cover .mobile-portrait-cover__metal { color: #d9dee3; }
+  .mobile-portrait-cover__title h1 { background: none; -webkit-text-fill-color: inherit; }
+  .mobile-portrait-cover .mobile-portrait-cover__metal--year { display: block; width: fit-content; margin-inline: auto; }
+
+  @supports (background-clip: text) or (-webkit-background-clip: text) {
+    .mobile-portrait-cover .mobile-portrait-cover__metal {
+      background-image: linear-gradient(180deg, #f5f7fa 8%, #c6ced6 36%, #96a3b0 53%, #f3f6f9 72%, #b4bec8 100%);
+      background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .mobile-portrait-cover .mobile-portrait-cover__metal--year {
+      background-image: linear-gradient(115deg, transparent 37%, #ffffff33 44%, #ffffffcc 49% 51%, #ffffff33 58%, transparent 65%),
+        linear-gradient(180deg, #ffffff 8%, #d9e1e8 29%, #82909f 48%, #f9fbff 52%, #b0bbc6 57%, #eef3f7 78%, #9eabb8 100%);
+      background-size: 240% 100%, 100% 100%; background-repeat: no-repeat;
+      background-position: 120% 50%, center;
+    }
+    .mobile-court-experience.cover-active.cover-ready[data-book-transition="idle"] .mobile-portrait-cover__metal--year {
+      /* The entrance stays on h1; the sheen repaints only the small inner text.
+         Both ends place the band outside the glyphs, so the loop resets unseen. */
+      animation: mobile-cover-metal-sheen 3.6s ease-in-out .25s infinite;
+    }
+  }
+
+  .mobile-portrait-cover__smoke { pointer-events: none; user-select: none; }
+  .mobile-portrait-cover__smoke .mobile-portrait-cover__smoke-layer {
+    --smoke-opacity: .52; --smoke-duration: 10s;
+    position: absolute; inset: 60% -18% 2%; opacity: var(--smoke-opacity);
+    /* Broad feathered gradients make soft clouds without raster assets,
+       full-screen filters, blend-mode compositing or backdrop sampling. */
+    background: radial-gradient(ellipse at 24% 68%, #25303cbb, transparent 58%),
+      radial-gradient(ellipse at 64% 46%, #67727d99, transparent 50%),
+      radial-gradient(ellipse at 88% 74%, #111a24aa, transparent 52%);
+  }
+  .mobile-portrait-cover__smoke .mobile-portrait-cover__smoke-layer--middle {
+    --smoke-opacity: .30; --smoke-duration: 8s;
+    inset: 38% -16% 32%;
+    background: radial-gradient(ellipse at 68% 48%, #53606daa, transparent 56%),
+      radial-gradient(ellipse at 25% 75%, #151e2899, transparent 54%);
+  }
+  .mobile-portrait-cover__smoke .mobile-portrait-cover__smoke-layer--wall {
+    --smoke-opacity: .08; --smoke-duration: 12s;
+    inset: 14% 4% 63%;
+    background: radial-gradient(ellipse at 40% 65%, #a7afb755, transparent 62%);
+  }
+  .mobile-court-experience.cover-active.cover-ready[data-book-transition="idle"]
+    .mobile-portrait-cover__smoke .mobile-portrait-cover__smoke-layer {
+    animation: mobile-cover-smoke-drift var(--smoke-duration) ease-in-out -2s infinite alternate;
+  }
+  .mobile-court-experience.cover-active.cover-ready[data-book-transition="idle"]
+    .mobile-portrait-cover__smoke .mobile-portrait-cover__smoke-layer--middle { animation-direction: alternate-reverse; animation-delay: -2.5s; }
+  .mobile-court-experience.cover-active.cover-ready[data-book-transition="idle"]
+    .mobile-portrait-cover__smoke .mobile-portrait-cover__smoke-layer--wall { animation-delay: -1.5s; }
+
+  @keyframes mobile-cover-metal-sheen {
+    0%, 8% { background-position: 120% 50%, center; }
+    78%, 100% { background-position: -30% 50%, center; }
+  }
+  @keyframes mobile-cover-smoke-drift {
+    from { opacity: var(--smoke-opacity); transform: translate(-10%, 2%); }
+    to { opacity: calc(var(--smoke-opacity) * 1.4); transform: translate(10%, -3%); }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-portrait-cover .mobile-portrait-cover__metal--year,
+    .mobile-portrait-cover__smoke .mobile-portrait-cover__smoke-layer { animation: none !important; transform: none; }
+  }
+  @media (forced-colors: active) {
+    .mobile-portrait-cover { background: Canvas; }
+    .mobile-portrait-cover > .mobile-court-scene { visibility: hidden; }
+    .mobile-portrait-cover .mobile-portrait-cover__metal { background: none; -webkit-text-fill-color: CanvasText; color: CanvasText; }
+    .mobile-portrait-cover__smoke { display: none; }
+  }
+}

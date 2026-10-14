@@ -1,30 +1,40 @@
-import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CatalogMetadata } from "../types/catalog";
 import { CartDrawer } from "../commerce/CartDrawer";
 import { useCommerce } from "../commerce/CommerceContext";
 import { PageFlipEngine, type PageFlipHandle } from "./PageFlipEngine";
 import { ProductModal } from "./ProductModal";
+import { DesktopStageBackground } from "./DesktopStageBackground";
 import { MobilePremiumProductPage } from "./mobile/MobilePremiumProductPage";
+import { MobileCourtBackground } from "./mobile/MobileCourtBackground";
+import { MobileAccessoriesIndex, MobileAccessoryProductPage, MobileAccessoryPairPage } from "./mobile/MobileAccessories";
+import { MOBILE_ACCESSORY_INDEX_PAGE, mobileAccessoryPresentations, mobileAccessorySections, mobileNecessairesPresentation } from "../data/mobileAccessoryPresentation";
+import { MOBILE_ACCESSORY_SHOWCASE_PAGE, mobileAccessoryShowcaseGroups } from "../data/mobileAccessoryShowcase";
+import { MobileAccessoryShowcase } from "./mobile/MobileAccessoryShowcase";
 import { mobilePresentationForPage } from "../data/mobileProductPresentation";
 import "./mobile/mobile-pilot.css";
-import { MOBILE_PREMIUM_PAGES, usePilotViewport } from "./mobile/mobilePilot";
+import { MOBILE_PILOT_QUERY, MOBILE_PREMIUM_PAGES, usePilotViewport } from "./mobile/mobilePilot";
+import { mobilePortraitReplacementPages } from "./mobile/mobilePortraitAssets";
 import {
   BACK_COVER_ORIGINAL_PAGE,
   COLLECTION_LINEUP_PAGE,
   STARLAB_FIRST_PAGE,
   STARLAB_LAST_PAGE,
+  MOBILE_ACCESSORY_EDITORIALS,
   backCoverOpenBookIndex,
   backCoverPageForCatalog,
   bookIndexForOriginalPage,
   bookPageLabel,
   buildBookPages,
   isStarLabOriginalPage,
+  mobilePortraitBookPages,
 } from "../data/bookFlow";
 
 type MagazineProps = {
   catalog: CatalogMetadata;
-  /** Direct entry for the opt-in premium leaf experiment; normal entry remains P1. */
+  /** Optional deep link; the portrait presentation is also active on normal entry. */
   initialOriginalPage?: number;
+  /** Legacy caller compatibility; portrait presentation no longer needs opt-in. */
   mobilePremiumPilot?: boolean;
 };
 
@@ -113,12 +123,17 @@ type BookTransition =
       rearCover?: boolean;
     };
 
-export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot = false }: MagazineProps) {
-  const bookPages = useMemo(() => buildBookPages(catalog), [catalog]);
+export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
+  const portraitPhone = usePilotViewport();
+  const bookPages = useMemo(() => {
+    const pages = buildBookPages(catalog);
+    return portraitPhone ? mobilePortraitBookPages(pages) : pages;
+  }, [catalog, portraitPhone]);
   const initialIndex = Math.max(0, bookIndexForOriginalPage(bookPages, initialOriginalPage));
   const initialExperience: ExperienceMode = isStarLabOriginalPage(initialOriginalPage) ? "starlab" : "collection";
   const engineRef = useRef<PageFlipHandle>(null);
   const activeIndexRef = useRef(initialIndex);
+  const activePageIdRef = useRef(bookPages[initialIndex]?.id);
   const experienceRef = useRef<ExperienceMode>(initialExperience);
   const transitionRef = useRef<BookTransition | null>(null);
   const transitionSequenceRef = useRef(0);
@@ -134,8 +149,7 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
   const [pagePickerOpen, setPagePickerOpen] = useState(false);
   const [pageInput, setPageInput] = useState("1");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
-  const portraitPhone = usePilotViewport();
-  const customPremium = mobilePremiumPilot && portraitPhone;
+  const customPremium = portraitPhone;
   const {
     catalogError,
     productNames,
@@ -193,15 +207,28 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
     setBookTransition(null);
   }, []);
 
+  const previousPortraitRef = useRef(portraitPhone);
+  useLayoutEffect(() => {
+    if (previousPortraitRef.current === portraitPhone) return;
+    previousPortraitRef.current = portraitPhone;
+    // A viewport change cancels the old engine's in-flight command, retaining
+    // its last settled page identity instead of leaving the UI locked.
+    finishBookTransition();
+  }, [portraitPhone, finishBookTransition]);
+
   const setExperienceMode = useCallback((mode: ExperienceMode) => {
     experienceRef.current = mode;
     setExperience(mode);
   }, []);
 
   const onPageChange = useCallback((index: number) => {
+    // The retiring engine can emit a resize flip before React replaces its
+    // order. Ignore that stale index so rotation preserves the logical page.
+    if (window.matchMedia(MOBILE_PILOT_QUERY).matches !== portraitPhone) return;
+    activePageIdRef.current = bookPages[index]?.id;
     activeIndexRef.current = index;
     setActiveIndex(index);
-  }, []);
+  }, [bookPages, portraitPhone]);
   const onOrientationChange = useCallback((value: "portrait" | "landscape") => {
     setOrientation(value);
   }, []);
@@ -228,7 +255,7 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
       const bookPage = bookPages[index];
       // Premium leaves do not display the original full bitmap. Returning
       // to another device presentation runs this same decoded preloader again.
-      if (customPremium && bookPage?.kind === "pdf" && MOBILE_PREMIUM_PAGES.some(number => number === bookPage.originalNumber)) continue;
+      if (customPremium && bookPage?.kind === "pdf" && mobilePortraitReplacementPages.has(bookPage.originalNumber)) continue;
       if (bookPage?.kind === "pdf" && !warmedPagesRef.current.has(bookPage.page.src)) {
         // Precargar y decodificar cada URL una vez; reintentar si falla la carga.
         warmedPagesRef.current.add(bookPage.page.src);
@@ -425,6 +452,12 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
       startSectionTransition(request.index, request.mode, request.rearCover);
       return false;
     }
+    // The intro belongs to the accessory index; its return uses the same
+    // physical section transition as existing jumps, for arrows and swipes.
+    if (portraitPhone && MOBILE_ACCESSORY_EDITORIALS.some(intro => intro.id === bookPages[activeIndexRef.current]?.id) && request.direction === "previous") {
+      startSectionTransition(bookIndexForOriginalPage(bookPages, MOBILE_ACCESSORY_INDEX_PAGE), "collection");
+      return false;
+    }
     const intent = resolveNavigation({
       activeIndex: activeIndexRef.current,
       experience: experienceRef.current,
@@ -469,6 +502,8 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
     return false;
   }, [
     bookPages.length,
+    bookPages,
+    portraitPhone,
     selectedProductId,
     cartOpen,
     setExperienceMode,
@@ -496,6 +531,13 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
       index: rearCover ? backCoverOpenIndex : bookIndexForOriginalPage(bookPages, originalNumber),
       mode: isStarLabOriginalPage(originalNumber) ? "starlab" : "collection", rearCover });
   }, [bookPages, backCoverOpenIndex, requestNavigation]);
+
+  const goToSectionPage = useCallback((originalNumber: number) => {
+    const intro = portraitPhone && MOBILE_ACCESSORY_EDITORIALS.find(intro => intro.originalNumber === originalNumber);
+    if (intro) {
+      requestNavigation({kind: "jump", index: bookPages.findIndex(page => page.id === intro.id), mode: "collection"});
+    } else goToOriginalPage(originalNumber);
+  }, [portraitPhone, bookPages, requestNavigation, goToOriginalPage]);
 
   const handlePrevious = useCallback(() => navigate("previous"), [navigate]);
   const handleNext = useCallback(() => navigate("next"), [navigate]);
@@ -589,12 +631,13 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
     modalProduct != null
       ? lines.find((line) => line.productId === modalProduct.id)?.qty ?? 0
       : 0;
-  const mobilePremiumContent = customPremium ? new Map(MOBILE_PREMIUM_PAGES.map(number => {
+  const mobilePremiumContent = customPremium ? new Map<number, ReactNode>(MOBILE_PREMIUM_PAGES.map(number => {
     const presentation = mobilePresentationForPage(number)!;
     const resolved = resolveProduct(presentation.productId);
     const index = bookIndexForOriginalPage(bookPages, number);
     return [number, <MobilePremiumProductPage
       key={presentation.productId}
+      courtScene
       presentation={presentation}
       active={activeIndex === index && !isBookTransitioning && !selectedProductId && !cartOpen}
       product={resolved.kind === "ok" ? resolved.product : null}
@@ -602,6 +645,34 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
         (bookTransition != null && "targetIndex" in bookTransition && bookTransition.targetIndex === index)}
       live={!isBookTransitioning && !selectedProductId && !cartOpen} />] as const;
   })) : undefined;
+
+  if (mobilePremiumContent) {
+    const pageState = (number: number) => {
+      const index = bookIndexForOriginalPage(bookPages, number);
+      const live = activeIndex === index && !isBookTransitioning && !selectedProductId && !cartOpen;
+      return { active: live, live, load: Math.abs(activeIndex - index) <= 1 ||
+        (bookTransition != null && "targetIndex" in bookTransition && bookTransition.targetIndex === index) };
+    };
+    const accessoryProducts = mobileAccessorySections.flatMap(section => section.productIds).flatMap(id => {
+      const resolved = resolveProduct(id);
+      return resolved.kind === "ok" ? [resolved.product] : [];
+    });
+    mobilePremiumContent.set(MOBILE_ACCESSORY_INDEX_PAGE, <MobileAccessoriesIndex products={accessoryProducts}
+      {...pageState(MOBILE_ACCESSORY_INDEX_PAGE)} onNavigate={goToSectionPage} />);
+    for (const presentation of mobileAccessoryPresentations) {
+      const resolved = resolveProduct(presentation.productId);
+      mobilePremiumContent.set(presentation.pageId, <MobileAccessoryProductPage presentation={presentation}
+        product={resolved.kind === "ok" ? resolved.product : null} {...pageState(presentation.pageId)} />);
+    }
+    mobilePremiumContent.set(mobileNecessairesPresentation.pageId, <MobileAccessoryPairPage products={accessoryProducts}
+      presentation={mobileNecessairesPresentation} {...pageState(mobileNecessairesPresentation.pageId)} />);
+    const showcaseProducts = mobileAccessoryShowcaseGroups.flatMap(group => group.items).flatMap(item => {
+      const resolved = resolveProduct(item.productId);
+      return resolved.kind === "ok" ? [resolved.product] : [];
+    });
+    mobilePremiumContent.set(MOBILE_ACCESSORY_SHOWCASE_PAGE, <MobileAccessoryShowcase products={showcaseProducts}
+      {...pageState(MOBILE_ACCESSORY_SHOWCASE_PAGE)} />);
+  }
 
   useEffect(() => {
     setUiBusy(selectedProductId != null || cartOpen || isBookTransitioning);
@@ -647,6 +718,7 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
     (experience === "starlab" && (activeIndex <= starLabStartIndex || activeIndex >= starLabEndIndex)) ||
     (experience === "collection" && (
       activeIndex === collectionStartIndex ||
+      (portraitPhone && MOBILE_ACCESSORY_EDITORIALS.some(intro => intro.id === bookPages[activeIndex]?.id)) ||
       activeIndex >= backCoverOpenIndex ||
       backCoverState === "closed"
     ))
@@ -654,7 +726,7 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
 
   return (
     <main
-      className={`catalog-app ${coverReady ? "cover-ready" : ""} ${visualCoverActive ? "cover-active" : ""} ${visualCoverActive && orientation === "landscape" ? "is-cover" : ""} ${backCoverState === "closed" ? "back-cover-closed" : ""}`}
+      className={`catalog-app ${portraitPhone ? "mobile-court-experience" : ""} ${coverReady ? "cover-ready" : ""} ${visualCoverActive ? "cover-active" : ""} ${visualCoverActive && orientation === "landscape" ? "is-cover" : ""} ${backCoverState === "closed" ? "back-cover-closed" : ""}`}
       data-book-transition={bookTransition?.kind ?? "idle"}
       data-orientation={orientation}
       data-back-cover-state={backCoverState}
@@ -662,6 +734,8 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
         ? bookTransition.direction
         : bookTransition?.kind === "edge-enter-collection" ? "forward" : undefined}
     >
+      <DesktopStageBackground book={{ activeIndex, backCoverState, transition: bookTransition, ready: coverReady }} />
+      {portraitPhone ? <MobileCourtBackground variant="stage" /> : null}
       <header className="catalog-toolbar">
         <div className="toolbar-left">
           <button
@@ -780,9 +854,11 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
       <section className="magazine-stage" aria-label="Catálogo StarVie 2027">
         <div className="stage-glow" aria-hidden="true" />
         <PageFlipEngine
+          key={portraitPhone ? "portrait-accessory-intros" : "native-book"}
           ref={engineRef}
-          initialIndex={initialIndex}
+          initialIndex={Math.max(0, bookPages.findIndex(page => page.id === activePageIdRef.current))}
           mobilePremiumContent={mobilePremiumContent}
+          mobileCourtPortrait={portraitPhone}
           pages={bookPages}
           backCoverPage={backCoverPage}
           activeIndex={activeIndex}
@@ -794,7 +870,7 @@ export function Magazine({ catalog, initialOriginalPage = 1, mobilePremiumPilot 
           productNames={productNames}
           onProductSelect={handleProductSelect}
           onCoverflowProductSelect={handleCoverflowProductSelect}
-          onSectionNavigate={goToOriginalPage}
+          onSectionNavigate={goToSectionPage}
           editorialLoadIndex={bookTransition && "targetIndex" in bookTransition ? bookTransition.targetIndex : null}
           coverBridgeActive={coverBridgeActive}
           coverMotionActive={bookTransition?.kind === "initial-cover-open" || bookTransition?.kind === "close-to-cover"}

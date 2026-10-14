@@ -1,4 +1,5 @@
 import type { CommerceProduct } from "../../commerce/types";
+import type { CSSProperties } from "react";
 import { mobilePresentationText, mobileProductSpecs, type MobileProductPresentation, type MobileSweetSpot, type MobileTechnology } from "../../data/mobileProductPresentation";
 import { assetUrl } from "../ProductImage";
 
@@ -12,13 +13,13 @@ export function MobilePremiumTechnologyRail({ technologies, productName, load }:
       <circle cx="30" cy="347" r="1.6" fill="currentColor" />
     </svg>
     <h2>TECNOLOGÍAS</h2>
-    <ul>{technologies.map(({ label, icon }) => <li key={label}>
+    <ul>{technologies.map(({ label, icon, isNew }) => <li key={label}>
       <span className="mobile-premium-product-page__technology-icon" aria-hidden="true" style={{
         backgroundImage: load ? `url("${assetUrl(icon.source)}")` : undefined,
         backgroundSize: icon.crop ? `calc(var(--icon-size) * ${icon.crop.width / icon.crop.size}) calc(var(--icon-size) * ${icon.crop.height / icon.crop.size})` : "contain",
         backgroundPosition: icon.crop ? `calc(-1 * ${icon.crop.x} * var(--icon-size) / ${icon.crop.size}) calc(-1 * ${icon.crop.y} * var(--icon-size) / ${icon.crop.size})` : "center",
       }} />
-      <span>{label}</span>
+      <span>{label}{isNew ? <> <small className="mobile-premium-product-page__technology-new">NEW</small></> : null}</span>
     </li>)}</ul>
   </aside>;
 }
@@ -44,7 +45,8 @@ export function MobilePremiumTechnicalPanel({ product, presentation, load }: {
   const specs = [["Forma", values.shape], ["Plano", values.surface], ["Peso", values.weight.replace(/\s*g$/i, " GR")], ["Balance", values.balance]].filter(([, value]) => !!value);
   const gameType = mobilePresentationText(presentation.gameType, product);
   const name = product?.nombre ?? "producto";
-  return <aside className="mobile-premium-product-page__technical" aria-label={`Datos técnicos de ${name}`}>
+  return <aside className="mobile-premium-product-page__technical" aria-label={`Datos técnicos de ${name}`}
+    style={presentation.wrapTechnicalSpecs ? { "--premium-spec-white-space": "normal" } as CSSProperties : undefined}>
     {presentation.sweetSpot ? <div className="mobile-premium-product-page__sweet-spot-block">
       <MobileSweetSpotGraphic graphic={presentation.sweetSpot} productName={name} load={load} /><h2>PUNTO DULCE</h2>
     </div> : null}

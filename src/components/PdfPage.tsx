@@ -1,6 +1,7 @@
 import type { CatalogPage } from "../types/catalog";
 import { hotspotsForPage, selectLiveHotspots } from "../data/CatalogData";
 import { CoverIntro } from "./CoverIntro";
+import { MobilePortraitCover } from "./mobile/MobilePortraitCover";
 import { HotspotLayer } from "./HotspotLayer";
 
 type PdfPageProps = {
@@ -41,12 +42,15 @@ export function PdfPage({
         onLoad={page.number === 1 ? onCoverReady : undefined}
       />
       {page.number === 1 ? (
-        <CoverIntro
-          baseSrc="/catalog/pages/page-01-base.webp"
-          src={page.src}
-          width={page.width}
-          height={page.height}
-        />
+        <>
+          <CoverIntro
+            baseSrc="/catalog/pages/page-01-base.webp"
+            src={page.src}
+            width={page.width}
+            height={page.height}
+          />
+          <MobilePortraitCover />
+        </>
       ) : null}
       {pageHotspots.length > 0 ? (
         <HotspotLayer

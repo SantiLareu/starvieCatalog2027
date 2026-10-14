@@ -4,12 +4,10 @@ import {
   createMockSubmitOrder,
   newIdempotencyKey,
   ORDERS_CATALOG_ID,
-  ORDERS_ENDPOINT,
   ORDERS_PRODUCTION_API,
   resolveApiBaseUrl,
   submitOrder,
   validateContact,
-  type SubmitResult,
 } from "./orders";
 import type { CommerceProduct, PresentedLine } from "./types";
 

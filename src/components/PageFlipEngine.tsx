@@ -1,6 +1,7 @@
 import { forwardRef, useCallback, useEffect, useImperativeHandle, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import { PageFlip } from "page-flip";
-import { COLLECTION_LINEUP_PAGE, SECTION_COVER_ORIGINAL_PAGE, TAMARA_EDITORIAL_ID, type BookPage } from "../data/bookFlow";
+import { COLLECTION_LINEUP_PAGE, SECTION_COVER_ORIGINAL_PAGE, MOBILE_ACCESSORY_EDITORIALS, TAMARA_EDITORIAL_ID, type BookPage } from "../data/bookFlow";
+import { mobileAccessoryEditorialPresentations } from "../data/mobileAccessoryEditorialPresentation";
 import { createHardCoverPageFlipSettings } from "../data/hardCoverMotion";
 import type { CatalogPage } from "../types/catalog";
 import { PdfPage } from "./PdfPage";
@@ -8,6 +9,7 @@ import { VideoPage } from "./VideoPage";
 import { Page14Coverflow } from "./Page14Coverflow";
 import { SectionIndexLayer } from "./SectionIndexLayer";
 import { SanyoEditorial } from "./SanyoEditorial";
+import { MobileAccessoryEditorial } from "./mobile/MobileAccessoryEditorial";
 import { TamaraEditorial } from "./TamaraEditorial";
 import { sectionIndexForPage } from "../data/CatalogData";
 import { BackCover, type BackCoverHandle } from "./BackCover";
@@ -28,6 +30,7 @@ type PageFlipRuntime = {
     start: (point: { x: number; y: number }) => boolean;
     fold: (point: { x: number; y: number }) => void;
     stopMove: () => void;
+    setState: (state: "flipping") => void;
     showCorner: (point: { x: number; y: number }) => void;
   };
   getPageCollection: () => {
@@ -40,6 +43,21 @@ type PageFlipRuntime = {
     setCurrentSpreadIndex: (spreadIndex: number) => void;
   };
 };
+
+/** Portrait's previous leaf starts one whole page outside the viewport.
+ * Enter its visible half using native folding, rather than spending the
+ * first half of a return animating a sheet the reader cannot see. */
+function beginVisiblePortraitReturn(runtime: PageFlipRuntime) {
+  const rect = runtime.getRender().getRect();
+  const controller = runtime.getFlipController();
+  if (!controller.start({ x: rect.left + 2, y: rect.top + rect.height - 2 })) return;
+  controller.fold({ x: rect.left + rect.pageWidth + 2,
+    y: rect.top + rect.height - Math.min(36, rect.height / 10) });
+  // This is a command, not a held finger. Preserve the engine's animated
+  // command state for video, navigation guards and consumers of changeState.
+  controller.setState("flipping");
+  controller.stopMove();
+}
 
 export type PageFlipHandle = {
   isTurning: () => boolean;
@@ -54,8 +72,10 @@ export type PageFlipHandle = {
 
 type PageFlipEngineProps = {
   initialIndex?: number;
-  /** Opt-in content by original PDF page. Native engine/gestures are shared. */
+  /** Portrait content by original PDF page. Native engine/gestures are shared. */
   mobilePremiumContent?: ReadonlyMap<number, ReactNode>;
+  /** Extends the existing portrait reading frame to cover, lineup and news. */
+  mobileCourtPortrait?: boolean;
   pages: BookPage[];
   /** P39 como superficie visual: nunca es .catalog-leaf ni tiene índice. */
   backCoverPage: CatalogPage | undefined;
@@ -93,6 +113,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
     {
       initialIndex = 0,
       mobilePremiumContent,
+      mobileCourtPortrait = false,
       pages,
       backCoverPage,
       activeIndex,
@@ -132,6 +153,9 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
     const [coverflowProductId, setCoverflowProductId] = useState<string | null>(null);
     const engineRef = useRef<PageFlip | null>(null);
     const mobileGeometryRef = useRef(false);
+    const [portraitFrame, setPortraitFrame] = useState(false);
+    const courtPortraitRef = useRef(mobileCourtPortrait);
+    courtPortraitRef.current = mobileCourtPortrait;
     // changeState is emitted before StPageFlip updates getState(). Keep the
     // event value synchronously so input guards also work before React commits.
     const flipStateRef = useRef("read");
@@ -195,6 +219,10 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         const engine = engineRef.current;
         if (!engine) return;
         const runtime = engine as unknown as PageFlipRuntime;
+        if (courtPortraitRef.current && runtime.getOrientation() === "portrait") {
+          beginVisiblePortraitReturn(runtime);
+          return;
+        }
         if (runtime.getOrientation() === "portrait") {
           const rect = runtime.getRender().getRect();
           runtime.getFlipController().flip({ x: rect.left + 10, y: rect.top + rect.height - 2 });
@@ -246,6 +274,10 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
           const collection = runtime.getPageCollection();
           const targetSpread = collection.getSpreadIndexByPage(bookIndex);
           collection.setCurrentSpreadIndex(targetSpread + 1);
+          if (courtPortraitRef.current) {
+            beginVisiblePortraitReturn(runtime);
+            return;
+          }
           const rect = runtime.getRender().getRect();
           runtime.getFlipController().flip({ x: rect.left + 10, y: rect.top + rect.height - 2 });
           return;
@@ -300,6 +332,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         x: number; y: number; tapDirection?: "previous" | "next";
         direction?: "previous" | "next"; corner?: { x: number; y: number };
         travelScale?: number;
+        visibleReturn?: boolean; deltaX?: number;
       };
       let pendingMouseGesture: PendingBoundaryGesture | null = null;
       let pendingTouchGesture: PendingBoundaryGesture | null = null;
@@ -330,11 +363,18 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         const portrait = engine.getOrientation() === "portrait";
         const sectionHotspot = target instanceof Element && target.closest("[data-section-target]") != null;
         const hotspot = sectionHotspot || (target instanceof Element && target.closest("[data-product-id]") != null);
+        const carousel = target instanceof Element ? target.closest(".page14-coverflow__interactive") : null;
+        const frame = carousel && courtPortraitRef.current && portrait ? host.getBoundingClientRect() : null;
+        // A 48px edge includes the arrows: a tap still activates the arrow,
+        // while a deliberate horizontal swipe there belongs to the book.
+        const carouselEdge = frame &&
+          (point.x <= frame.left + 48 || point.x >= frame.right - 48);
+        const control = target instanceof Element && target.closest("button, a") != null;
         if (
           interactionLockedRef.current ||
           (!portrait && !sectionHotspot && (!manualNavigationBoundaryRef.current || activeIndexRef.current === 0)) ||
-          (target instanceof Element && (target.closest(".page14-coverflow__interactive, input, video") != null ||
-            (!hotspot && target.closest("button, a") != null)))
+          (target instanceof Element && ((carousel != null && !carouselEdge) || target.closest("input, video") != null ||
+            (!hotspot && control && !carouselEdge)))
         ) {
           return false;
         }
@@ -342,7 +382,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         suppressGestureClick = false;
         const leaf = target instanceof Element ? target.closest(".catalog-leaf, .back-cover-bridge") : null;
         const rect = leaf?.getBoundingClientRect();
-        return { ...point, tapDirection: portrait && rect && !hotspot ? (point.x < rect.left + rect.width / 2 ? "previous" : "next") : undefined };
+        return { ...point, tapDirection: portrait && rect && !hotspot && !control ? (point.x < rect.left + rect.width / 2 ? "previous" : "next") : undefined };
       };
 
       const resolveBoundaryGesture = (
@@ -366,7 +406,8 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
             y: rect.top + rect.height - 2 };
           const viewport = host.getBoundingClientRect();
           const availableTravel = direction === "next" ? start.x - viewport.left : viewport.right - start.x;
-          start.travelScale = rect.pageWidth * 2 / Math.max(rect.pageWidth / 4, availableTravel);
+          start.visibleReturn = courtPortraitRef.current && engine.getOrientation() === "portrait" && direction === "previous";
+          start.travelScale = rect.pageWidth * (start.visibleReturn ? 1 : 2) / Math.max(rect.pageWidth / 4, availableTravel);
           if (!runtime.getFlipController().start(start.corner)) return "cancel";
           start.direction = direction;
         }
@@ -375,11 +416,15 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         // Map a swipe begun anywhere to the native corner, including the
         // virtual left half in portrait. The finger drives the physical fold
         // until release; no page index is changed by this adapter.
+        start.deltaX = deltaX;
         const travel = Math.min(rect.pageWidth * 2 - 2, Math.max(2,
+          (start.visibleReturn ? rect.pageWidth : 0) +
           (start.direction === "next" ? -deltaX : deltaX) * start.travelScale!));
+        const curl = courtPortraitRef.current && engine.getOrientation() === "portrait"
+          ? Math.min(36, rect.height / 10) * (1 - travel / (rect.pageWidth * 2)) : 0;
         runtime.getFlipController().fold({
           x: start.corner!.x + (start.direction === "next" ? -travel : travel),
-          y: start.corner!.y + Math.max(-rect.height / 3, Math.min(0, deltaY)),
+          y: start.corner!.y + Math.max(-rect.height / 3, Math.min(0, deltaY)) - curl,
         });
         return "pending";
       };
@@ -462,7 +507,14 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
         pendingMouseGesture = null;
         pendingTouchGesture = null;
         if (pending?.direction) {
-          (engine as unknown as PageFlipRuntime).getFlipController().stopMove();
+          const runtime = engine as unknown as PageFlipRuntime;
+          if (pending.visibleReturn && (event.type === "touchcancel" || (pending.deltaX ?? 0) < 48)) {
+            // A short/retracted swipe cancels. Feed the native controller a
+            // point just before the visible hinge, then let it retract itself.
+            const rect = runtime.getRender().getRect();
+            runtime.getFlipController().fold({ x: rect.left + rect.pageWidth - 2, y: rect.top + rect.height - 2 });
+          }
+          runtime.getFlipController().stopMove();
           event.preventDefault();
           event.stopImmediatePropagation();
         } else if (pending?.tapDirection && event.type !== "touchcancel") {
@@ -753,10 +805,12 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       const host = hostRef.current;
       if (!engine || !host || isTurning()) return;
       const page = pages[activeIndex];
-      const vertical = page?.kind === "pdf" && mobilePremiumContent?.has(page.originalNumber) === true;
+      const vertical = (page?.kind === "pdf" && mobilePremiumContent?.has(page.originalNumber) === true) ||
+        (mobileCourtPortrait && (coverBridgeActive || page?.kind === "video" || MOBILE_ACCESSORY_EDITORIALS.some(intro => intro.id === page?.id) || (page?.kind === "pdf" && [1, 14].includes(page.originalNumber))));
       if (!vertical && !mobileGeometryRef.current) return;
       mobileGeometryRef.current = vertical;
-      // Only registered premium leaves follow the existing responsive frame. Native physics
+      setPortraitFrame(vertical);
+      // Registered portrait leaves follow the existing responsive frame. Native physics
       // and gestures are unchanged; freeze geometry while turning and restore
       // the approved dimensions at read on any other page/device.
       const settings = engine.getSettings();
@@ -778,7 +832,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
       const observer = new ResizeObserver(updateGeometry);
       observer.observe(host);
       return () => observer.disconnect();
-    }, [activeIndex, flipInProgress, mobilePremiumContent != null, pages, isTurning]);
+    }, [activeIndex, flipInProgress, mobilePremiumContent != null, mobileCourtPortrait, coverBridgeActive, pages, isTurning]);
 
     useLayoutEffect(() => {
       setCoverVideoRevealed(false);
@@ -874,7 +928,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
     return (
       <div
         ref={hostRef}
-        className={`page-flip-host ${coverMotionActive ? "is-cover-opening" : ""} ${backCoverState === "closing" ? "is-back-cover-closing" : ""} ${backCoverState === "opening" ? "is-back-cover-opening" : ""} ${backCoverState === "closed" ? "is-back-cover-closed" : ""} ${interactionLocked ? "is-interaction-locked" : ""}`}
+        className={`page-flip-host ${portraitFrame ? "mobile-p17-frame" : ""} ${coverMotionActive ? "is-cover-opening" : ""} ${backCoverState === "closing" ? "is-back-cover-closing" : ""} ${backCoverState === "opening" ? "is-back-cover-opening" : ""} ${backCoverState === "closed" ? "is-back-cover-closed" : ""} ${interactionLocked ? "is-interaction-locked" : ""}`}
         data-testid="page-flip-engine"
         data-orientation={orientation}
         data-back-cover-motion={backCoverState === "closing" ? "closing" : backCoverState === "opening" ? "opening" : undefined}
@@ -909,6 +963,12 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
                   onNavigate={onSectionNavigate}
                 />
               </>
+            ) : bookPage.kind === "editorial" && mobileCourtPortrait && mobileAccessoryEditorialPresentations.some(intro => intro.id === bookPage.id) ? (
+              <MobileAccessoryEditorial
+                presentation={mobileAccessoryEditorialPresentations.find(intro => intro.id === bookPage.id)!}
+                visible={activeIndex === index && !flipInProgress && !interactionLocked && !productOpen && !cartOpen}
+                load={Math.abs(index - activeIndex) <= 2 || (editorialLoadIndex != null && Math.abs(index - editorialLoadIndex) <= 1)}
+              />
             ) : bookPage.kind === "editorial" && bookPage.id === TAMARA_EDITORIAL_ID ? (
               <TamaraEditorial
                 visible={(activeIndex === index || (orientation === "landscape" && activeIndex > 0 && activeIndex + 1 === index)) && !flipInProgress && !interactionLocked && !productOpen && !cartOpen}
@@ -966,6 +1026,7 @@ export const PageFlipEngine = forwardRef<PageFlipHandle, PageFlipEngineProps>(
             rightPage={rearContentPages[1].page}
             active={backCoverState !== "open"}
             live={backCoverState === "closed"}
+            mobileCourtPortrait={mobileCourtPortrait}
             onMotionEnd={onBackCoverTransitionEnd}
           />
         ) : null}

@@ -1,0 +1,24 @@
+@media (max-width: 599px) and (orientation: portrait) {
+  .sanyo-editorial.mobile-eternal-editorial { display: block; overflow: hidden; container-type: size; isolation: isolate;
+    background: #f5f3ef; color: #363735; font-family: "Helvetica Neue", "Segoe UI", Arial, sans-serif;
+    --eternal-unit: min(1cqw, .68cqh); }
+  .mobile-eternal-editorial::before { content: ''; position: absolute; inset: 0; pointer-events: none;
+    background: radial-gradient(#b6a98d1a .6px, transparent .8px) 0 0 / 8px 8px; }
+  .mobile-eternal-editorial__masthead { position: absolute; top: 5%; left: 7%; right: 7%; display: flex; justify-content: space-between;
+    font-size: calc(2.3 * var(--eternal-unit)); letter-spacing: .17em; color: #77746b; }
+  .mobile-eternal-editorial__masthead > span:first-child { font-weight: 650; color: #363735; }
+  .mobile-eternal-editorial__heading { position: absolute; top: 13%; left: 6%; right: 6%; text-align: center; }
+  .mobile-eternal-editorial__heading > span { display: block; font-size: calc(3 * var(--eternal-unit)); line-height: 1.2; font-weight: 500; letter-spacing: .35em; }
+  .mobile-eternal-editorial__heading h1 { margin: 1.1cqh 0 1.3cqh; padding-bottom: .6cqh; font-size: calc(14.5 * var(--eternal-unit));
+    font-style: italic; font-weight: 700; line-height: 1.05; letter-spacing: -.04em; color: #b69550; }
+  .mobile-eternal-editorial__heading p { margin: 0; font: italic calc(4.1 * var(--eternal-unit)) / 1.3 Georgia, serif; letter-spacing: .025em; }
+  .mobile-eternal-editorial__signature { position: absolute; top: 32%; left: 32%; width: 36%; height: 8%; object-fit: contain; mix-blend-mode: multiply; }
+  .mobile-eternal-editorial__portrait { position: absolute; top: 42%; left: 6%; width: 88%; height: 52%; object-fit: contain;
+    object-position: center bottom; mix-blend-mode: multiply; }
+  .mobile-eternal-editorial img { pointer-events: none; user-select: none; }
+  .mobile-eternal-editorial footer { position: absolute; bottom: 2.5%; left: 6%; right: 6%; text-align: center;
+    font-size: calc(2 * var(--eternal-unit)); letter-spacing: .2em; color: #77746b; }
+  @media (max-height: 720px) {
+    .mobile-eternal-editorial__heading { top: 11%; }
+  }
+}

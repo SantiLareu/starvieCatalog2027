@@ -9,7 +9,7 @@
     "build:pdf-pages": "node scripts/build-pdf-pages.mjs",
     "build:coverflow-images": "node scripts/build-coverflow-images.mjs",
     "build:product-images": "node scripts/build-product-images.mjs",
-    "check:product-images": "node scripts/check-product-images.mjs",
+    "check:product-images": "node scripts/check-product-images.mjs && node scripts/check-product-masters.mjs",
     "products:seed": "node scripts/seed-pilot-xlsx.mjs",
     "import-products": "node scripts/import-products.mjs catalog/products.xlsx",
     "check-products": "node scripts/import-products.mjs catalog/products.xlsx --check",

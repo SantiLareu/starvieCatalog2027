@@ -15,6 +15,7 @@ import {
   bookPageLabel,
   buildBookPages,
   isStarLabOriginalPage,
+  mobilePortraitBookPages,
 } from "./bookFlow";
 
 function catalogWith(pageCount: number): CatalogMetadata {
@@ -39,6 +40,22 @@ function catalogWith(pageCount: number): CatalogMetadata {
 }
 
 describe("flujo lógico del book", () => {
+  it("portrait reuses SANYO and TAMARA before their products, preserving native spreads, page count and later leaves", () => {
+    const native = buildBookPages(catalogWith(39));
+    const portrait = mobilePortraitBookPages(native);
+    expect(portrait.slice(27,34).map(bookPageLabel)).toEqual(["27", "28", "SANYO", "29", "TAMARA", "30", "31"]);
+    expect(native.slice(27,34).map(bookPageLabel)).toEqual(["27", "28", "29", "SANYO", "30", "TAMARA", "31"]);
+    expect(portrait).toHaveLength(native.length);
+    expect(bookIndexForOriginalPage(portrait, 29)).toBe(30);
+    expect(portrait[29]).toBe(native[30]);
+    expect(portrait[30]).toBe(native[29]);
+    expect(bookIndexForOriginalPage(portrait, 30)).toBe(32);
+    expect(portrait[31]).toBe(native[32]);
+    expect(portrait[32]).toBe(native[31]);
+    expect(portrait.slice(33)).toEqual(native.slice(33));
+    expect(mobilePortraitBookPages(portrait)).toBe(portrait);
+    expect(mobilePortraitBookPages(buildBookPages(catalogWith(28)))).toHaveLength(29);
+  });
   it("expone P1–P38 en el recorrido abierto e inserta video después de P14", () => {
     const pages = buildBookPages(catalogWith(39));
     expect(pages).toHaveLength(41);

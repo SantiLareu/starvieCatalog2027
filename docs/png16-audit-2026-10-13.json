@@ -1,0 +1,88 @@
+{
+  "date": "2026-10-13",
+  "scope": "59 PNG16 only",
+  "before": {
+    "files": 665,
+    "bytes": 1572092161,
+    "imageBytes": 1555467305,
+    "jsCssBytes": 675925,
+    "otherBytes": 15948931
+  },
+  "after": {
+    "files": 662,
+    "bytes": 440445482,
+    "imageBytes": 423820514,
+    "jsCssBytes": 675981,
+    "otherBytes": 15948987,
+    "publicBytes": 439313561,
+    "webOriginalBytes": 219346420,
+    "mastersInDist": 0,
+    "webOriginalsInDist": 56,
+    "largest": [
+      {
+        "path": "dist\\videos\\news.mp4",
+        "bytes": 15916449
+      },
+      {
+        "path": "dist\\products\\bolsos\\mochilaVoltage\\MOCHILA STARVIE BLACK VOLTAGE.PT03.webp",
+        "bytes": 11419514
+      },
+      {
+        "path": "dist\\products\\bolsos\\accesorio\\Gorra 5.webp",
+        "bytes": 11239868
+      },
+      {
+        "path": "dist\\products\\bolsos\\paleteroHardEvaBlack\\PALETERO STARVIE HARD EVA BLACK.PT06.webp",
+        "bytes": 8726470
+      },
+      {
+        "path": "dist\\products\\bolsos\\paleteroStar\\PALETERO STARVIE STAR.PT04.webp",
+        "bytes": 8572834
+      },
+      {
+        "path": "dist\\products\\bolsos\\mochilaHardEva\\MOCHILA STARVIE HARD EVA BLACK.PT03.webp",
+        "bytes": 8218258
+      },
+      {
+        "path": "dist\\products\\bolsos\\mochilaArtic\\MOCHILA STARVIE ARTIC SPORT.PT03.webp",
+        "bytes": 7279622
+      },
+      {
+        "path": "dist\\products\\bolsos\\paleteroTone\\PALETERO STARVIE T-ONE PRO.PT03.webp",
+        "bytes": 6993644
+      },
+      {
+        "path": "dist\\products\\bolsos\\paleteroStar\\PALETERO STARVIE STAR.PT05.webp",
+        "bytes": 6389104
+      },
+      {
+        "path": "dist\\products\\bolsos\\paleteroNeon\\PALETERO STARVIE NEON STRIKE.PT04.webp",
+        "bytes": 6085194
+      }
+    ]
+  },
+  "groupBeforeBytes": 1350993211,
+  "groupAfterBytes": 219346420,
+  "archivedMasters": 59,
+  "runtimeWebOriginals": 56,
+  "sourceOnly": 3,
+  "runtimeProducts": 14,
+  "observedOriginalsPerViewport": {
+    "desktop": 56,
+    "portrait": 56
+  },
+  "originalsVerifiedBySHA256": 59,
+  "regeneratedDerivativesUnchanged": 168,
+  "conversion": "lossless WebP8, original ICC preserved, dimensions unchanged, alpha8 exact",
+  "note": "No assertion of lossless preservation of 16-bit editing samples; masters retained.",
+  "validation": {
+    "vitestPassed": 496,
+    "vitestSkipped": 9,
+    "e2eRuntimePassed": 28,
+    "e2eRegressionAndVisualPassed": 23,
+    "e2eViewportSkipped": 5,
+    "build": "passed",
+    "diffCheck": "passed",
+    "browser": "Chromium desktop and emulated mobile; physical phone/Safari/HDR not tested"
+  }
+}
