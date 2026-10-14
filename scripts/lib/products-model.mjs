@@ -179,6 +179,7 @@ export function validateRows(rows, options = {}) {
   const errors = [];
   const warnings = [];
   const products = [];
+  const zeroPriceIds = new Set();
   const seenIds = new Map();
   const seenSkus = new Map();
   const existingFiles = options.existingFiles || null;
@@ -250,6 +251,11 @@ export function validateRows(rows, options = {}) {
       }
     }
 
+    // Export metadata preserves literal zero without changing commerce's
+    // established null-for-pending-price semantics or any product fields.
+    if (precio.value === null && row.precio !== null && row.precio !== undefined && row.precio !== "") {
+      zeroPriceIds.add(id);
+    }
     products.push({
       id,
       sku,
@@ -273,11 +279,13 @@ export function validateRows(rows, options = {}) {
   // Orden determinista: por página (null al final) y luego por id.
   products.sort((a, b) => (a.pagina ?? 9999) - (b.pagina ?? 9999) || (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
 
-  return { products, errors, warnings };
+  return { products, zeroPriceProductIds: products.filter(product => zeroPriceIds.has(product.id)).map(product => product.id), errors, warnings };
 }
 
-export function serializeCatalog(products) {
-  return JSON.stringify({ schemaVersion: COMMERCE_SCHEMA_VERSION, products }, null, 2) + "\n";
+export function serializeCatalog(products, zeroPriceProductIds) {
+  return JSON.stringify({ schemaVersion: COMMERCE_SCHEMA_VERSION, products,
+    ...(zeroPriceProductIds === undefined ? {} : { zeroPriceProductIds }),
+  }, null, 2) + "\n";
 }
 
 export function buildCatalogVersion(catalogContents, hashHex) {

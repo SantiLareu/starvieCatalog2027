@@ -1,0 +1,52 @@
+.catalog-export-backdrop {
+  position: fixed; inset: 0; z-index: 150;
+  display: grid; place-items: center;
+  padding: max(16px, env(safe-area-inset-top)) max(16px, env(safe-area-inset-right))
+    max(16px, env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
+  background: rgba(3,4,6,0.72); backdrop-filter: blur(8px);
+}
+.catalog-export-dialog {
+  display: flex; flex-direction: column; width: min(100%, 490px); min-height: 0;
+  max-height: 100%; color: #e7e8ea; background: linear-gradient(145deg, #1a1b1e, #101113);
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 18px;
+  box-shadow: 0 24px 80px #0008;
+}
+.catalog-export-header { display: flex; justify-content: space-between; align-items: center; gap: 16px; padding: 24px 24px 16px; flex-shrink: 0; }
+.catalog-export-header p { margin: 0 0 8px; color: var(--accent); font-size: 0.62rem; font-weight: 700; letter-spacing: 0.18em; }
+.catalog-export-header h2 { margin: 0; font-size: 1.4rem; font-weight: 650; letter-spacing: -0.025em; }
+.catalog-export-close { display: grid; place-items: center; width: 44px; height: 44px; flex-shrink: 0; font-size: 1.65rem; }
+.catalog-export-dialog button {
+  border: 1px solid rgba(255,255,255,0.14); border-radius: 8px; color: inherit;
+  background: rgba(255,255,255,0.04); cursor: pointer;
+}
+.catalog-export-dialog button:hover:not(:disabled) { background: rgba(255,255,255,0.09); }
+.catalog-export-dialog :is(button, input, select):focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+.catalog-export-dialog button:disabled { opacity: 0.45; cursor: default; }
+.catalog-export-content { min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 0 24px 12px; }
+.catalog-export-content > p:first-child { margin: 0 0 22px; color: #acafb6; font-size: 0.86rem; line-height: 1.55; }
+.catalog-export-scopes { display: grid; gap: 6px; padding: 0; margin: 0 0 20px; border: 0; }
+.catalog-export-scopes legend { margin-bottom: 10px; font-size: 0.7rem; font-weight: 650; letter-spacing: 0.06em; color: #acafb6; }
+.catalog-export-scopes label {
+  display: flex; align-items: center; gap: 10px; min-height: 44px; padding: 8px 12px;
+  border: 1px solid rgba(255,255,255,0.09); border-radius: 8px; font-size: 0.82rem; cursor: pointer;
+}
+.catalog-export-scopes label:has(input:checked) { border-color: rgba(230,70,55,0.55); background: rgba(230,70,55,0.08); }
+.catalog-export-scopes input { accent-color: var(--accent); width: 16px; height: 16px; margin: 0; flex-shrink: 0; }
+.catalog-export-filters { display: grid; gap: 14px; margin-bottom: 20px; }
+.catalog-export-field { display: grid; gap: 8px; color: #acafb6; font-size: 0.75rem; }
+.catalog-export-filters select { min-width: 0; width: 100%; min-height: 44px; padding: 10px 12px; border: 1px solid #ffffff24; border-radius: 8px; background: #18191b; color: #e7e8ea; font: inherit; }
+.catalog-export-summary { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px; padding: 14px 0; border-top: 1px solid #ffffff14; font-size: 0.8rem; }
+.catalog-export-summary span { overflow-wrap: anywhere; }
+.catalog-export-summary strong { white-space: nowrap; font-size: 0.82rem; font-weight: 600; }
+.catalog-export-columns, .catalog-export-note { margin: 0 0 8px; color: #898d96; font-size: 0.68rem; line-height: 1.5; }
+.catalog-export-error { color: #ffb0a8; font-size: 0.8rem; line-height: 1.45; }
+.catalog-export-actions { display: flex; gap: 10px; padding: 16px 24px 24px; border-top: 1px solid #ffffff14; flex-shrink: 0; }
+.catalog-export-actions button { min-height: 44px; padding: 10px 16px; font-size: 0.8rem; }
+.catalog-export-actions .catalog-export-download { flex: 1; color: #fff; background: var(--accent); border-color: transparent; font-weight: 650; }
+.catalog-export-actions .catalog-export-download:hover:not(:disabled) { background: #cc3f32; }
+@media (max-width: 599px) {
+  .catalog-export-header { padding: 16px 16px 12px; }
+  .catalog-export-header h2 { font-size: 1.2rem; }
+  .catalog-export-content { padding-inline: 16px; }
+  .catalog-export-actions { padding: 12px 16px 16px; }
+}

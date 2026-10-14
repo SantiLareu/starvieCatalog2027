@@ -319,3 +319,28 @@ describe("importador: versionado determinista", () => {
     expect(versionToggled).not.toBe(versionA);
   });
 });
+
+describe("metadatos para exportar precio cero", () => {
+  it("mantiene los productos idénticos y distingue cero de precio vacío", () => {
+    const zero = validateRows([{ ...baseRow(), precio: 0, sku: "" }]);
+    const empty = validateRows([{ ...baseRow(), precio: "", sku: "" }]);
+    expect(zero.products).toEqual(empty.products);
+    expect(zero.products[0].precio).toBeNull();
+    expect(zero.products[0].sku).toBe("");
+    expect(zero.zeroPriceProductIds).toEqual(["raptor-plus"]);
+    expect(empty.zeroPriceProductIds).toEqual([]);
+    const a = serializeCatalog(zero.products, zero.zeroPriceProductIds);
+    const b = serializeCatalog(empty.products, empty.zeroPriceProductIds);
+    expect(a).not.toBe(b);
+    expect(a).toBe(serializeCatalog(validateRows([{ ...baseRow(), precio: 0, sku: "" }]).products, zero.zeroPriceProductIds));
+  });
+  it("registra ceros numéricos y de texto solo para filas válidas", () => {
+    for (const precio of [0, "0", "0,00", "0.0", "-0"]) {
+      expect(validateRows([{ ...baseRow(), precio }]).zeroPriceProductIds).toEqual(["raptor-plus"]);
+    }
+    for (const precio of [null, undefined, "", 320]) {
+      expect(validateRows([{ ...baseRow(), precio }]).zeroPriceProductIds).toEqual([]);
+    }
+    expect(validateRows([{ ...baseRow(), precio: 0, nombre: "" }]).zeroPriceProductIds).toEqual([]);
+  });
+});

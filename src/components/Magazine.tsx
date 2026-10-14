@@ -14,6 +14,9 @@ import { MobileAccessoryShowcase } from "./mobile/MobileAccessoryShowcase";
 import { mobilePresentationForPage } from "../data/mobileProductPresentation";
 import "./mobile/mobile-pilot.css";
 import "./mobile/mobile-contact.css";
+import "../export/export-controls.css";
+import { DESKTOP_STAGE_QUERY } from "./desktopLogoFlight";
+import ExportCatalogModal from "../export/ExportCatalogModal";
 import { MOBILE_PILOT_QUERY, MOBILE_PREMIUM_PAGES, usePilotViewport } from "./mobile/mobilePilot";
 import { mobilePortraitReplacementPages } from "./mobile/mobilePortraitAssets";
 import {
@@ -38,6 +41,7 @@ type MagazineProps = {
   /** Legacy caller compatibility; portrait presentation no longer needs opt-in. */
   mobilePremiumPilot?: boolean;
 };
+
 
 type ExperienceMode = "collection" | "starlab";
 type BackCoverState = "open" | "closing" | "closed" | "opening";
@@ -150,8 +154,12 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
   const [pagePickerOpen, setPagePickerOpen] = useState(false);
   const [pageInput, setPageInput] = useState("1");
   const [selectedProductId, setSelectedProductId] = useState<string | null>(null);
+  const [exportOpen, setExportOpen] = useState(false);
+  const exportOpenerRef = useRef<HTMLButtonElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
   const customPremium = portraitPhone;
   const {
+    catalog: commerceCatalog,
     catalogError,
     productNames,
     resolveProduct,
@@ -437,7 +445,7 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
   const requestNavigation = useCallback((request: NavigationRequest): boolean => {
     // A turn owns the physical spread until "read". Discard new requests
     // instead of resolving them against the old index or queueing more turns.
-    if (transitionRef.current || engineRef.current?.isTurning() || selectedProductId != null || cartOpen) return false;
+    if (transitionRef.current || engineRef.current?.isTurning() || selectedProductId != null || cartOpen || exportOpen) return false;
     if (request.kind === "jump") {
       if (request.index < 0 || request.index >= bookPages.length) return false;
       const sameSpread = request.index === activeIndexRef.current ||
@@ -507,6 +515,7 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
     portraitPhone,
     selectedProductId,
     cartOpen,
+    exportOpen,
     setExperienceMode,
     orientation,
     backCoverState,
@@ -676,8 +685,8 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
   }
 
   useEffect(() => {
-    setUiBusy(selectedProductId != null || cartOpen || isBookTransitioning);
-  }, [selectedProductId, cartOpen, isBookTransitioning, setUiBusy]);
+    setUiBusy(selectedProductId != null || cartOpen || isBookTransitioning || exportOpen);
+  }, [selectedProductId, cartOpen, isBookTransitioning, exportOpen, setUiBusy]);
 
   // Navegación por teclado: ← spread anterior, → spread siguiente.
   // Solo actúa en lectura normal: nunca con modal/carrito abiertos, con
@@ -687,7 +696,7 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
       if (event.metaKey || event.ctrlKey || event.altKey || event.repeat) return;
-      if (selectedProductId != null || cartOpen || transitionRef.current) return;
+      if (selectedProductId != null || cartOpen || transitionRef.current || exportOpen) return;
       const target = event.target as HTMLElement | null;
       if (target) {
         if (target.closest('[role="dialog"]')) return;
@@ -708,7 +717,16 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
     };
     window.addEventListener("keydown", handleKeyDown);
     return () => window.removeEventListener("keydown", handleKeyDown);
-  }, [selectedProductId, cartOpen, handleNext, handlePrevious]);
+  }, [selectedProductId, cartOpen, exportOpen, handleNext, handlePrevious]);
+
+  const closeExport = useCallback(() => setExportOpen(false), []);
+  const openExport = (button: HTMLButtonElement) => {
+    if (!commerceCatalog || transitionRef.current || engineRef.current?.isTurning() || selectedProductId != null || cartOpen) return;
+    exportOpenerRef.current = window.matchMedia(DESKTOP_STAGE_QUERY).matches ? button : menuButtonRef.current;
+    setDrawerOpen(false);
+    setPagePickerOpen(false);
+    setExportOpen(true);
+  };
 
   const visualCoverActive = displayIndex === 0 || bookTransition?.kind === "close-to-cover";
   const coverBridgeActive =
@@ -731,6 +749,7 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
       data-book-transition={bookTransition?.kind ?? "idle"}
       data-orientation={orientation}
       data-back-cover-state={backCoverState}
+      inert={exportOpen}
       data-transition-direction={bookTransition?.kind === "section"
         ? bookTransition.direction
         : bookTransition?.kind === "edge-enter-collection" ? "forward" : undefined}
@@ -741,6 +760,7 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
         <div className="toolbar-left">
           <button
             className="icon-button menu-button"
+            ref={menuButtonRef}
             type="button"
             aria-label={drawerOpen ? "Cerrar miniaturas" : "Abrir miniaturas"}
             aria-expanded={drawerOpen}
@@ -807,6 +827,12 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
 
         <div className="toolbar-right">
           <p className="toolbar-hint">Arrastra una esquina o usa las flechas</p>
+          <button className="desktop-export-button" type="button" aria-label="Descargar Excel"
+            title="Descargar productos en Excel" disabled={!commerceCatalog || isBookTransitioning}
+            onClick={event => openExport(event.currentTarget)}>
+            <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path d="M12 3v12m-4-4 4 4 4-4M5 17v4h14v-4" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" /></svg>
+            Excel
+          </button>
           <button
             className="desktop-contact-button"
             type="button"
@@ -859,6 +885,9 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
           ))}
         </div>
         <div className="mobile-contact-footer" aria-hidden={drawerOpen ? undefined : true}>
+          <button className="mobile-export-button" type="button"
+            disabled={!commerceCatalog || isBookTransitioning} tabIndex={drawerOpen ? undefined : -1}
+            onClick={event => openExport(event.currentTarget)}>Descargar Excel</button>
           <button
             className="mobile-contact-button"
             type="button"
@@ -958,6 +987,9 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
         />
       ) : null}
       <CartDrawer />
+      {exportOpen && commerceCatalog ?
+        <ExportCatalogModal catalog={commerceCatalog} onClose={closeExport} openerRef={exportOpenerRef} />
+      : null}
       {catalogError ? (
         <p className="commerce-warning" role="status">{catalogError}</p>
       ) : null}

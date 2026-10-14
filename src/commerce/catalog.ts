@@ -32,6 +32,9 @@ export function isValidCatalog(data: unknown): data is CommerceCatalog {
   if (data.schemaVersion !== COMMERCE_SCHEMA_VERSION) return false;
   if (!Array.isArray(data.products)) return false;
   if (!(data.products as unknown[]).every(isValidProduct)) return false;
+  if (data.zeroPriceProductIds !== undefined && (!Array.isArray(data.zeroPriceProductIds) ||
+    !data.zeroPriceProductIds.every(id => typeof id === "string" &&
+      (data.products as CommerceProduct[]).some(product => product.id === id && (product.precio === null || product.precio === 0))))) return false;
   const ids = (data.products as CommerceProduct[]).map(product => product.id);
   return new Set(ids).size === ids.length;
 }

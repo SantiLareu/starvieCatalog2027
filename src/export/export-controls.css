@@ -1,0 +1,25 @@
+.desktop-export-button { display: none; }
+@media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .desktop-export-button {
+    display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+    height: 32px; padding: 0 9px; border: 1px solid #ffffff1f; border-radius: 8px;
+    background: #ffffff09; color: #bfc1c6; cursor: pointer;
+    font-size: 0.66rem; font-weight: 650; letter-spacing: 0.04em;
+  }
+  .desktop-export-button:hover:not(:disabled) { color: #fff; background: #ffffff17; }
+  .desktop-export-button:focus-visible { outline: 1px solid var(--accent); outline-offset: 3px; }
+  .desktop-export-button:disabled { opacity: 0.5; cursor: default; }
+  @media (max-width: 1279px) { .catalog-toolbar .toolbar-hint { max-width: 135px; } }
+}
+@media (max-width: 1023px), (hover: none), (pointer: coarse) {
+  .mobile-contact-footer > .mobile-export-button {
+    display: flex; align-items: center; flex-direction: column; justify-content: center;
+    width: 100%; min-height: 44px; margin-bottom: 8px; padding: 5px 8px;
+    border: 1px solid rgba(255,255,255,0.16); border-radius: 8px;
+    color: #e7e8ea; background: rgba(255,255,255,0.045); cursor: pointer;
+    font: inherit; font-size: 0.7rem; font-weight: 650; letter-spacing: 0.025em; line-height: 1.4;
+  }
+  .mobile-export-button:active { background: rgba(230,70,55,0.14); }
+  .mobile-export-button:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+  .mobile-export-button:disabled { opacity: 0.5; cursor: default; }
+}

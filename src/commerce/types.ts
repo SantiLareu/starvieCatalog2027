@@ -30,6 +30,8 @@ export type CommerceProduct = {
 export type CommerceCatalog = {
   schemaVersion: 1;
   products: CommerceProduct[];
+  /** Original Excel prices equal to zero; commerce still treats them as pending. */
+  zeroPriceProductIds?: string[];
 };
 
 export type ProductsVersionManifest = {

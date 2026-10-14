@@ -36,6 +36,14 @@ function stubFetch(routes: Record<string, unknown>) {
 }
 
 describe("validación del catálogo publicado", () => {
+  it("acepta metadatos de ceros sin cambiar precio comercial y rechaza IDs inconsistentes", () => {
+    const pending = { ...product, precio: null };
+    expect(isValidCatalog({ ...catalog, products: [pending], zeroPriceProductIds: [pending.id] })).toBe(true);
+    expect(isValidCatalog({ ...catalog, products: [pending], zeroPriceProductIds: [] })).toBe(true);
+    for (const zeroPriceProductIds of [null, false, [123], ["missing"], [product.id]]) {
+      expect(isValidCatalog({ ...catalog, zeroPriceProductIds })).toBe(false);
+    }
+  });
   it("acepta null, cero legado y SKU vacío; rechaza negativos e identidad inválida", () => {
     for (const precio of [null, 0, 320]) {
       expect(isValidCatalog({ ...catalog, products: [{ ...product, precio, sku: "" }] })).toBe(true);

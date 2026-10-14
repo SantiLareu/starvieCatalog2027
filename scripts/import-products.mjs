@@ -134,7 +134,7 @@ async function main() {
   const options = parseArgs(process.argv.slice(2));
   const rows = await readRows(options.input);
   const existingFiles = await listPublicFiles();
-  const { products, errors, warnings } = validateRows(rows, { existingFiles });
+  const { products, zeroPriceProductIds, errors, warnings } = validateRows(rows, { existingFiles });
   for (const product of products) {
     for (const image of product.imagenes) {
       if (escapesProductsRoot(image)) {
@@ -151,7 +151,7 @@ async function main() {
     return;
   }
 
-  const catalogContents = serializeCatalog(products);
+  const catalogContents = serializeCatalog(products, zeroPriceProductIds);
   const versionContents = serializeCatalogVersion(
     buildCatalogVersion(catalogContents, sha256Hex(catalogContents)),
   );
