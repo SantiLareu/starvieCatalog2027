@@ -78,8 +78,12 @@ export function DesktopStageBackground({ book }: { book: LogoBookState }) {
       const pageHeight = cover.offsetHeight || Number.parseFloat(cover.style.height) || viewport.height;
       const page = { x: viewport.left - origin.left + (spec.cover === "front" ? pageWidth : 0),
         y: viewport.top - origin.top, width: pageWidth, height: pageHeight };
+      const backOverlay = app.querySelector<HTMLElement>(".back-cover-overlay");
+      const backRise = backOverlay
+        ? (Number.parseFloat(getComputedStyle(backOverlay).getPropertyValue("--back-cover-content-rise")) || 0) / 100
+        : 0;
       const source = spec.cover === "front" ? frontCoverLogo(page) : containLogo({
-        x: page.x + page.width * 0.22, y: page.y + page.height * 0.34,
+        x: page.x + page.width * 0.22, y: page.y + page.height * (0.34 - backRise),
         width: page.width * 0.56, height: page.height * 0.34,
       });
       const targetBox = wall.getBoundingClientRect();

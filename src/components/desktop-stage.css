@@ -1,7 +1,73 @@
 /* No scene image is requested outside the desktop media query. */
 .desktop-stage-background, .desktop-logo-flight { display: none; }
+.desktop-contact-button, .back-cover-contacts { display: none; }
 
 @media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
+  .desktop-contact-button {
+    display: block;
+    padding: 0 10px;
+    height: 32px;
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 8px;
+    color: #bfc1c6;
+    background: rgba(255,255,255,0.035);
+    font-size: 0.66rem;
+    font-weight: 650;
+    letter-spacing: 0.06em;
+    cursor: pointer;
+    transition: color 180ms ease, background-color 180ms ease;
+  }
+  .desktop-contact-button:hover:not(:disabled) {
+    color: #fff;
+    background: rgba(230,70,55,0.14);
+  }
+  .desktop-contact-button:focus-visible {
+    outline: 1px solid var(--accent);
+    outline-offset: 3px;
+  }
+  .desktop-contact-button:disabled { cursor: default; opacity: 0.5; }
+
+  /* Move the existing composition together; leave its scale and entrance intact. */
+  .back-cover-overlay { --back-cover-content-rise: 10%; }
+  .back-cover-logo-overlay { translate: 0 calc(-1 * var(--back-cover-content-rise)); }
+  .back-cover-overlay .back-cover-live {
+    top: calc(55% - var(--back-cover-content-rise));
+    bottom: calc(11% + var(--back-cover-content-rise));
+  }
+  .back-cover-contacts {
+    position: absolute;
+    top: 79%;
+    bottom: 7%;
+    left: 28%;
+    right: 28%;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: clamp(12px, 1.8vw, 26px);
+    padding-top: 6px;
+    border-top: 1px solid rgba(255,255,255,0.16);
+    opacity: 0;
+  }
+  .back-cover-contacts a {
+    display: grid;
+    place-items: center;
+    width: clamp(28px, 2.5vw, 36px);
+    height: clamp(28px, 2.5vw, 36px);
+    flex-shrink: 0;
+    border-radius: 5px;
+    color: rgba(240,242,244,0.8);
+    transition: color 180ms ease;
+  }
+  .back-cover-contacts svg { width: 21px; height: 21px; }
+  .back-cover-contacts a:hover, .back-cover-contacts a:focus-visible { color: var(--accent); }
+  .back-cover-contacts a:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+  .back-cover-bridge.is-live .back-cover-contacts {
+    animation: back-cover-rise 0.85s cubic-bezier(.22,.72,.24,1) 0.44s both;
+  }
+  .back-cover-bridge.is-live .back-cover-contacts a { pointer-events: auto; }
+  @media (max-width: 1199px) {
+    .catalog-toolbar .toolbar-hint { max-width: 160px; }
+  }
   .catalog-app {
     /* Surface alpha only. PDF artwork remains opaque, including its background. */
     --desktop-sheet-surface-alpha: 0.92;
@@ -191,6 +257,8 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .desktop-contact-button, .back-cover-contacts a { transition: none; }
+    .back-cover-bridge.is-live .back-cover-contacts { animation: none; opacity: 1; }
     .catalog-app > .magazine-stage { transition: none; }
   }
 }

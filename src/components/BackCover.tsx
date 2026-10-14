@@ -124,11 +124,14 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
     useEffect(() => {
       const host = physicsRef.current;
       if (!host) return;
+      // Rotating a phone can remount this bridge while P39 is already closed.
+      // Restore that committed surface without starting another cover motion.
+      const initialPage = live ? 0 : 1;
       const engine = new PageFlip(host, {
         ...createHardCoverPageFlipSettings(
           window.matchMedia("(prefers-reduced-motion: reduce)").matches,
         ),
-        startPage: 1,
+        startPage: initialPage,
         useMouseEvents: false,
       });
       engine.getSettings().showPageCorners = false;
@@ -146,7 +149,7 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
         onMotionEndRef.current(finishedMotion === "closing" ? "closed" : "open");
       });
       engine.loadFromHTML(host.querySelectorAll<HTMLElement>(".back-cover-physics-leaf"));
-      engine.turnToPage(1);
+      engine.turnToPage(initialPage);
       engineRef.current = engine;
 
       return () => {
@@ -197,6 +200,40 @@ export const BackCover = forwardRef<BackCoverHandle, BackCoverProps>(
                   <span className="back-cover-license" data-testid="back-cover-license">Licenciatario Oficial</span>
                   <small data-testid="back-cover-credit">By Santiago Lareu</small>
                 </div>
+                <nav
+                  className="back-cover-contacts"
+                  aria-label="Contacto y redes de RealStep"
+                  aria-hidden={live ? undefined : true}
+                  inert={!live}
+                  onPointerDown={(event) => event.stopPropagation()}
+                  onMouseDown={(event) => event.stopPropagation()}
+                  onTouchStart={(event) => event.stopPropagation()}
+                  onClick={(event) => event.stopPropagation()}
+                >
+                  <a href="https://www.instagram.com/realstep.oficial/" target="_blank" rel="noopener noreferrer"
+                    aria-label="Instagram de RealStep" title="Instagram de RealStep">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7">
+                      <rect x="3" y="3" width="18" height="18" rx="5" />
+                      <circle cx="12" cy="12" r="4" />
+                      <circle cx="17.5" cy="6.5" r="1" fill="currentColor" stroke="none" />
+                    </svg>
+                  </a>
+                  <a href="https://wa.me/5492235440976" target="_blank" rel="noopener noreferrer"
+                    aria-label="WhatsApp comercial de RealStep" title="WhatsApp comercial de RealStep">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinejoin="round">
+                      <path d="M20.5 11.8a8.5 8.5 0 0 1-12.6 7.5L3 21l1.7-4.8a8.5 8.5 0 1 1 15.8-4.4Z" />
+                      <path d="m8.2 7.5 1.5 2.8-1 1c.8 1.8 2.1 3.1 4 3.9l1-1 2.8 1.5c-.3 1.4-1.1 1.9-2.4 1.5-4.1-1.1-6.9-3.9-8-8-.3-1 .5-1.7 2.1-1.7Z" strokeWidth="1.3" />
+                    </svg>
+                  </a>
+                  <a href="https://www.realstep.com.ar/" target="_blank" rel="noopener noreferrer"
+                    aria-label="Sitio institucional de RealStep" title="Sitio institucional de RealStep">
+                    <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" strokeWidth="1.7">
+                      <circle cx="12" cy="12" r="9" />
+                      <ellipse cx="12" cy="12" rx="4" ry="9" />
+                      <path d="M3 12h18" />
+                    </svg>
+                  </a>
+                </nav>
               </div>
             </div>
           </div>

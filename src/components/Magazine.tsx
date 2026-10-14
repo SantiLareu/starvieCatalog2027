@@ -13,6 +13,7 @@ import { MOBILE_ACCESSORY_SHOWCASE_PAGE, mobileAccessoryShowcaseGroups } from ".
 import { MobileAccessoryShowcase } from "./mobile/MobileAccessoryShowcase";
 import { mobilePresentationForPage } from "../data/mobileProductPresentation";
 import "./mobile/mobile-pilot.css";
+import "./mobile/mobile-contact.css";
 import { MOBILE_PILOT_QUERY, MOBILE_PREMIUM_PAGES, usePilotViewport } from "./mobile/mobilePilot";
 import { mobilePortraitReplacementPages } from "./mobile/mobilePortraitAssets";
 import {
@@ -807,6 +808,14 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
         <div className="toolbar-right">
           <p className="toolbar-hint">Arrastra una esquina o usa las flechas</p>
           <button
+            className="desktop-contact-button"
+            type="button"
+            disabled={isBookTransitioning || atLastPage}
+            onClick={handleLast}
+          >
+            Contacto
+          </button>
+          <button
             className="cart-button"
             type="button"
             onClick={() => setCartOpen(true)}
@@ -848,6 +857,23 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
               <span>{bookPage.kind === "pdf" ? bookPage.originalNumber : bookPage.kind === "editorial" ? bookPage.label : "VIDEO"}</span>
             </button>
           ))}
+        </div>
+        <div className="mobile-contact-footer" aria-hidden={drawerOpen ? undefined : true}>
+          <button
+            className="mobile-contact-button"
+            type="button"
+            disabled={isBookTransitioning}
+            tabIndex={drawerOpen ? undefined : -1}
+            onClick={() => {
+              setDrawerOpen(false);
+              if (!atLastPage) handleLast();
+            }}
+          >
+            Contacto
+            <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true">
+              <path d="m9 5 7 7-7 7" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
         </div>
       </aside>
 

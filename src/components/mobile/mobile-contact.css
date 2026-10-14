@@ -1,0 +1,114 @@
+.mobile-contact-footer { display: none; }
+
+/* Match the existing desktop boundary, including phones rotated to landscape
+   and larger touch screens. All approved desktop rules remain untouched. */
+@media (max-width: 1023px), (hover: none), (pointer: coarse) {
+  .catalog-app > .thumbnail-drawer {
+    display: flex;
+    flex-direction: column;
+    padding-bottom: max(9px, env(safe-area-inset-bottom, 0px));
+  }
+  .catalog-app > .thumbnail-drawer .thumbnail-list {
+    flex: 1;
+    min-height: 0;
+    height: auto;
+    overscroll-behavior-y: contain;
+  }
+  .mobile-contact-footer {
+    display: block;
+    flex-shrink: 0;
+    padding-top: 10px;
+    border-top: 1px solid rgba(255,255,255,0.12);
+  }
+  .mobile-contact-button {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 6px;
+    width: 100%;
+    min-height: 44px;
+    padding: 0 8px;
+    border: 1px solid rgba(255,255,255,0.16);
+    border-radius: 8px;
+    color: #e7e8ea;
+    background: rgba(255,255,255,0.045);
+    font: inherit;
+    font-size: 0.7rem;
+    font-weight: 650;
+    letter-spacing: 0.025em;
+    cursor: pointer;
+    transition: color 180ms ease, background-color 180ms ease;
+  }
+  .mobile-contact-button svg { flex-shrink: 0; color: var(--accent); }
+  .mobile-contact-button:active { background: rgba(230,70,55,0.14); }
+  .mobile-contact-button:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+  .mobile-contact-button:disabled { opacity: 0.5; cursor: default; }
+
+  .catalog-app .back-cover-overlay { container-type: size; }
+  .catalog-app .back-cover-contacts {
+    position: absolute;
+    left: 18%;
+    right: 18%;
+    bottom: 5%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: clamp(8px, 3vw, 20px);
+    height: 54px;
+    padding-top: 9px;
+    border-top: 1px solid rgba(230,233,237,0.24);
+    opacity: 0;
+  }
+  .catalog-app .back-cover-contacts a {
+    display: grid;
+    place-items: center;
+    flex-shrink: 0;
+    width: 44px;
+    height: 44px;
+    border-radius: 6px;
+    color: #e6e9ed;
+    transition: color 180ms ease;
+    filter: drop-shadow(0 1px 3px #0009);
+    -webkit-tap-highlight-color: transparent;
+  }
+  .catalog-app .back-cover-contacts svg { width: 23px; height: 23px; }
+  .catalog-app .back-cover-contacts a:active,
+  .catalog-app .back-cover-contacts a:focus-visible { color: var(--accent); }
+  .catalog-app .back-cover-contacts a:focus-visible { outline: 1px solid var(--accent); outline-offset: 2px; }
+  .catalog-app .back-cover-bridge.is-live .back-cover-contacts {
+    animation: back-cover-rise 0.85s cubic-bezier(.22,.72,.24,1) 0.44s both;
+  }
+  .catalog-app .back-cover-bridge.is-live .back-cover-contacts a { pointer-events: auto; }
+
+  /* The native horizontal presentation has less height than the court page. */
+  .catalog-app:not(.mobile-court-experience) .back-cover-logo-overlay { translate: 0 -26%; }
+  .catalog-app:not(.mobile-court-experience) .back-cover-live {
+    top: 30%;
+    bottom: 36%;
+    gap: clamp(3px, 1.5cqh, 6px);
+  }
+  .catalog-app:not(.mobile-court-experience) .back-cover-live strong { font-size: clamp(12px, 7cqh, 16px); }
+  .catalog-app:not(.mobile-court-experience) .back-cover-collab { font-size: clamp(8px, 4.5cqh, 12px); }
+  .catalog-app:not(.mobile-court-experience) .back-cover-license { font-size: clamp(8px, 4cqh, 10px); }
+  .catalog-app:not(.mobile-court-experience) .back-cover-live small { margin-top: 3px; font-size: clamp(7px, 3.5cqh, 9px); }
+
+  @media (max-width: 599px) and (orientation: portrait) {
+    .catalog-app.mobile-court-experience .back-cover-live { top: 28%; bottom: 30%; }
+    .catalog-app.mobile-court-experience .back-cover-contacts { top: 61%; bottom: auto; }
+    @media (max-height: 520px) {
+      .catalog-app.mobile-court-experience .back-cover-live { top: 22%; bottom: 38%; }
+    }
+  }
+  @media (max-width: 379px) {
+    .catalog-app.back-cover-closed .page-indicator {
+      min-width: 0;
+      padding-inline: 2px;
+      font-size: 0.58rem;
+      letter-spacing: 0.02em;
+    }
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .mobile-contact-button, .catalog-app .back-cover-contacts a { transition: none; }
+    .catalog-app .back-cover-bridge.is-live .back-cover-contacts { animation: none; opacity: 1; }
+  }
+}
