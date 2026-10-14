@@ -24,12 +24,14 @@ import {
 import type { PresentedLine } from "./types";
 import { hasPrice } from "./productEligibility";
 import { TurnstileWidget, turnstileEnabled, turnstileSiteKey } from "./TurnstileWidget";
+import { CheckoutConfirmation } from "./CheckoutConfirmation";
 
 export const CHECKOUT_HERO_SRC = "/checkout/checkout-hero-raptor.webp";
 
 type CheckoutModalProps = {
   open: boolean;
   onClose: () => void;
+  onReturnToCatalog?: () => void;
   presented: PresentedLine[];
   total: number | null;
   clearCart: () => void;
@@ -69,6 +71,7 @@ const EMPTY_CONTACT: CheckoutContact = {
 export function CheckoutModal({
   open,
   onClose,
+  onReturnToCatalog = onClose,
   presented,
   total,
   clearCart,
@@ -440,6 +443,10 @@ export function CheckoutModal({
 
   /* Success / Processing state */
   if (isSuccess) {
+    if (mode.kind === "completed") {
+      return createPortal(<CheckoutConfirmation orderId={orderId} error={serverError}
+        onClose={onClose} onReturn={onReturnToCatalog} closeRef={closeRef} />, document.body);
+    }
     return createPortal(
       <div
         className="modal-backdrop checkout-backdrop"
@@ -475,9 +482,7 @@ export function CheckoutModal({
             <div className="checkout-success" role="status">
               <h2 id="checkout-title">Finalizar pedido</h2>
               <p className="in-stock">
-                {mode.kind === "completed"
-                  ? "Pedido enviado."
-                  : "Pedido recibido — en proceso."}
+                Pedido recibido — en proceso.
               </p>
               {orderId ? <p className="future-note">N° {orderId}</p> : null}
               {serverError ? <p className="checkout-error" role="alert">{serverError}</p> : null}
@@ -487,18 +492,11 @@ export function CheckoutModal({
               <button
                 className="order-button is-active"
                 type="button"
-                onClick={mode.kind === "processing" ? send : onClose}
-                disabled={mode.kind === "processing" && rateLimited}
+                onClick={send}
+                disabled={rateLimited}
               >
-                {mode.kind === "completed"
-                  ? "Seguir viendo el catálogo"
-                  : "Consultar estado"}
+                Consultar estado
               </button>
-              {mode.kind === "completed" ? (
-                <button className="cart-retry" type="button" onClick={startNewPurchase} disabled={completedCleanupFailed || getStoredSessionPresence() === "unavailable"}>
-                  Iniciar nueva compra
-                </button>
-              ) : null}
             </div>
             <div className="checkout-visual" aria-hidden="true">
               <img

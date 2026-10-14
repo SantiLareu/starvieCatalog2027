@@ -219,8 +219,8 @@ describe("CheckoutModal", () => {
     expect(payload.lines).toEqual([{ productId: "raptor+", qty: 2 }]);
     expect(JSON.stringify(payload)).not.toMatch(/precio|subtotal|disponible/);
     expect(typeof payload.idempotencyKey).toBe("string");
-    await screen.findByText("Pedido enviado.");
-    expect(await screen.findByText("N° ord-1")).toBeVisible();
+    await screen.findByText("¡Pedido enviado con éxito!");
+    expect(await screen.findByText("ord-1")).toBeVisible();
     expect(props.clearCart).toHaveBeenCalledOnce();
   });
 
@@ -268,7 +268,7 @@ describe("CheckoutModal", () => {
       legalName: "StarVie Padel SAS",
       email: "santi@example.com",
     });
-    await screen.findByText("Pedido enviado.");
+    await screen.findByText("¡Pedido enviado con éxito!");
     expect(props.clearCart).toHaveBeenCalledOnce();
   });
 
@@ -289,7 +289,7 @@ describe("CheckoutModal", () => {
       screen.getByRole("button", { name: "Enviando pedido..." }),
     ).toBeDisabled();
     resolveSubmit({ kind: "completed", orderId: "ord-1" });
-    await screen.findByText("Pedido enviado.");
+    await screen.findByText("¡Pedido enviado con éxito!");
   });
 
   it("en error conserva carrito y formulario; reintentar usa la misma key", async () => {
@@ -338,7 +338,7 @@ describe("CheckoutModal", () => {
     );
     fireEvent.click(screen.getByRole("button", { name: "Reintentar envío" }));
     await waitFor(() => expect(calls).toHaveLength(2));
-    expect(await screen.findByText("Pedido enviado."));
+    expect(await screen.findByText("¡Pedido enviado con éxito!"));
     expect(calls[0].idempotencyKey).toBe(calls[1].idempotencyKey);
     expect(props.clearCart).toHaveBeenCalledOnce();
   });
@@ -356,7 +356,7 @@ describe("CheckoutModal", () => {
     fireEvent.keyDown(window, { key: "Escape" });
     expect(props.onClose).not.toHaveBeenCalled();
     resolveSubmit({ kind: "completed", orderId: "ord-1" });
-    await screen.findByText("Pedido enviado.");
+    await screen.findByText("¡Pedido enviado con éxito!");
   });
 
   it("Escape en idle cierra y restaura el foco al botón que abrió", () => {
@@ -714,7 +714,7 @@ describe("CheckoutModal", () => {
 
     /* Complete the submission. */
     resolveSubmit({ kind: "completed", orderId: "ord-close" });
-    await screen.findByText("Pedido enviado.");
+    await screen.findByText("¡Pedido enviado con éxito!");
     /* Now close should work. */
     await waitFor(() => {
       fireEvent.keyDown(window, { key: "Escape" });
@@ -768,9 +768,9 @@ describe("CheckoutModal", () => {
     const props = renderModal({ submitFn });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("Pedido enviado.");
+    await screen.findByText("¡Pedido enviado con éxito!");
     expect(props.clearCart).toHaveBeenCalledOnce();
-    expect(screen.getByText("N° ord-preserve")).toBeVisible();
+    expect(screen.getByText("ord-preserve")).toBeVisible();
   });
 
   it("recarga processing y consulta el mismo pedido con payload intacto", async () => {
@@ -818,20 +818,52 @@ describe("CheckoutModal", () => {
       calls.push(payload);
       return { kind: "completed" as const, orderId: `done-${calls.length}` };
     });
-    renderModal({ submitFn });
+    const first = renderModal({ submitFn });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("N° done-1");
+    await screen.findByText("done-1");
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
     expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
-    expect(screen.getByText("Pedido enviado.")).toBeVisible();
-    fireEvent.click(screen.getByRole("button", { name: "Iniciar nueva compra" }));
+    expect(screen.getByText("¡Pedido enviado con éxito!")).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: "VOLVER AL CATÁLOGO" }));
+    expect(first.onClose).toHaveBeenCalledOnce();
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
     expect(calls).toHaveLength(1);
+    cleanup();
+    renderModal({ submitFn });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     await waitFor(() => expect(calls).toHaveLength(2));
     expect(calls[1].idempotencyKey).not.toBe(calls[0].idempotencyKey);
+  });
+
+  it("presenta el UUID confirmado intacto, los Instagram seguros y solo la acción de retorno", async () => {
+    const uuid = "8dc011f4-40a3-4ca6-9ce9-2e9d11a9277b";
+    const onReturnToCatalog = vi.fn();
+    const props = renderModal({ onReturnToCatalog, submitFn: vi.fn(async () => ({ kind: "completed" as const, orderId: uuid })) });
+    expect(screen.queryByText("SIN RIESGO NO HAY HISTORIA")).toBeNull();
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    expect(await screen.findByRole("dialog", { name: "¡Pedido enviado con éxito!" })).toBeVisible();
+    expect(screen.getByTestId("confirmed-order-id").textContent).toBe(uuid);
+    expect(screen.getByText((_text, element) => element?.classList.contains("checkout-confirmation-motto") === true &&
+      element.textContent === "SIN RIESGO NO HAY HISTORIA")).toBeVisible();
+    expect(screen.getByText("Gracias por elegir StarVie.")).toBeVisible();
+    expect(screen.getByText("Licenciatario Oficial")).toBeVisible();
+    expect(screen.queryByText("Finalizar pedido")).toBeNull();
+    expect(screen.queryByText("Te contactaremos por email para coordinar.")).toBeNull();
+    expect(screen.queryByRole("button", { name: "Iniciar nueva compra" })).toBeNull();
+    for (const [name, url] of [["RealStep", "https://www.instagram.com/realstep.oficial/"],
+      ["StarVie Argentina", "https://www.instagram.com/starvieargoficial/"]]) {
+      const link = screen.getByRole("link", { name: `Instagram de ${name}` });
+      expect(link).toHaveAttribute("href", url);
+      expect(link).toHaveAttribute("target", "_blank");
+      expect(link).toHaveAttribute("rel", "noopener noreferrer");
+    }
+    fireEvent.click(screen.getByRole("button", { name: "VOLVER AL CATÁLOGO" }));
+    expect(onReturnToCatalog).toHaveBeenCalledOnce();
+    expect(props.submitFn).toHaveBeenCalledOnce();
+    expect(props.clearCart).toHaveBeenCalledOnce();
   });
 
   it.each([0, 24 * 3600_000])("resuelve completed histórico con edad %i sin borrar el carrito actual", (age) => {
@@ -865,15 +897,15 @@ describe("CheckoutModal", () => {
     const props = renderModal({ submitFn });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("N° RS-confirmed");
-    expect(screen.getByText("Pedido enviado.")).toBeVisible();
+    await screen.findByText("RS-confirmed");
+    expect(screen.getByText("¡Pedido enviado con éxito!")).toBeVisible();
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
     expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
     expect(props.clearCart).toHaveBeenCalledOnce();
     cleanup();
     renderModal();
     expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
-    expect(screen.queryByText("N° RS-confirmed")).toBeNull();
+    expect(screen.queryByText("RS-confirmed")).toBeNull();
   });
 
   it("HTTP 2xx malformado conserva key y payload para el reintento", async () => {
@@ -909,11 +941,12 @@ describe("CheckoutModal", () => {
     renderModal({ submitFn });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("N° RS-original");
+    await screen.findByText("RS-original");
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBe(otherMarker);
     expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeTruthy();
     expect(screen.getByRole("alert")).toHaveTextContent(/no se pudo limpiar/);
-    expect(screen.getByRole("button", { name: "Iniciar nueva compra" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Iniciar nueva compra" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Enviar pedido" })).toBeNull();
   });
 
   it.each(["starvie-order-attempt-v2", "starvie-order-attempt-v2-session"])("fallo al limpiar %s conserva éxito y bloquea compra nueva", async (key) => {
@@ -925,15 +958,17 @@ describe("CheckoutModal", () => {
     const props = renderModal();
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("Pedido enviado.");
-    expect(screen.getByText("N° ord-1")).toBeVisible();
+    await screen.findByText("¡Pedido enviado con éxito!");
+    expect(screen.getByText("ord-1")).toBeVisible();
     expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).status).toBe("completed");
     expect(screen.getByRole("alert")).toHaveTextContent(/no se pudo limpiar/);
-    expect(screen.getByRole("button", { name: "Iniciar nueva compra" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Iniciar nueva compra" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Enviar pedido" })).toBeNull();
     expect(props.submitFn).toHaveBeenCalledOnce();
     cleanup();
     renderModal();
-    expect(screen.getByRole("button", { name: "Iniciar nueva compra" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Iniciar nueva compra" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Enviar pedido" })).toBeNull();
     vi.restoreAllMocks();
     cleanup();
     renderModal();
@@ -1127,7 +1162,7 @@ describe("CheckoutModal Turnstile", () => {
     expect(screen.getByRole("button", { name: "Reintentar envío" })).toBeDisabled();
     act(() => widget.callbacks().callback("second-token"));
     fireEvent.click(screen.getByRole("button", { name: "Reintentar envío" }));
-    await screen.findByText("N° done-ts");
+    await screen.findByText("done-ts");
     expect(calls.map((call) => call.token)).toEqual(["first-token", undefined, "second-token"]);
     expect(calls[1].payload).toEqual(calls[0].payload);
     expect(calls[2].payload).toEqual(calls[0].payload);
@@ -1170,7 +1205,7 @@ describe("CheckoutModal Turnstile", () => {
     expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
     act(() => widget.callbacks().callback("new-token"));
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("N° new-ts");
+    await screen.findByText("new-ts");
     expect(calls[1].idempotencyKey).not.toBe(calls[0].idempotencyKey);
   });
 

@@ -35,6 +35,7 @@ export function CartDrawer() {
   }, [cartOpen, presented.length]);
 
   const [checkoutOpen, setCheckoutOpen] = useState(false);
+  const closeCheckout = () => setCheckoutOpen(false);
 
   useEffect(() => {
     if (!cartOpen) return;
@@ -196,7 +197,8 @@ export function CartDrawer() {
       </aside>
       <CheckoutModal
         open={checkoutOpen}
-        onClose={() => setCheckoutOpen(false)}
+        onClose={closeCheckout}
+        onReturnToCatalog={() => { closeCheckout(); setCartOpen(false); }}
         presented={presented}
         total={total}
         clearCart={clearCart}
