@@ -1,5 +1,14 @@
 import { expect, test } from "@playwright/test";
-import type { Locator } from "@playwright/test";
+import type { Locator, Page } from "@playwright/test";
+
+async function expectCoverReady(page: Page, mobile: boolean) {
+  await expect(mobile ? page.getByRole("article", { name: "Portada StarVie, colección 2027", exact: true })
+    : page.getByRole("img", { name: "Página 1 del catálogo StarVie 2027", exact: true }).first()).toBeVisible();
+  await expect.poll(() => page.locator('img[data-catalog-page="1"]').first()
+    .evaluate(image => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+  await expect(page.locator("main.catalog-app")).toHaveClass(/cover-ready/);
+  await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+}
 
 test.describe("Catálogo StarVie 2027", () => {
   test("abre, navega y conserva el spread al cerrar el producto", async ({ page }, testInfo) => {
@@ -79,63 +88,54 @@ test.describe("Catálogo StarVie 2027", () => {
     expect(Math.abs(closedCoverBox!.x - spreadMidX)).toBeLessThan(3);
     expect(Math.abs(closedCoverBox!.x + closedCoverBox!.width - (bookRest!.x + bookRest!.width))).toBeLessThan(3);
 
-    const openingCoverCenters: number[] = [];
-    const openingInteriorTops: number[] = [];
-    const openingHardShadowOpacities: number[] = [];
-    const openingHardInnerShadowOpacities: number[] = [];
-    const openingTitleOpacities: number[] = [];
-    const openingLabels: string[] = [];
-    const bridgeCoverage: boolean[] = [];
     const coverForMeasure = page.locator('img[data-catalog-page="1"]').first();
-    const interiorRightForMeasure = page.locator('img[data-catalog-page="3"]').first();
-    const nextAction = page.getByRole("button", { name: "Página siguiente", exact: true }).click();
-    for (let sample = 0; sample < 14; sample += 1) {
-      await page.waitForTimeout(50);
-      const box = await coverForMeasure.evaluate((image) => {
-        const leaf = image.closest<HTMLElement>(".catalog-leaf");
-        if (!leaf) return null;
-        const rect = leaf.getBoundingClientRect();
-        return { y: rect.y, height: rect.height };
-      });
-      if (box && box.height > 0) openingCoverCenters.push(box.y + box.height / 2);
-      const interiorBox = await interiorRightForMeasure.evaluate((image) => {
-        const leaf = image.closest<HTMLElement>(".catalog-leaf");
-        if (!leaf) return null;
-        const rect = leaf.getBoundingClientRect();
-        return { y: rect.y, height: rect.height };
-      });
-      if (interiorBox && interiorBox.height > 0) openingInteriorTops.push(interiorBox.y);
-      const shadowState = await page.getByTestId("page-flip-engine").evaluate((host) => {
-        const shadow = host.querySelector<HTMLElement>(".stf__hardShadow");
-        const innerShadow = host.querySelector<HTMLElement>(".stf__hardInnerShadow");
-        return {
-          opening: host.classList.contains("is-cover-opening"),
-          opacity: shadow ? Number.parseFloat(getComputedStyle(shadow).opacity) : 0,
-          innerOpacity: innerShadow ? Number.parseFloat(getComputedStyle(innerShadow).opacity) : 0,
+    // Capture rendered frames locally: protocol round trips can outlast the
+    // opening and miss valid animation geometry under concurrent browser load.
+    const openingProbe = await page.evaluateHandle(() => {
+      const host = document.querySelector<HTMLElement>('[data-testid="page-flip-engine"]')!;
+      const samples = {
+        openingCoverCenters: [] as number[], openingInteriorTops: [] as number[],
+        openingHardShadowOpacities: [] as number[], openingHardInnerShadowOpacities: [] as number[],
+        openingTitleOpacities: [] as number[], openingLabels: [] as string[], bridgeCoverage: [] as boolean[],
+      };
+      const done = new Promise<typeof samples>(resolve => {
+        let started = false;
+        const capture = () => {
+          const opening = host.classList.contains("is-cover-opening");
+          if (started && !opening) { resolve(samples); return; }
+          if (opening) {
+            started = true;
+            const cover = host.querySelector('img[data-catalog-page="1"]')?.closest(".catalog-leaf")?.getBoundingClientRect();
+            const interior = host.querySelector('img[data-catalog-page="3"]')?.closest(".catalog-leaf")?.getBoundingClientRect();
+            if (cover && cover.height > 0) samples.openingCoverCenters.push(cover.y + cover.height / 2);
+            if (interior && interior.height > 0) samples.openingInteriorTops.push(interior.y);
+            for (const [selector, values] of [[".stf__hardShadow", samples.openingHardShadowOpacities],
+              [".stf__hardInnerShadow", samples.openingHardInnerShadowOpacities]] as const) {
+              const shadow = host.querySelector(selector);
+              const opacity = shadow ? Number.parseFloat(getComputedStyle(shadow).opacity) : 0;
+              if (opacity > 0) values.push(opacity);
+            }
+            samples.openingTitleOpacities.push(Number.parseFloat(getComputedStyle(document.querySelector(".cover-title-overlay")!).opacity));
+            samples.openingLabels.push(document.querySelector('[data-testid="page-indicator"]')!.textContent!.trim());
+            samples.bridgeCoverage.push(["lineup", "video"].every(name => {
+              const bridge = host.querySelector<HTMLElement>(`[data-cover-bridge="${name}"]`);
+              const leaf = bridge?.closest(".catalog-leaf");
+              if (!bridge || !leaf) return false;
+              const bridgeRect = bridge.getBoundingClientRect(), leafRect = leaf.getBoundingClientRect();
+              return getComputedStyle(bridge).display !== "none" && bridgeRect.width > 0 && bridgeRect.height > 0 &&
+                Math.abs(bridgeRect.width - leafRect.width) < 2 && Math.abs(bridgeRect.height - leafRect.height) < 2;
+            }));
+          }
+          requestAnimationFrame(capture);
         };
+        requestAnimationFrame(capture);
       });
-      if (shadowState.opening && shadowState.opacity > 0) openingHardShadowOpacities.push(shadowState.opacity);
-      if (shadowState.opening && shadowState.innerOpacity > 0) openingHardInnerShadowOpacities.push(shadowState.innerOpacity);
-      if (shadowState.opening) {
-        openingLabels.push(await page.getByTestId("page-indicator").innerText());
-        bridgeCoverage.push(await page.getByTestId("page-flip-engine").evaluate((host) => {
-          return ["lineup", "video"].every((name) => {
-            const bridge = host.querySelector<HTMLElement>(`[data-cover-bridge="${name}"]`);
-            const leaf = bridge?.closest<HTMLElement>(".catalog-leaf");
-            if (!bridge || !leaf) return false;
-            const bridgeRect = bridge.getBoundingClientRect();
-            const leafRect = leaf.getBoundingClientRect();
-            return getComputedStyle(bridge).display !== "none" &&
-              bridgeRect.width > 0 && bridgeRect.height > 0 &&
-              Math.abs(bridgeRect.width - leafRect.width) < 2 &&
-              Math.abs(bridgeRect.height - leafRect.height) < 2;
-          });
-        }));
-      }
-      const titleOpacity = await coverTitle.evaluate((title) => Number.parseFloat(getComputedStyle(title).opacity));
-      if (shadowState.opening) openingTitleOpacities.push(titleOpacity);
-    }
-    await nextAction;
+      return { done };
+    });
+    await page.getByRole("button", { name: "Página siguiente", exact: true }).click();
+    const { openingCoverCenters, openingInteriorTops, openingHardShadowOpacities, openingHardInnerShadowOpacities,
+      openingTitleOpacities, openingLabels, bridgeCoverage } = await openingProbe.evaluate(probe => probe.done);
+    await openingProbe.dispose();
     expect(openingCoverCenters.length).toBeGreaterThan(2);
     expect(openingCoverCenters.every((center) => Number.isFinite(center))).toBe(true);
     expect(openingInteriorTops.length).toBeGreaterThan(2);
@@ -246,7 +246,15 @@ test.describe("Catálogo StarVie 2027", () => {
     const physicalPages = page.locator('.catalog-leaf > .pdf-page > img[data-catalog-page]');
     const videoLeaves = page.locator('.catalog-leaf > .video-page[data-virtual-page="collection-2027-video"]');
     await expect(leaves).toHaveCount(41);
-    await expect(physicalPages).toHaveCount(37);
+    await expect(physicalPages).toHaveCount(mobile ? 13 : 37);
+    if (mobile) {
+      const portraitPages = page.locator('.catalog-leaf article[aria-label^="Página "]');
+      await expect(portraitPages).toHaveCount(24);
+      expect(await physicalPages.evaluateAll(images => images.map(image => Number((image as HTMLElement).dataset.catalogPage))))
+        .toEqual(Array.from({ length: 13 }, (_, index) => index + 1));
+      expect(await portraitPages.evaluateAll(articles => articles.map(article => Number(article.getAttribute("aria-label")!.match(/^Página (\d+)/)![1]))))
+        .toEqual(Array.from({ length: 24 }, (_, index) => index + 15));
+    }
     await expect(page.locator('.catalog-leaf > [data-testid="page14-coverflow"]')).toHaveCount(1);
     await expect(videoLeaves).toHaveCount(1);
     expect(await leaves.evaluateAll((nodes) => nodes.map((node) => Number((node as HTMLElement).dataset.bookIndex)))).toEqual(
@@ -260,7 +268,9 @@ test.describe("Catálogo StarVie 2027", () => {
     await expect(backCoverBridge).not.toHaveClass(/catalog-leaf/);
     await expect(backCoverBridge).not.toHaveAttribute("data-book-index");
     await expect(indicator).toContainText("1 / 39");
-    await expect(page.getByRole("img", { name: "Página 1 del catálogo StarVie 2027", exact: true }).first()).toBeVisible();
+    await expect(mobile
+      ? page.getByRole("article", { name: "Portada StarVie, colección 2027", exact: true })
+      : page.getByRole("img", { name: "Página 1 del catálogo StarVie 2027", exact: true }).first()).toBeVisible();
     await expect(page.locator('img[data-catalog-page="2"], img[data-catalog-page="3"], img[data-catalog-page="4"], img[data-catalog-page="5"], img[data-catalog-page="6"], img[data-catalog-page="7"], img[data-catalog-page="8"], img[data-catalog-page="9"], img[data-catalog-page="10"], img[data-catalog-page="11"], img[data-catalog-page="12"], img[data-catalog-page="13"]')).toHaveCount(12);
 
     if (mobile) await page.keyboard.press("ArrowRight");
@@ -271,6 +281,8 @@ test.describe("Catálogo StarVie 2027", () => {
     else await expect(page.locator('[data-cover-bridge="video"]')).toBeVisible();
     if (mobile) {
       await expect(indicator).toContainText("14 / 39");
+      await expect(page.locator("main.catalog-app")).toHaveAttribute("data-book-transition", "idle");
+      await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
       await page.keyboard.press("ArrowRight");
       await expect(indicator).toContainText("VIDEO / 39");
     } else {
@@ -280,8 +292,9 @@ test.describe("Catálogo StarVie 2027", () => {
     const lineup = page.getByTestId("page14-coverflow").first();
     const videoPage = page.locator('[data-virtual-page="collection-2027-video"]');
     await expect(videoPage).toBeVisible();
-    await expect(videoPage.getByText("COLLECTION 2027", { exact: true })).toBeVisible();
-    const videoBox = await videoPage.boundingBox();
+    await expect(mobile ? videoPage.getByRole("heading", { name: "STARNEWS", exact: true })
+      : videoPage.getByText("COLLECTION 2027", { exact: true })).toBeVisible();
+    const videoBox = await (mobile ? videoPage.locator(".mobile-star-news__media") : videoPage).boundingBox();
     expect(videoBox).not.toBeNull();
     expect(videoBox!.width / videoBox!.height).toBeCloseTo(16 / 9, 1);
     if (!mobile) {
@@ -316,6 +329,8 @@ test.describe("Catálogo StarVie 2027", () => {
     await page.getByRole("button", { name: "COLECCIÓN 2027", exact: true }).click();
     await expect(indicator).toContainText(mobile ? "14 / 39" : "14 · VIDEO / 39");
     if (mobile) {
+      await expect(page.locator("main.catalog-app")).toHaveAttribute("data-book-transition", "idle");
+      await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
       await page.keyboard.press("ArrowLeft");
       await expect(page.locator("main.catalog-app")).toHaveAttribute("data-book-transition", "close-to-cover");
       await expect(indicator).toContainText("1 / 39");
@@ -336,7 +351,8 @@ test.describe("Catálogo StarVie 2027", () => {
     test.skip(!testInfo.project.name.includes("mobile"), "Sólo corresponde al proyecto mobile");
     await page.goto("/");
     await expect(page.getByTestId("page-indicator")).toContainText("1 / 39");
-    const mobileCoverTitle = page.locator(".cover-title-overlay");
+    const mobileCoverTitle = page.getByRole("article", { name: "Portada StarVie, colección 2027", exact: true })
+      .getByRole("heading", { name: "2027", exact: true });
     await expect(mobileCoverTitle).toBeVisible();
     await expect.poll(() => mobileCoverTitle.evaluate((title) => getComputedStyle(title).opacity)).toBe("1");
     await expect(page.getByRole("button", { name: "Página siguiente", exact: true })).toBeVisible();
@@ -439,15 +455,35 @@ test.describe("Catálogo StarVie 2027", () => {
     await page.goto("/");
     const mobile = testInfo.project.name.includes("mobile");
     const indicator = page.getByTestId("page-indicator");
-    const cover = page.getByRole("img", { name: "Página 1 del catálogo StarVie 2027", exact: true }).first();
-    await expect(cover).toBeVisible();
-    await expect.poll(() => cover.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await expectCoverReady(page, mobile);
+    const waitIdle = async () => {
+      await expect(page.locator("main.catalog-app")).toHaveAttribute("data-book-transition", "idle");
+      await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+    };
+    // Screenshots and protocol queries can finish after a transient state.
+    // Observe actual rendered states before input, without slowing the app.
+    const transitions = await page.evaluateHandle(() => {
+      const app = document.querySelector<HTMLElement>("main.catalog-app")!;
+      const engine = app.querySelector<HTMLElement>('[data-testid="page-flip-engine"]')!;
+      const frames: { direction: string | undefined; motion: string | undefined; lineupVisible: boolean }[] = [];
+      let active = true;
+      const capture = () => {
+        if (!active) return;
+        const bridge = engine.querySelector<HTMLElement>('[data-cover-bridge="lineup"]');
+        const rect = bridge?.getBoundingClientRect();
+        frames.push({ direction: app.dataset.transitionDirection, motion: engine.dataset.coverMotion,
+          lineupVisible: !!bridge && !!rect && rect.width > 0 && rect.height > 0 && getComputedStyle(bridge).visibility === "visible" });
+        requestAnimationFrame(capture);
+      };
+      requestAnimationFrame(capture);
+      return { frames, clear: () => { frames.length = 0; }, stop: () => { active = false; } };
+    });
     await page.screenshot({ path: testInfo.outputPath("p1-opening-00.png") });
 
     if (mobile) await page.keyboard.press("ArrowRight");
     else await page.getByRole("button", { name: "Página siguiente", exact: true }).click();
     await page.waitForTimeout(180);
-    await expect(page.locator('[data-cover-bridge="lineup"]')).toBeVisible();
+    await expect.poll(() => transitions.evaluate(probe => probe.frames.some(frame => frame.lineupVisible))).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("p1-opening-25.png") });
     await page.waitForTimeout(200);
     await page.screenshot({ path: testInfo.outputPath("p1-opening-50.png") });
@@ -458,9 +494,10 @@ test.describe("Catálogo StarVie 2027", () => {
     await page.screenshot({ path: testInfo.outputPath("p1-opening-100.png") });
 
     await page.screenshot({ path: testInfo.outputPath("p1-closing-00.png") });
+    await waitIdle();
     await page.keyboard.press("ArrowLeft");
     await page.waitForTimeout(180);
-    await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-cover-motion", "closing");
+    await expect.poll(() => transitions.evaluate(probe => probe.frames.some(frame => frame.motion === "closing"))).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("p1-closing-25.png") });
     await page.waitForTimeout(200);
     await page.screenshot({ path: testInfo.outputPath("p1-closing-50.png") });
@@ -469,26 +506,35 @@ test.describe("Catálogo StarVie 2027", () => {
     await expect(indicator).toContainText("1 / 39");
     await page.screenshot({ path: testInfo.outputPath("p1-closing-100.png") });
 
+    await waitIdle();
     await page.getByRole("button", { name: "COLECCIÓN 2027", exact: true }).click();
     await expect(indicator).toContainText(mobile ? "14 / 39" : "14 · VIDEO / 39");
+    await waitIdle();
+    await transitions.evaluate(probe => probe.clear());
     await page.getByRole("button", { name: "STARLAB", exact: true }).click();
     await page.waitForTimeout(280);
-    await expect(page.locator("main.catalog-app")).toHaveAttribute("data-transition-direction", "backward");
+    await expect.poll(() => transitions.evaluate(probe => probe.frames.some(frame => frame.direction === "backward"))).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("section-backward.png") });
     await expect(indicator).toContainText(mobile ? "2 / 39" : "2–3 / 39");
 
+    await waitIdle();
+    await transitions.evaluate(probe => probe.clear());
     await page.getByRole("button", { name: "COLECCIÓN 2027", exact: true }).click();
     await page.waitForTimeout(280);
-    await expect(page.locator("main.catalog-app")).toHaveAttribute("data-transition-direction", "forward");
+    await expect.poll(() => transitions.evaluate(probe => probe.frames.some(frame => frame.direction === "forward"))).toBe(true);
     await page.screenshot({ path: testInfo.outputPath("section-forward.png") });
     await expect(indicator).toContainText(mobile ? "14 / 39" : "14 · VIDEO / 39");
 
     // Un segundo ciclo detecta desincronizaciones acumulativas entre el
     // índice físico de StPageFlip y el destino lógico del catálogo.
+    await waitIdle();
     await page.getByRole("button", { name: "STARLAB", exact: true }).click();
     await expect(indicator).toContainText(mobile ? "2 / 39" : "2–3 / 39");
+    await waitIdle();
     await page.getByRole("button", { name: "COLECCIÓN 2027", exact: true }).click();
     await expect(indicator).toContainText(mobile ? "14 / 39" : "14 · VIDEO / 39");
+    await transitions.evaluate(probe => probe.stop());
+    await transitions.dispose();
   });
 
   test("resuelve los bordes lógicos antes del flip y no deriva después", async ({ page }, testInfo) => {
@@ -533,9 +579,7 @@ test.describe("Catálogo StarVie 2027", () => {
     };
 
     await page.goto("/");
-    const cover = page.getByRole("img", { name: "Página 1 del catálogo StarVie 2027", exact: true }).first();
-    await expect(cover).toBeVisible();
-    await expect.poll(() => cover.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await expectCoverReady(page, mobile);
 
     // P12/P13 -> Colección: la intención se resuelve antes de girar y no hay
     // callback tardío que restaure el final de StarLab.
@@ -634,9 +678,7 @@ test.describe("Catálogo StarVie 2027", () => {
     };
 
     await page.goto("/");
-    const cover = page.getByRole("img", { name: "Página 1 del catálogo StarVie 2027", exact: true }).first();
-    await expect(cover).toBeVisible();
-    await expect.poll(() => cover.evaluate((image) => (image as HTMLImageElement).naturalWidth)).toBeGreaterThan(0);
+    await expectCoverReady(page, mobile);
 
     await openCollection();
     await enterStarLab();
@@ -749,7 +791,7 @@ test.describe("Catálogo StarVie 2027", () => {
           creditWeight: Number.parseFloat(creditStyle.fontWeight),
         };
       }, "back-cover-credit");
-      expect(brandingStyle.titleColor).toBe("rgb(230, 70, 55)");
+      expect(brandingStyle.titleColor).toBe(mobile ? "rgb(230, 233, 237)" : "rgb(230, 70, 55)");
       expect(brandingStyle.creditSize).toBeLessThan(brandingStyle.titleSize);
       expect(brandingStyle.creditWeight).toBeLessThan(brandingStyle.titleWeight);
       await page.screenshot({ path: testInfo.outputPath(screenshotName) });
@@ -905,7 +947,7 @@ test.describe("Catálogo StarVie 2027", () => {
       return { states, stop: () => observer.disconnect() };
     });
 
-    await drag('img[data-catalog-page="38"]', "next");
+    await drag(mobile ? 'article[aria-label="Página 38, accesorios StarVie"]' : 'img[data-catalog-page="38"]', "next");
     await expect(app).toHaveAttribute("data-back-cover-state", "closed");
     expect(await motionHistory.evaluate(history => history.states.includes("close-back-cover:closing"))).toBe(true);
     await expect(app).toHaveAttribute("data-book-transition", "idle");
@@ -951,7 +993,8 @@ test.describe("Catálogo StarVie 2027", () => {
     const lastOpenLabel = testInfo.project.name.includes("mobile") ? "38 / 39" : "37–38 / 39";
     await expect(indicator).toContainText(lastOpenLabel);
 
-    const expected = await page.locator('img[data-catalog-page="38"]').first().evaluate((image) => {
+    const expected = await page.locator(testInfo.project.name.includes("mobile")
+      ? 'article[aria-label="Página 38, accesorios StarVie"]' : 'img[data-catalog-page="38"]').first().evaluate((image) => {
       const book = image.closest<HTMLElement>(".page-flip-host");
       const leaf = image.closest<HTMLElement>(".catalog-leaf");
       if (!book || !leaf) throw new Error("No se encontró la geometría estable de P38");

@@ -219,6 +219,7 @@ test.describe("Comercio piloto Raptor+", () => {
     const nextVersion = `sha256-${flipped === hex ? `${"0".repeat(63)}1` : flipped}`;
     const nextCatalog = {
       ...catalog,
+      zeroPriceProductIds: catalog.zeroPriceProductIds.filter((id: string) => id !== "raptor+"),
       products: (catalog.products as Array<Record<string, unknown>>).map((p) =>
         p.id === "raptor+" ? { ...p, precio: newPrice } : p,
       ),
