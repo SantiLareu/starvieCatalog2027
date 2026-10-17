@@ -1,4 +1,25 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
+
+async function observeFlip(page: Page) {
+  await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+  await expect(page.locator("main.catalog-app")).toHaveAttribute("data-book-transition", "idle");
+  // Subscribe before input: the native turn can finish before Playwright's
+  // first attribute poll. Keep its history without changing animation time.
+  return page.evaluateHandle(() => {
+    const host = document.querySelector<HTMLElement>('[data-testid="page-flip-engine"]')!;
+    const states = [{ value: host.dataset.flipState!, at: performance.now() }];
+    const record = (value: string | null) => {
+      if (value && states.at(-1)?.value !== value) states.push({ value, at: performance.now() });
+    };
+    const observer = new MutationObserver(records => {
+      // oldValue also preserves intermediate states if mutations are batched.
+      for (const mutation of records) record(mutation.oldValue);
+      record(host.dataset.flipState!);
+    });
+    observer.observe(host, { attributes: true, attributeOldValue: true, attributeFilter: ["data-flip-state"] });
+    return { history: () => states, disconnect: () => observer.disconnect() };
+  });
+}
 
 test("contratapa mantiene las sombras y ambas caras en el mismo plano físico", async ({ page }) => {
   await page.goto("/");
@@ -62,12 +83,23 @@ test("menú 23 → 31 → 23 y extremos usan índices físicos sincronizados", a
   const mobile = testInfo.project.name.includes("mobile");
   await page.goto("/");
   const indicator = page.getByTestId("page-indicator");
-  for (const number of [23, 31, 23]) {
+  for (const [jump, number] of [23, 31, 23].entries()) {
     await page.getByRole("button", { name: "Abrir miniaturas", exact: true }).click();
-    await page.getByRole("button", { name: `Ir a página ${number}`, exact: true }).click();
-    await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "flipping");
-    await expect(indicator).toHaveText(mobile ? `${number} / 39` : `${number}–${number + 1} / 39`);
-    await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+    const monitor = await observeFlip(page);
+    try {
+      await page.getByRole("button", { name: `Ir a página ${number}`, exact: true }).click();
+      await expect.poll(() => monitor.evaluate(probe => probe.history().map(state => state.value))).toContain("flipping");
+      await expect(indicator).toHaveText(mobile ? `${number} / 39` : `${number}–${number + 1} / 39`);
+      await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+      await expect(page.locator("main.catalog-app")).toHaveAttribute("data-book-transition", "idle");
+      const states = await monitor.evaluate(probe => probe.history());
+      expect(states[0].value).toBe("read");
+      expect(states.slice(states.findIndex(state => state.value === "flipping") + 1).map(state => state.value)).toContain("read");
+      await testInfo.attach(`salto-${jump + 1}-a-${number}`, { body: JSON.stringify(states), contentType: "application/json" });
+    } finally {
+      await monitor.evaluate(probe => probe.disconnect());
+      await monitor.dispose();
+    }
   }
   const first = page.getByRole("button", { name: "Primera página", exact: true });
   const last = page.getByRole("button", { name: "Última página", exact: true });
@@ -92,18 +124,29 @@ test("menú 23 → 31 → 23 y extremos usan índices físicos sincronizados", a
   await expect(indicator).toHaveText(mobile ? "23 / 39" : "23–24 / 39");
 });
 
-test("VER PRODUCTO de P14 conserva el giro físico hasta la ficha real", async ({ page }) => {
+test("VER PRODUCTO de P14 conserva el giro físico hasta la ficha real", async ({ page }, testInfo) => {
   await page.goto("/");
   await page.getByTestId("page-indicator").click();
   await page.locator("#page-number").fill("14");
   await page.locator(".page-picker button").click();
   const carousel = page.locator(".page14-coverflow__interactive");
   await expect(page.locator('.catalog-leaf[data-book-index="13"] [data-testid="page14-coverflow"]')).toHaveAttribute("data-presentation", "interactive");
-  await carousel.getByRole("button", { name: /VER PRODUCTO/ }).click();
-  await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "flipping");
-  await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
-  await expect(page.getByTestId("page-indicator")).not.toContainText("14 / 39");
-  await expect(page.getByRole("dialog")).toHaveCount(0);
+  const monitor = await observeFlip(page);
+  try {
+    await carousel.getByRole("button", { name: /VER PRODUCTO/ }).click();
+    await expect.poll(() => monitor.evaluate(probe => probe.history().map(state => state.value))).toContain("flipping");
+    await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+    await expect(page.locator("main.catalog-app")).toHaveAttribute("data-book-transition", "idle");
+    await expect(page.getByTestId("page-indicator")).not.toContainText("14 / 39");
+    await expect(page.getByRole("dialog")).toHaveCount(0);
+    const states = await monitor.evaluate(probe => probe.history());
+    expect(states[0].value).toBe("read");
+    expect(states.slice(states.findIndex(state => state.value === "flipping") + 1).map(state => state.value)).toContain("read");
+    await testInfo.attach("giro-desde-P14", { body: JSON.stringify(states), contentType: "application/json" });
+  } finally {
+    await monitor.evaluate(probe => probe.disconnect());
+    await monitor.dispose();
+  }
 });
 
 test("portada mobile conserva su marco y centrado al abrir y cerrar", async ({ page, isMobile }) => {

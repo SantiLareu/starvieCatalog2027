@@ -6,9 +6,8 @@ const INSTAGRAMS = [
   { name: "StarVie Argentina", href: "https://www.instagram.com/starvieargoficial/" },
 ] as const;
 
-/** Presentation only: the confirmed reference and close actions come from checkout. */
-export function CheckoutConfirmation({ orderId, error, onClose, onReturn, closeRef }: {
-  orderId: string | null;
+/** Presentation only: technical order references stay in checkout state/storage. */
+export function CheckoutConfirmation({ error, onClose, onReturn, closeRef }: {
   error: string | null;
   onClose: () => void;
   onReturn: () => void;
@@ -52,10 +51,6 @@ export function CheckoutConfirmation({ orderId, error, onClose, onReturn, closeR
           <p className="checkout-confirmation-motto"><span>SIN RIESGO</span>{" "}<span>NO HAY HISTORIA</span></p>
           <p className="checkout-confirmation-thanks">Gracias por elegir StarVie.</p>
         </div>
-        {orderId ? <div className="checkout-confirmation-reference">
-          <p>NÚMERO DE PEDIDO</p>
-          <p className="checkout-confirmation-id" data-testid="confirmed-order-id">{orderId}</p>
-        </div> : null}
         {error ? <p className="checkout-error" role="alert">{error}</p> : null}
         <button className="checkout-confirmation-return" type="button" onClick={onReturn}>VOLVER AL CATÁLOGO</button>
         <div className="checkout-confirmation-social">

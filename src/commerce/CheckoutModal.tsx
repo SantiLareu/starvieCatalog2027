@@ -56,12 +56,12 @@ const EMPTY_CONTACT: CheckoutContact = {
  * Lifecycle:
  * 1. On open: detect existing marker/session (localStorage + sessionStorage).
  *    - Valid marker + matching session → prefill contact from session.
- *    - Valid marker + no session → block (show orderId if available).
+ *    - Valid marker + no session → block (keep orderId internal).
  *    - Missing marker → fresh form; invalid/expired marker → blocked.
  * 2. On submit: build the validated first payload, then persist it before POST.
  *    Later consultations use the stored contact, lines and key unchanged.
  * 3. On result:
- *    - completed → close persisted attempt, clearCart, preserve orderId in confirmation.
+ *    - completed → close persisted attempt, clearCart, preserve orderId internally.
  *    - processing → keep cart + key, show "received", modal stays open.
  *    - failed/conflict/validation → terminal, no retry offered.
  *    - rateLimited/unknown → keep key + payload, allow retry or status check.
@@ -319,7 +319,7 @@ export function CheckoutModal({
           const resolvedOrderId = result.orderId ?? orderId;
           setOrderId(resolvedOrderId);
           setMode({ kind: "terminal" });
-          setServerError("El pedido falló definitivamente. Contactá soporte con la referencia; no lo reintentes.");
+          setServerError("El pedido falló definitivamente. Contactá a StarVie antes de iniciar otro; no lo reintentes.");
           /* Update marker with failed orderId (preserves createdAt, lines). */
           try {
             updateAttempt(lines, {
@@ -444,7 +444,7 @@ export function CheckoutModal({
   /* Success / Processing state */
   if (isSuccess) {
     if (mode.kind === "completed") {
-      return createPortal(<CheckoutConfirmation orderId={orderId} error={serverError}
+      return createPortal(<CheckoutConfirmation error={serverError}
         onClose={onClose} onReturn={onReturnToCatalog} closeRef={closeRef} />, document.body);
     }
     return createPortal(
@@ -484,7 +484,6 @@ export function CheckoutModal({
               <p className="in-stock">
                 Pedido recibido — en proceso.
               </p>
-              {orderId ? <p className="future-note">N° {orderId}</p> : null}
               {serverError ? <p className="checkout-error" role="alert">{serverError}</p> : null}
               <p className="future-note">
                 Te contactaremos por email para coordinar.
@@ -799,9 +798,6 @@ export function CheckoutModal({
             ) : null}
             {verificationConfigured && !siteKey && mode.kind === "idle" ? (
               <p role="alert" className="checkout-error">La verificación de seguridad no está configurada. Contactá a StarVie.</p>
-            ) : null}
-            {orderId && (mode.kind === "terminal" || mode.kind === "blocked") ? (
-              <p className="future-note">N° {orderId}</p>
             ) : null}
 
             {mode.kind === "blocked" && observedAttempt.kind !== "unavailable" &&

@@ -148,7 +148,9 @@ describe.skipIf(!enabled)('StarVie → realstep-api: HTTP local aislado', () => 
       }
       return result;
     };
-    render(<CheckoutModal open onClose={() => {}} presented={presented} total={500} clearCart={clearCart} submitFn={submitFn} />);
+    const onClose = vi.fn();
+    const checkout = (open: boolean) => <CheckoutModal open={open} onClose={onClose} presented={presented} total={500} clearCart={clearCart} submitFn={submitFn} />;
+    const { rerender } = render(checkout(true));
     fireEvent.change(screen.getByLabelText('Nombre y apellido *'), { target: { value: 'Test Local' } });
     fireEvent.change(screen.getByLabelText('Razón social *'), { target: { value: 'Local SRL' } });
     fireEvent.change(screen.getByLabelText('Correo electrónico *'), { target: { value: 'ui@example.test' } });
@@ -164,17 +166,21 @@ describe.skipIf(!enabled)('StarVie → realstep-api: HTTP local aislado', () => 
     expect(originalSession).toBeTruthy();
     const mailsBeforeRecovery = (await (await nativeFetch(`${BASE}/__local/stats`)).json()).resend;
     fireEvent.click(screen.getByRole('button', { name: 'Reintentar envío' }));
-    expect(await screen.findByText(/^N° RS-/)).toBeVisible();
+    expect(await screen.findByRole('dialog', { name: '¡Pedido enviado con éxito!' })).toBeVisible();
+    expect(screen.getByRole('dialog').outerHTML).not.toContain(received[0].orderId);
     expect(sent[1]).toEqual(sent[0]);
     expect(received[0]).toMatchObject({ http: 201, status: 'completed', duplicate: false });
     expect(received[1]).toMatchObject({ http: 200, status: 'completed', duplicate: true, orderId: received[0].orderId });
     expect((await (await nativeFetch(`${BASE}/__local/stats`)).json()).resend).toBe(mailsBeforeRecovery);
     expect(localStorage.getItem('starvie-order-attempt-v2')).toBeNull();
     expect(sessionStorage.getItem('starvie-order-attempt-v2-session')).toBeNull();
-    expect(screen.getByText('Pedido enviado.')).toBeVisible();
+    expect(screen.getByText('¡Pedido enviado con éxito!')).toBeVisible();
     expect(clearCart).toHaveBeenCalledOnce();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Iniciar nueva compra' }));
+    fireEvent.click(screen.getByRole('button', { name: 'VOLVER AL CATÁLOGO' }));
+    expect(onClose).toHaveBeenCalledOnce();
+    rerender(checkout(false));
+    rerender(checkout(true));
     fireEvent.change(screen.getByLabelText('Nombre y apellido *'), { target: { value: 'Test Local' } });
     fireEvent.change(screen.getByLabelText('Razón social *'), { target: { value: 'Local SRL' } });
     fireEvent.change(screen.getByLabelText('Correo electrónico *'), { target: { value: 'ui@example.test' } });
@@ -182,6 +188,7 @@ describe.skipIf(!enabled)('StarVie → realstep-api: HTTP local aislado', () => 
     act(() => onToken(`local-pass-${crypto.randomUUID()}`));
     fireEvent.click(screen.getByRole('button', { name: 'Enviar pedido' }));
     await waitFor(() => expect(clearCart).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole('dialog').outerHTML).not.toContain(received[2].orderId);
     expect(sent[2].idempotencyKey).not.toBe(sent[0].idempotencyKey);
     expect(received[2]).toMatchObject({ http: 201, status: 'completed', duplicate: false });
     expect(received[2].orderId).not.toBe(received[0].orderId);

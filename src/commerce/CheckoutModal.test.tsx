@@ -112,6 +112,23 @@ function renderModal(overrides = {}) {
   return props;
 }
 
+function expectInternalReference(id: string) {
+  const dialog = screen.getByRole("dialog");
+  expect(dialog.outerHTML).not.toContain(id);
+  expect(dialog).not.toHaveTextContent(/NÚMERO DE PEDIDO|N° |idempotencyKey/);
+}
+
+async function expectCompletedWithoutReference(id: string) {
+  await screen.findByRole("dialog", { name: "¡Pedido enviado con éxito!" });
+  expectInternalReference(id);
+}
+
+async function expectFailedWithoutReference(id: string) {
+  await screen.findByText(/El pedido falló definitivamente/);
+  expectInternalReference(id);
+  expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).orderId).toBe(id);
+}
+
 describe("CheckoutModal", () => {
   it("envía una línea sin precio, ocultando importes y preservando identidad/cantidad", async () => {
     vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
@@ -199,7 +216,7 @@ describe("CheckoutModal", () => {
     expect(backdrop).not.toBeNull();
   });
 
-  it("envía formulario válido con payload sin precios y muestra orderId", async () => {
+  it("envía formulario válido con payload sin precios y oculta orderId", async () => {
     localStorage.clear();
     sessionStorage.clear();
     const props = renderModal();
@@ -220,7 +237,7 @@ describe("CheckoutModal", () => {
     expect(JSON.stringify(payload)).not.toMatch(/precio|subtotal|disponible/);
     expect(typeof payload.idempotencyKey).toBe("string");
     await screen.findByText("¡Pedido enviado con éxito!");
-    expect(await screen.findByText("ord-1")).toBeVisible();
+    expectInternalReference("ord-1");
     expect(props.clearCart).toHaveBeenCalledOnce();
   });
 
@@ -390,7 +407,7 @@ describe("CheckoutModal", () => {
   });
 
   /* ── SubmitResult: processing (202) ─────────────────────────────── */
-  it("202 processing: no clearCart, modal abierto, muestra orderId", async () => {
+  it("202 processing: no clearCart, modal abierto, orderId interno", async () => {
     localStorage.clear();
     sessionStorage.clear();
     const submitFn = vi.fn(async () => ({
@@ -405,7 +422,8 @@ describe("CheckoutModal", () => {
     expect(props.clearCart).not.toHaveBeenCalled();
     /* Modal shows processing state, not closed. */
     await screen.findByText("Pedido recibido — en proceso.");
-    expect(screen.getByText("N° proc-1")).toBeVisible();
+    expectInternalReference("proc-1");
+    expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).orderId).toBe("proc-1");
   });
 
   it("202 processing: close/reopen reuses same key and orderId", async () => {
@@ -456,7 +474,7 @@ describe("CheckoutModal", () => {
     await screen.findByText("Pedido recibido — en proceso.");
     fireEvent.click(screen.getByRole("button", { name: "Consultar estado" }));
     await screen.findByText("Sin conexión.");
-    expect(screen.getByText("N° proc-uncertain")).toBeVisible();
+    expectInternalReference("proc-uncertain");
     expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).status).toBe("processing");
     expect(props.clearCart).not.toHaveBeenCalled();
   });
@@ -564,11 +582,12 @@ describe("CheckoutModal", () => {
     const { rerender } = render(modal(true));
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("N° fail-reopen");
+    await expectFailedWithoutReference("fail-reopen");
     rerender(modal(false));
     rerender(modal(true));
     expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
-    expect(screen.getByText("N° fail-reopen")).toBeVisible();
+    expectInternalReference("fail-reopen");
+    expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).orderId).toBe("fail-reopen");
     expect(submitFn).toHaveBeenCalledOnce();
   });
 
@@ -770,7 +789,7 @@ describe("CheckoutModal", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     await screen.findByText("¡Pedido enviado con éxito!");
     expect(props.clearCart).toHaveBeenCalledOnce();
-    expect(screen.getByText("ord-preserve")).toBeVisible();
+    expectInternalReference("ord-preserve");
   });
 
   it("recarga processing y consulta el mismo pedido con payload intacto", async () => {
@@ -782,10 +801,13 @@ describe("CheckoutModal", () => {
     const first = renderModal({ submitFn });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("N° proc-reload");
+    await screen.findByText("Pedido recibido — en proceso.");
+    expectInternalReference("proc-reload");
     cleanup();
     const reopened = renderModal({ submitFn });
-    expect(screen.getByText("N° proc-reload")).toBeVisible();
+    expect(screen.getByText("Pedido recibido — en proceso.")).toBeVisible();
+    expectInternalReference("proc-reload");
+    expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).orderId).toBe("proc-reload");
     fireEvent.click(screen.getByRole("button", { name: "Consultar estado" }));
     await waitFor(() => expect(calls).toHaveLength(2));
     expect(calls[1]).toEqual(calls[0]);
@@ -821,7 +843,7 @@ describe("CheckoutModal", () => {
     const first = renderModal({ submitFn });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("done-1");
+    await expectCompletedWithoutReference("done-1");
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
     expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
     expect(screen.getByText("¡Pedido enviado con éxito!")).toBeVisible();
@@ -837,15 +859,16 @@ describe("CheckoutModal", () => {
     expect(calls[1].idempotencyKey).not.toBe(calls[0].idempotencyKey);
   });
 
-  it("presenta el UUID confirmado intacto, los Instagram seguros y solo la acción de retorno", async () => {
-    const uuid = "8dc011f4-40a3-4ca6-9ce9-2e9d11a9277b";
+  it("oculta el UUID confirmado, conserva los Instagram seguros y solo la acción de retorno", async () => {
+    const uuid = "RS-8dc011f4-40a3-4ca6-9ce9-2e9d11a9277b";
     const onReturnToCatalog = vi.fn();
     const props = renderModal({ onReturnToCatalog, submitFn: vi.fn(async () => ({ kind: "completed" as const, orderId: uuid })) });
     expect(screen.queryByText("SIN RIESGO NO HAY HISTORIA")).toBeNull();
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     expect(await screen.findByRole("dialog", { name: "¡Pedido enviado con éxito!" })).toBeVisible();
-    expect(screen.getByTestId("confirmed-order-id").textContent).toBe(uuid);
+    expectInternalReference(uuid);
+    expect(screen.queryByTestId("confirmed-order-id")).toBeNull();
     expect(screen.getByText((_text, element) => element?.classList.contains("checkout-confirmation-motto") === true &&
       element.textContent === "SIN RIESGO NO HAY HISTORIA")).toBeVisible();
     expect(screen.getByText("Gracias por elegir StarVie.")).toBeVisible();
@@ -897,7 +920,7 @@ describe("CheckoutModal", () => {
     const props = renderModal({ submitFn });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("RS-confirmed");
+    await expectCompletedWithoutReference("RS-confirmed");
     expect(screen.getByText("¡Pedido enviado con éxito!")).toBeVisible();
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
     expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
@@ -941,7 +964,7 @@ describe("CheckoutModal", () => {
     renderModal({ submitFn });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("RS-original");
+    await expectCompletedWithoutReference("RS-original");
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBe(otherMarker);
     expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeTruthy();
     expect(screen.getByRole("alert")).toHaveTextContent(/no se pudo limpiar/);
@@ -959,7 +982,8 @@ describe("CheckoutModal", () => {
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     await screen.findByText("¡Pedido enviado con éxito!");
-    expect(screen.getByText("ord-1")).toBeVisible();
+    expectInternalReference("ord-1");
+    expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).orderId).toBe("ord-1");
     expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).status).toBe("completed");
     expect(screen.getByRole("alert")).toHaveTextContent(/no se pudo limpiar/);
     expect(screen.queryByRole("button", { name: "Iniciar nueva compra" })).toBeNull();
@@ -988,7 +1012,7 @@ describe("CheckoutModal", () => {
     renderModal({ submitFn });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("N° fail-old");
+    await expectFailedWithoutReference("fail-old");
     expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Resolver intento e iniciar nueva compra" }));
     expect(calls).toHaveLength(1);
@@ -1004,7 +1028,8 @@ describe("CheckoutModal", () => {
     orderAttempt.updateAttempt([{ productId: "raptor+", qty: 2 }], { orderId: "proc-lost", status: "processing" });
     sessionStorage.clear();
     const props = renderModal();
-    expect(screen.getByText("N° proc-lost")).toBeVisible();
+    expectInternalReference("proc-lost");
+    expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).orderId).toBe("proc-lost");
     expect(screen.queryByRole("button", { name: "Enviar pedido" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
     expect(props.submitFn).not.toHaveBeenCalled();
@@ -1105,7 +1130,8 @@ describe("CheckoutModal Turnstile", () => {
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
     act(() => widget.callbacks().callback("fresh-token"));
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("N° proc-ts");
+    await screen.findByText("Pedido recibido — en proceso.");
+    expectInternalReference("proc-ts");
     const calls = (props.submitFn as ReturnType<typeof vi.fn>).mock.calls;
     expect(calls[0][1].turnstileToken).toBe("fresh-token");
     expect(localStorage.getItem("starvie-order-attempt-v2")).not.toContain("fresh-token");
@@ -1162,7 +1188,7 @@ describe("CheckoutModal Turnstile", () => {
     expect(screen.getByRole("button", { name: "Reintentar envío" })).toBeDisabled();
     act(() => widget.callbacks().callback("second-token"));
     fireEvent.click(screen.getByRole("button", { name: "Reintentar envío" }));
-    await screen.findByText("done-ts");
+    await expectCompletedWithoutReference("done-ts");
     expect(calls.map((call) => call.token)).toEqual(["first-token", undefined, "second-token"]);
     expect(calls[1].payload).toEqual(calls[0].payload);
     expect(calls[2].payload).toEqual(calls[0].payload);
@@ -1177,7 +1203,8 @@ describe("CheckoutModal Turnstile", () => {
     expect(prepared).not.toBe(false);
     orderAttempt.updateAttempt([{ productId: "raptor+", qty: 2 }], { orderId: "proc-persisted", status: "processing" });
     const props = renderModal({ submitFn: vi.fn(async () => ({ kind: "processing" as const, orderId: "proc-persisted" })) });
-    expect(screen.getByText("N° proc-persisted")).toBeVisible();
+    expect(screen.getByText("Pedido recibido — en proceso.")).toBeVisible();
+    expectInternalReference("proc-persisted");
     expect(widget.api.render).not.toHaveBeenCalled();
     fireEvent.click(screen.getByRole("button", { name: "Consultar estado" }));
     await waitFor(() => expect(props.submitFn).toHaveBeenCalledOnce());
@@ -1197,7 +1224,7 @@ describe("CheckoutModal Turnstile", () => {
     await waitFor(() => expect(widget.api.render).toHaveBeenCalledOnce());
     act(() => widget.callbacks().callback("first-token"));
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("N° failed-ts");
+    await expectFailedWithoutReference("failed-ts");
     expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Resolver intento e iniciar nueva compra" }));
     fillValidForm();
@@ -1205,7 +1232,7 @@ describe("CheckoutModal Turnstile", () => {
     expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
     act(() => widget.callbacks().callback("new-token"));
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await screen.findByText("new-ts");
+    await expectCompletedWithoutReference("new-ts");
     expect(calls[1].idempotencyKey).not.toBe(calls[0].idempotencyKey);
   });
 

@@ -1,7 +1,7 @@
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
-const ORDER_ID = "8dc011f4-40a3-4ca6-9ce9-2e9d11a9277b";
-const NEXT_ORDER_ID = "39c169ed-52e6-47c5-ae61-45ccf2540c69";
+const ORDER_ID = "RS-8dc011f4-40a3-4ca6-9ce9-2e9d11a9277b";
+const NEXT_ORDER_ID = "RS-39c169ed-52e6-47c5-ae61-45ccf2540c69";
 const INSTAGRAMS = [
   ["RealStep", "https://www.instagram.com/realstep.oficial/"],
   ["StarVie Argentina", "https://www.instagram.com/starvieargoficial/"],
@@ -19,7 +19,7 @@ test.beforeEach(async ({ page, context }) => {
   });
 });
 
-async function fixture(page: Page, result: "completed" | "processing" | "error" = "completed") {
+async function fixture(page: Page, result: "completed" | "processing" | "failed" | "error" = "completed") {
   const payloads: Record<string, unknown>[] = [];
   await page.route("**/api/orders**", async route => {
     const headers = { "Access-Control-Allow-Origin": "*", "Access-Control-Allow-Headers": "Content-Type" };
@@ -27,7 +27,7 @@ async function fixture(page: Page, result: "completed" | "processing" | "error" 
     expect(route.request().method()).toBe("POST");
     payloads.push(route.request().postDataJSON());
     const orderId = payloads.length === 1 ? ORDER_ID : NEXT_ORDER_ID;
-    return route.fulfill({ status: result === "error" ? 400 : result === "processing" ? 202 : 201, headers,
+    return route.fulfill({ status: result === "error" ? 400 : result === "failed" ? 502 : result === "processing" ? 202 : 201, headers,
       json: result === "error" ? { error: "Datos rechazados por el servidor de prueba" } : { ok: true, orderId, status: result, duplicate: false } });
   });
   await page.addInitScript(() => localStorage.setItem("starvie-cart-v1", JSON.stringify([{ productId: "raptor+", qty: 2 }])));
@@ -48,7 +48,9 @@ async function openAndSend(page: Page) {
 async function assertConfirmation(page: Page) {
   const dialog = page.getByRole("dialog", { name: "¡Pedido enviado con éxito!", exact: true });
   await expect(dialog).toBeVisible();
-  await expect(dialog.getByTestId("confirmed-order-id")).toHaveText(ORDER_ID);
+  await expect(dialog).not.toContainText(/RS-|[a-f0-9]{8}-[a-f0-9-]{27,}|NÚMERO DE PEDIDO|idempotencyKey/i);
+  await expect(dialog.getByTestId("confirmed-order-id")).toHaveCount(0);
+  expect(await dialog.evaluate(node => node.outerHTML)).not.toContain(ORDER_ID);
   await expect(dialog).not.toContainText(/Finalizar pedido|Te contactaremos|Iniciar nueva compra|Seguir viendo/);
   await expect(dialog.getByText("Gracias por elegir StarVie.", { exact: true })).toBeVisible();
   await expect(dialog.getByText("Licenciatario Oficial", { exact: true })).toBeVisible();
@@ -61,12 +63,10 @@ async function assertLayout(page: Page) {
     const range = document.createRange(); range.selectNodeContents(motto);
     const text = range.getBoundingClientRect();
     const lineTops = [...new Set([...range.getClientRects()].map(rect => Math.round(rect.top)))];
-    const reference = dialog.querySelector<HTMLElement>(".checkout-confirmation-id")!;
-    const layers = [".checkout-confirmation-status", ".checkout-confirmation-message", ".checkout-confirmation-reference",
+    const layers = [".checkout-confirmation-status", ".checkout-confirmation-message",
       ".checkout-confirmation-return", ".checkout-confirmation-social", ".checkout-confirmation-license"]
       .map(selector => dialog.querySelector(selector)!.getBoundingClientRect().toJSON());
     return { text: motto.textContent, textWidth: text.width, mottoWidth: motto.clientWidth, lineTops,
-      referenceOverflow: reference.scrollWidth - reference.clientWidth,
       dialogOverflow: dialog.scrollWidth - dialog.clientWidth, documentOverflow: document.documentElement.scrollWidth - innerWidth,
       dialog: dialog.getBoundingClientRect().toJSON(), layers,
       controls: [...dialog.querySelectorAll("button, a")].map(el => el.getBoundingClientRect().toJSON()) };
@@ -74,7 +74,6 @@ async function assertLayout(page: Page) {
   expect(geometry.text).toBe("SIN RIESGO NO HAY HISTORIA");
   expect(geometry.lineTops).toHaveLength(1);
   expect(geometry.textWidth).toBeLessThanOrEqual(geometry.mottoWidth);
-  expect(geometry.referenceOverflow).toBeLessThanOrEqual(1);
   expect(geometry.dialogOverflow).toBeLessThanOrEqual(1);
   expect(geometry.documentOverflow).toBeLessThanOrEqual(1);
   expect(geometry.dialog.left).toBeGreaterThanOrEqual(0);
@@ -121,7 +120,7 @@ for (const { name, width, height, mobile } of [
   { name: "mobile-bajo", width: 320, height: 480, mobile: true },
   { name: "mobile-landscape", width: 667, height: 375, mobile: true },
 ]) {
-  test(`confirmación premium ${name}: UUID, frase, enlaces y retorno`, async ({ page, context, isMobile }, testInfo) => {
+  test(`confirmación premium ${name}: sin UUID, frase, enlaces y retorno`, async ({ page, context, isMobile }, testInfo) => {
     test.skip(isMobile !== mobile, "Viewport correspondiente al dispositivo");
     await page.setViewportSize({ width, height });
     const cdp = isMobile ? await context.newCDPSession(page) : null;
@@ -169,13 +168,14 @@ test("volver al catálogo permite agregar productos y completar otra compra con 
   await page.locator('[data-product-id="raptor+"]:visible').first().click();
   await page.getByRole("dialog", { name: "Raptor+", exact: true }).getByRole("button", { name: "Agregar al pedido", exact: true }).click();
   await openAndSend(page);
-  await expect(page.getByTestId("confirmed-order-id")).toHaveText(NEXT_ORDER_ID);
+  const secondConfirmation = await assertConfirmation(page);
+  expect(await secondConfirmation.evaluate(node => node.outerHTML)).not.toContain(NEXT_ORDER_ID);
   expect(payloads).toHaveLength(2);
   expect(payloads[1].idempotencyKey).not.toBe(payloads[0].idempotencyKey);
   expect(payloads[1].lines).toEqual([{ productId: "raptor+", qty: 1 }]);
 });
 
-for (const result of ["processing", "error"] as const) {
+for (const result of ["processing", "failed", "error"] as const) {
   test(`${result} conserva su pantalla y no anuncia un pedido confirmado`, async ({ page }) => {
     const payloads = await fixture(page, result);
     await page.goto("/");
@@ -184,12 +184,51 @@ for (const result of ["processing", "error"] as const) {
     const dialog = page.getByRole("dialog", { name: "Finalizar pedido", exact: true });
     if (result === "processing") {
       await expect(dialog).toContainText("Pedido recibido — en proceso.");
-      await expect(dialog).toContainText(`N° ${ORDER_ID}`);
+      await expect(dialog).not.toContainText(ORDER_ID);
+      expect(await dialog.evaluate(node => node.outerHTML)).not.toContain(ORDER_ID);
+      expect(await page.evaluate(() => JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).orderId)).toBe(ORDER_ID);
       await expect(dialog.getByRole("button", { name: "Consultar estado", exact: true })).toBeVisible();
+    } else if (result === "failed") {
+      await expect(dialog.getByRole("alert")).toContainText("El pedido falló definitivamente.");
+      await expect(dialog).not.toContainText(ORDER_ID);
+      expect(await dialog.evaluate(node => node.outerHTML)).not.toContain(ORDER_ID);
+      expect(await page.evaluate(() => JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).orderId)).toBe(ORDER_ID);
+      await expect(dialog.getByRole("button", { name: "Reintentar envío", exact: true })).toHaveCount(0);
     } else {
       await expect(dialog.getByRole("alert")).toContainText("Datos rechazados por el servidor de prueba");
     }
     expect(payloads).toHaveLength(1);
     expect(await page.evaluate(() => JSON.parse(localStorage.getItem("starvie-cart-v1")!))).toEqual([{ productId: "raptor+", qty: 2 }]);
+  });
+}
+
+for (const kind of ["blocked", "expired", "failed"] as const) {
+  test(`recuperación ${kind} conserva la referencia internamente sin exponerla`, async ({ page }) => {
+    let orderRequests = 0;
+    await page.route("**/api/orders**", route => { orderRequests++; return route.abort(); });
+    const key = "0df502b3-51aa-461d-a1b6-19363712c567";
+    await page.addInitScript(({ kind, key, orderId }) => {
+      const lines = [{ productId: "raptor+", qty: 2 }];
+      const createdAt = new Date(Date.now() - (kind === "expired" ? 25 * 3600_000 : 0)).toISOString();
+      const marker = { version: "v2", idempotencyKey: key, orderId, lines, createdAt, status: kind === "failed" ? "failed" : "processing" };
+      localStorage.setItem("starvie-cart-v1", JSON.stringify(lines));
+      localStorage.setItem("starvie-order-attempt-v2", JSON.stringify(marker));
+      if (kind !== "blocked") sessionStorage.setItem("starvie-order-attempt-v2-session", JSON.stringify({ ...marker,
+        contact: { name: "Cliente de prueba", legalName: "Empresa de prueba", email: "cliente@example.test" } }));
+    }, { kind, key, orderId: ORDER_ID });
+    await page.goto("/");
+    await page.getByRole("button", { name: /Abrir pedido/ }).first().click();
+    await page.getByRole("dialog", { name: "Pedido", exact: true }).getByRole("button", { name: "Finalizar pedido", exact: true }).click();
+    const dialog = page.getByRole("dialog", { name: "Finalizar pedido", exact: true });
+    await expect(dialog.getByRole("alert")).toContainText(kind === "blocked" ? "No está disponible el pedido original completo" :
+      kind === "expired" ? "Venció la ventana de seguridad" : "Este pedido terminó sin completarse");
+    const html = await dialog.evaluate(node => node.outerHTML);
+    expect(html).not.toContain(ORDER_ID);
+    expect(html).not.toContain(key);
+    expect(html).not.toContain(ORDER_ID.slice(3, 11));
+    await expect(dialog).not.toContainText(/NÚMERO DE PEDIDO|N° |idempotencyKey/);
+    await expect(dialog.getByRole("button", { name: "Enviar pedido", exact: true })).toHaveCount(0);
+    expect(await page.evaluate(() => JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).orderId)).toBe(ORDER_ID);
+    expect(orderRequests).toBe(0);
   });
 }
