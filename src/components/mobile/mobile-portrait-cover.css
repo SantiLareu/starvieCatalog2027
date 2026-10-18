@@ -4,7 +4,30 @@
   .mobile-portrait-cover__title h1 { background: none; -webkit-text-fill-color: inherit; }
   .mobile-portrait-cover .mobile-portrait-cover__metal--year { display: block; width: fit-content; margin-inline: auto; }
 
+  .mobile-portrait-cover__title .mobile-portrait-cover__presale {
+    margin: 4cqh 0 0;
+    color: #f3f4f6;
+    font-size: clamp(11px, min(4cqw, 2.8cqh), 18px);
+    font-weight: 500;
+    line-height: 1.4;
+    letter-spacing: .24em;
+    text-indent: .24em;
+    white-space: nowrap;
+  }
+  .mobile-portrait-cover__presale span { color: #ed4135; }
+
   @supports (background-clip: text) or (-webkit-background-clip: text) {
+    /* Static pearl and red-metal finishes echo the cover's existing type. */
+    .mobile-portrait-cover__title .mobile-portrait-cover__presale,
+    .mobile-portrait-cover__presale span {
+      background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+    }
+    .mobile-portrait-cover__title .mobile-portrait-cover__presale {
+      background-image: linear-gradient(180deg, #f8fafc 8%, #d7dfe6 38%, #b1bdc8 52%, #f3f6f9 72%, #c0cad4 100%);
+    }
+    .mobile-portrait-cover__presale span {
+      background-image: linear-gradient(180deg, #ff9a8c 8%, #ee5a4a 38%, #ce4034 54%, #fa7e6d 72%, #e34a3a 100%);
+    }
     .mobile-portrait-cover .mobile-portrait-cover__metal {
       background-image: linear-gradient(180deg, #f5f7fa 8%, #c6ced6 36%, #96a3b0 53%, #f3f6f9 72%, #b4bec8 100%);
       background-clip: text; -webkit-background-clip: text; -webkit-text-fill-color: transparent;
@@ -65,6 +88,8 @@
     .mobile-portrait-cover__smoke .mobile-portrait-cover__smoke-layer { animation: none !important; transform: none; }
   }
   @media (forced-colors: active) {
+    .mobile-portrait-cover__title .mobile-portrait-cover__presale,
+    .mobile-portrait-cover__presale span { color: CanvasText; background: none; -webkit-text-fill-color: CanvasText; }
     .mobile-portrait-cover { background: Canvas; }
     .mobile-portrait-cover > .mobile-court-scene { visibility: hidden; }
     .mobile-portrait-cover .mobile-portrait-cover__metal { background: none; -webkit-text-fill-color: CanvasText; color: CanvasText; }

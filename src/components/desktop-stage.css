@@ -1,5 +1,5 @@
 /* No scene image is requested outside the desktop media query. */
-.desktop-stage-background, .desktop-logo-flight { display: none; }
+.desktop-stage-background, .desktop-logo-flight, .desktop-stage-presale { display: none; }
 .desktop-contact-button, .back-cover-contacts { display: none; }
 
 @media (min-width: 1024px) and (hover: hover) and (pointer: fine) {
@@ -143,6 +143,69 @@
     opacity: 0.62;
   }
 
+  /* Stage copy stays outside the page and observes the existing cover state. */
+  .desktop-stage-presale {
+    display: block;
+    position: absolute;
+    z-index: 0;
+    left: 8%;
+    top: calc(50% + var(--toolbar-height) / 2);
+    width: 37%;
+    margin: 0;
+    transform: translateY(-50%);
+    color: #f3f4f6;
+    font-size: clamp(40px, 5.8vw, 104px);
+    font-weight: 600;
+    line-height: 1.08;
+    letter-spacing: .025em;
+    text-shadow: 0 2px 20px #0009;
+    pointer-events: none;
+    user-select: none;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 180ms ease, visibility 0s linear 180ms;
+  }
+  .desktop-stage-presale::before {
+    content: "";
+    display: block;
+    width: 44px;
+    height: 2px;
+    margin-bottom: 22px;
+    background: var(--accent);
+    box-shadow: 0 0 8px rgb(230 70 55 / .25);
+  }
+  /* Transparent glyphs leave real open centers; the bloom follows the lit
+     outline instead of blurring a solid, filled letter. No flicker or pulse. */
+  .desktop-stage-presale span {
+    display: block;
+    width: fit-content;
+    -webkit-text-fill-color: transparent;
+    text-shadow: none;
+  }
+  .desktop-stage-presale span:first-child {
+    font-size: .9em;
+    font-weight: 400;
+    letter-spacing: .04em;
+    -webkit-text-stroke: 1.2px #f4f8ff;
+    filter: drop-shadow(0 0 2px #f4f8ffcc) drop-shadow(0 0 7px #d4e5ff80)
+      drop-shadow(0 0 18px #d4e5ff40);
+  }
+  .desktop-stage-presale span + span {
+    margin-top: .06em;
+    color: var(--accent);
+    font-size: 1.06em;
+    font-weight: 500;
+    letter-spacing: .045em;
+    -webkit-text-stroke: 1.6px #ffb4a5;
+    filter: drop-shadow(0 0 2px #ff4634) drop-shadow(0 0 8px #e64637e6)
+      drop-shadow(0 0 24px #e6463780);
+  }
+  .catalog-app.cover-active.cover-ready[data-book-transition="idle"] > .desktop-stage-presale {
+    opacity: 1;
+    visibility: visible;
+    transition-delay: 0s;
+  }
+
   /* Sibling of the background: this layer can cross in front of the book,
      below the toolbar/dialogs, without altering any of their stacking contexts. */
   .desktop-logo-flight[data-active="true"] {
@@ -257,8 +320,16 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .desktop-stage-presale { transition: none; }
     .desktop-contact-button, .back-cover-contacts a { transition: none; }
     .back-cover-bridge.is-live .back-cover-contacts { animation: none; opacity: 1; }
     .catalog-app > .magazine-stage { transition: none; }
+  }
+  @media (forced-colors: active) {
+    .desktop-stage-presale span:is(:first-child, :last-child) {
+      -webkit-text-fill-color: CanvasText;
+      -webkit-text-stroke: 0;
+      filter: none;
+    }
   }
 }

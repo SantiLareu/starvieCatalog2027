@@ -53,7 +53,7 @@ test("contratapa mantiene las sombras y ambas caras en el mismo plano físico", 
   expect(Math.max(...gaps)).toBeLessThan(1);
 });
 
-test("la página de accesorios gira como cara interior de la contratapa desktop", async ({ page, isMobile }) => {
+test("la página de accesorios gira como cara interior de la contratapa desktop", async ({ page, isMobile }, testInfo) => {
   test.skip(isMobile, "La composición mobile conserva su configuración actual");
   await page.goto("/");
   await page.getByTestId("page-indicator").click();
@@ -62,17 +62,40 @@ test("la página de accesorios gira como cara interior de la contratapa desktop"
   const innerImage = page.locator('.back-cover-physics-leaf[data-rear-bridge-page="right"] img');
   const originalPage = page.locator('.catalog-leaf[data-rear-source]');
   for (let round = 0; round < 2; round++) {
-    await page.getByRole("button", { name: "Página siguiente", exact: true }).click();
-    await expect(page.locator("main")).toHaveAttribute("data-back-cover-state", "closing");
-    await expect(innerImage).toHaveCSS("opacity", "1");
-    await expect(originalPage).toHaveCSS("opacity", "0");
-    await page.waitForFunction(() => {
-      const leaf = document.querySelector<HTMLElement>('.back-cover-physics-leaf[data-rear-bridge-page="right"]');
-      if (!leaf) return false;
-      const angle = new DOMMatrix(getComputedStyle(leaf).transform).m11;
-      return Math.abs(angle) > 0.2 && Math.abs(angle) < 0.85;
+    await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+    await expect(page.locator("main")).toHaveAttribute("data-book-transition", "idle");
+    await expect(page.locator("main")).toHaveAttribute("data-back-cover-state", "open");
+    // Observe before input: protocol assertions can otherwise miss the
+    // intermediate angle even though the physical turn has taken place.
+    const monitor = await page.evaluateHandle(() => {
+      const samples: { at: number; angle: number }[] = [];
+      let frame = 0;
+      const sample = () => {
+        const leaf = document.querySelector<HTMLElement>('.back-cover-physics-leaf[data-rear-bridge-page="right"]');
+        if (leaf && document.querySelector<HTMLElement>("main")!.dataset.backCoverState === "closing") {
+          samples.push({ at: performance.now(), angle: new DOMMatrix(getComputedStyle(leaf).transform).m11 });
+        }
+        frame = requestAnimationFrame(sample);
+      };
+      frame = requestAnimationFrame(sample);
+      return { history: () => samples, stop: () => cancelAnimationFrame(frame) };
     });
-    await expect(page.locator("main")).toHaveAttribute("data-back-cover-state", "closed");
+    try {
+      await page.getByRole("button", { name: "Página siguiente", exact: true }).click();
+      await expect(page.locator("main")).toHaveAttribute("data-back-cover-state", "closing");
+      await expect(innerImage).toHaveCSS("opacity", "1");
+      await expect(originalPage).toHaveCSS("opacity", "0");
+      await expect.poll(() => monitor.evaluate(probe => probe.history().some(({ angle }) =>
+        Math.abs(angle) > 0.2 && Math.abs(angle) < 0.85,
+      ))).toBe(true);
+      await expect(page.locator("main")).toHaveAttribute("data-back-cover-state", "closed");
+    } finally {
+      await monitor.evaluate(probe => probe.stop());
+      await testInfo.attach(`giro-contratapa-${round + 1}`, {
+        body: JSON.stringify(await monitor.evaluate(probe => probe.history())), contentType: "application/json",
+      });
+      await monitor.dispose();
+    }
     await page.getByRole("button", { name: "Página anterior", exact: true }).click();
     await expect(page.locator("main")).toHaveAttribute("data-back-cover-state", "open");
     await expect(originalPage).toHaveCSS("opacity", "1");

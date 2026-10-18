@@ -153,7 +153,7 @@ test("desktop: contratapa no deja mural residual y reabre sin reiniciar el libro
 test("mobile: comparte el asset mural sin activar capas de vuelo desktop", async ({ page, isMobile }) => {
   test.skip(!isMobile, "Control de mobile");
   const logoRequests: string[] = [];
-  page.on("request", request => { if (request.url().includes("starvie-wall-logo")) logoRequests.push(request.url()); });
+  page.on("request", request => { if (request.resourceType() === "image" && request.url().includes("starvie-wall-logo")) logoRequests.push(request.url()); });
   await page.goto("/");
   const app = page.locator(".catalog-app");
   await expect(app).toHaveClass(/cover-ready/);

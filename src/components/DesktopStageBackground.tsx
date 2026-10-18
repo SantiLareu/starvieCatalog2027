@@ -163,6 +163,7 @@ export function DesktopStageBackground({ book }: { book: LogoBookState }) {
         <div className="desktop-stage-background__wall-mark" />
       </div>
     </div>
+    <p className="desktop-stage-presale"><span>PREVENTA</span>{" "}<span>EXCLUSIVA</span></p>
     <div ref={flightRef} className="desktop-logo-flight" aria-hidden="true">
       <div ref={flyingRef} className="desktop-logo-flight__logo" />
     </div>

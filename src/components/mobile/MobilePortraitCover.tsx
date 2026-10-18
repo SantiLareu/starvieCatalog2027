@@ -13,6 +13,7 @@ export function MobilePortraitCover() {
       <span className="mobile-portrait-cover__metal">COLECCIÓN</span>
       <h1><span className="mobile-portrait-cover__metal mobile-portrait-cover__metal--year">2027</span></h1><i aria-hidden="true" />
       <p className="mobile-portrait-cover__metal">PADEL WITHOUT LIMITS</p>
+      <p className="mobile-portrait-cover__presale">PREVENTA <span>EXCLUSIVA</span></p>
     </div>
     <footer><strong className="mobile-portrait-cover__metal">STARVIE</strong><i aria-hidden="true" />
       <span className="mobile-portrait-cover__metal">CATÁLOGO OFICIAL</span></footer>

@@ -44,9 +44,29 @@ test("mobile vuelve con swipe, drag y tap, sin bloquear ni duplicar giros", asyn
   await expect(page.getByTestId("page-indicator")).toHaveText("17 / 39");
   const next = page.getByRole("button", { name: "Página siguiente", exact: true });
   const previous = page.getByRole("button", { name: "Página anterior", exact: true });
-  await next.click();
-  await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "flipping");
-  await previous.click();
+  await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
+  // Deliver the competing request at the transition boundary; another protocol
+  // click may arrive after the turn and legitimately navigate back instead.
+  const reversal = await page.evaluateHandle(() => {
+    const engine = document.querySelector<HTMLElement>('[data-testid="page-flip-engine"]')!;
+    const previous = document.querySelector<HTMLButtonElement>('button[aria-label="Página anterior"]')!;
+    const delivered: { state: string; at: number }[] = [];
+    const observer = new MutationObserver(() => {
+      if (engine.dataset.flipState !== "flipping") return;
+      observer.disconnect();
+      delivered.push({ state: engine.dataset.flipState, at: performance.now() });
+      previous.click();
+    });
+    observer.observe(engine, { attributes: true, attributeFilter: ["data-flip-state"] });
+    return { history: () => delivered, disconnect: () => observer.disconnect() };
+  });
+  try {
+    await next.click();
+    await expect.poll(() => reversal.evaluate(probe => probe.history().map(event => event.state))).toEqual(["flipping"]);
+  } finally {
+    await reversal.evaluate(probe => probe.disconnect());
+    await reversal.dispose();
+  }
   await expect(page.getByTestId("page-flip-engine")).toHaveAttribute("data-flip-state", "read");
   await expect(page.getByTestId("page-indicator")).toHaveText("18 / 39");
   await previous.click();

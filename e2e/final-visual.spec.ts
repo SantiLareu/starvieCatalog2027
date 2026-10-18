@@ -56,11 +56,13 @@ test("contratapa conserva caras orientadas, bisagra y estado en cierres rápidos
       delivered: () => delivered,
     };
   });
+  const expectedTransitions = ['closing', 'opening', 'closing', 'opening', 'closing', 'opening'];
   for (let round = 0; round < 3; round++) {
     await reversal.evaluate(probe => probe.arm('closing', 'ArrowLeft'));
     if (round === 0) await page.getByRole("button", { name: "Página siguiente", exact: true }).click();
     else await page.keyboard.press("ArrowRight");
-    await expect(app).toHaveAttribute("data-back-cover-state", "closing");
+    // The pre-input observer preserves transitions that finish before a poll.
+    await expect.poll(() => reversal.evaluate(probe => probe.delivered())).toEqual(expectedTransitions.slice(0, round * 2 + 1));
     await expect(app).toHaveAttribute("data-back-cover-state", "closed");
     await expect(app).toHaveAttribute("data-book-transition", "idle");
     await expect(indicator).toContainText("CONTRATAPA / 39");
@@ -68,7 +70,7 @@ test("contratapa conserva caras orientadas, bisagra y estado en cierres rápidos
     await reversal.evaluate(probe => probe.arm('opening', 'ArrowRight'));
     if (round === 0) await page.keyboard.press("ArrowLeft");
     else await page.getByRole("button", { name: "Página anterior", exact: true }).click();
-    await expect(app).toHaveAttribute("data-back-cover-state", "opening");
+    await expect.poll(() => reversal.evaluate(probe => probe.delivered())).toEqual(expectedTransitions.slice(0, round * 2 + 2));
     await expect(app).toHaveAttribute("data-back-cover-state", "open");
     await expect(app).toHaveAttribute("data-book-transition", "idle");
   }
