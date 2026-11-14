@@ -571,11 +571,14 @@ export function prepareAttempt(
          tiene su propio compartmento, así que el registro leído ya es del
          canal pedido; el canal DISTRIBUIDOR exige además que el registro
          esté atribuido a él (un registro heredado o público no se adopta).
-         El canal público conserva el comportamiento de origin/main: trata
-         el registro de su compartmento como propio. */
-      (channel === "distributor" &&
-        (status.snapshot.channel !== channel ||
-          existingSession.channel !== channel))
+         El canal público conserva el comportamiento de origin/main con los
+         registros heredados (sin atribución), pero NUNCA adopta un registro
+         atribuido al DISTRIBUIDOR: esa clave y ese pedido pertenecen al otro
+         canal y reenviarlos aquí los duplicaría. */
+      (channel === "distributor"
+        ? status.snapshot.channel !== channel || existingSession.channel !== channel
+        : status.snapshot.channel === "distributor" ||
+          existingSession.channel === "distributor")
     ) {
       return false;
     }
@@ -1121,6 +1124,15 @@ export function resolveAttemptForNewPurchase(
      confirmación del cliente). Cada canal tiene su propio compartmento: el
      registro que se toca es SIEMPRE el de su canal. */
   const storedSession = getAttemptSession({ storage: session, channel });
+  /* Un registro atribuido al DISTRIBUIDOR no se libera desde el canal
+     PÚBLICO: es el pedido del otro canal y liberarlo desde aquí lo borraría
+     sin que su propia conciliación lo hubiera cerrado. El canal distribuidor
+     sí lo libera por su propia vía (con la compuerta local). */
+  const ownedByDistributor =
+    (current.kind === "valid" || current.kind === "expired"
+      ? current.snapshot.channel
+      : storedSession?.channel) === "distributor";
+  if (ownedByDistributor && channel !== "distributor") return false;
   if (options?.channel !== "public" && !canResolveAttemptLocally(current, storedSession)) return false;
   if (current.kind === "missing") {
     if (!confirmedUncertain || getStoredSessionPresence({ storage: session, channel }) !== "present") return false;

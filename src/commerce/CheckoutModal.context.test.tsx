@@ -74,9 +74,11 @@ const CUIT_A = "20-11111111-1";
 const CUIT_B = "20-22222222-2";
 const PASSWORD = "clave-de-prueba";
 const DISCOUNT_PERCENT = 20;
-/* El backend devuelve el vencimiento ALMACENADO de la sesión: cada login
-   abre una sesión nueva (vencimiento nuevo) y las revalidaciones de la
-   misma sesión devuelven SIEMPRE el mismo. */
+/* El backend devuelve el IDENTIFICADOR OPACO DE SESIÓN: es estable durante
+   la vida de la sesión, distinto en cada login y distinto en cada cuenta.
+   El vencimiento se mantiene IGUAL entre logins a propósito: dos cuentas
+   pueden compartir descuento y vencimiento (esa era la colisión de la
+   huella anterior). */
 const ORDER_ID = "ord-1";
 
 type FetchCall = {
@@ -90,7 +92,12 @@ let unexpectedCalls: string[] = [];
 let sessionAuthenticated = false;
 /* Vencimiento de la sesión vigente (el que devuelve /session). */
 let sessionExpiresAt: string | null = null;
+/* Identificador opaco de la sesión vigente (el que devuelve /session). */
+let sessionId: string | null = null;
 let loginCount = 0;
+/* El vencimiento es el MISMO para todas las sesiones que abre este doble:
+   la distin-ción entre cuentas no puede depender de él. */
+const SHARED_EXPIRES_AT = "2026-11-20T20:00:00.000Z";
 
 function jsonResponse(data: unknown, status = 200): Response {
   return {
@@ -126,25 +133,30 @@ const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => 
           authenticated: true,
           discountPercent: DISCOUNT_PERCENT,
           expiresAt: sessionExpiresAt,
+          sessionId,
         })
       : jsonResponse({ ok: true, authenticated: false });
   }
   if (url.endsWith("/api/distributor/login") && method === "POST") {
     sessionAuthenticated = true;
     /* Cada login abre una sesión nueva: el backend devuelve un
-       vencimiento nuevo (precisión de milisegundos). */
+       identificador NUEVO (y el MISMO descuento y el MISMO vencimiento que
+       otra cuenta: no puede ser eso lo que distinga a las cuentas). */
     loginCount += 1;
-    sessionExpiresAt = new Date(Date.now() + 3_600_000 + loginCount * 1000).toISOString();
+    sessionExpiresAt = SHARED_EXPIRES_AT;
+    sessionId = `session-id-${loginCount}`;
     return jsonResponse({
       ok: true,
       authenticated: true,
       discountPercent: DISCOUNT_PERCENT,
       expiresAt: sessionExpiresAt,
+      sessionId,
     });
   }
   if (url.endsWith("/api/distributor/logout") && method === "POST") {
     sessionAuthenticated = false;
     sessionExpiresAt = null;
+    sessionId = null;
     return jsonResponse({ ok: true });
   }
   if (url.includes("/api/distributor/quote") && method === "GET") {
@@ -204,11 +216,11 @@ const mockedCommerce = vi.mocked(useCommerce);
 const clearCartSpy = vi.fn();
 
 /**
- * Huella de VALOR de la sesión para los montajes directos del modal en canal
- * distribuidor: el canal exige la huella vigente ("v1:<descuento>:<fin de
- * sesión>"). Sin huella el checkout no prepara ni reenvía nada.
+ * Prueba de continuidad de la sesión para los montajes directos del modal
+ * en canal distribuidor: el IDENTIFICADOR OPACO DE SESIÓN que devuelve el
+ * backend. Sin esa prueba el checkout no prepara ni reenvía nada.
  */
-const SESSION_FINGERPRINT = "v1:20:2026-11-20T20:00:00.000Z";
+const SESSION_FINGERPRINT = "Zk3vJ8xQ1nT5pR7wY2bA";
 
 function mockCommerce() {
   mockedCommerce.mockReturnValue({
@@ -377,6 +389,7 @@ beforeEach(() => {
   unexpectedCalls = [];
   sessionAuthenticated = false;
   sessionExpiresAt = null;
+  sessionId = null;
   loginCount = 0;
   clearCartSpy.mockClear();
   mockCommerce();
@@ -470,7 +483,7 @@ describe("Contexto del intento de pedido (A–H)", () => {
     expect(clearCartSpy).not.toHaveBeenCalled();
   });
 
-  it("C · cambiar de distribuidor (otra sesión ⇒ otra huella) no reintenta", async () => {
+  it("C · cambiar de distribuidor (otra sesión ⇒ otra prueba) no reintenta", async () => {
     renderApp();
     await loginDistributor("a");
 
@@ -482,8 +495,10 @@ describe("Contexto del intento de pedido (A–H)", () => {
     const facts = markerFacts("distributor");
     await closeCheckout();
 
-    /* Sale A y entra B: otra cuenta ⇒ el backend abre otra sesión con otro
-       vencimiento ⇒ otra huella de sesión. */
+    /* Sale A y entra B: otra cuenta ⇒ el backend abre otra sesión con OTRO
+       identificador de sesión. El descuento y el vencimiento son los
+       MISMOS: no puede ser eso lo que distinga a las cuentas (esa era la
+       colisión de la huella anterior). */
     await logoutDistributor();
     await loginDistributor("b");
     const logins = calls.filter(
@@ -495,13 +510,104 @@ describe("Contexto del intento de pedido (A–H)", () => {
     await openCheckout();
     await clickSubmit();
 
-    /* RED: hoy la clave de A se reenvía bajo la sesión de B.
-       El único envío legítimo es el primero: el cambio de cuenta no puede
+    /* El único envío legítimo es el primero: el cambio de cuenta no puede
        sumar un segundo POST con la MISMA clave. */
     expect(distributorOrderPosts()).toHaveLength(1);
     expect(orderKeys(distributorOrderPosts())).toEqual([keyA]);
     expect(markerFacts("distributor")).toEqual(facts);
     expect(storedSession("distributor")?.idempotencyKey).toBe(keyA);
+  });
+
+  it("C · dos cuentas con el MISMO descuento y el MISMO vencimiento NO comparten la prueba", async () => {
+    /* La colisión que tenía la huella anterior (descuento + vencimiento):
+       el backend abre dos sesiones con el mismo porcentaje y el mismo
+       vencimiento, y sólo el identificador de sesión las distingue. */
+    renderApp();
+    await loginDistributor("a");
+
+    await openCheckout();
+    fillForm();
+    await clickSubmit();
+    await waitFor(() => expect(distributorOrderPosts()).toHaveLength(1));
+    const keyA = String(distributorOrderPosts()[0].body?.idempotencyKey);
+    const facts = markerFacts("distributor");
+    await closeCheckout();
+
+    await logoutDistributor();
+    await loginDistributor("b");
+
+    /* Las dos sesiones comparten descuento y vencimiento: lo único que
+       cambia es el identificador opaco del backend. */
+    const sesiones = calls
+      .filter(
+        (call) =>
+          call.method === "POST" && call.url.endsWith("/api/distributor/login"),
+      )
+      .length;
+    expect(sesiones).toBe(2);
+
+    await openCheckout();
+    await clickSubmit();
+
+    /* El intento de A NO es reutilizable bajo la sesión de B. */
+    expect(distributorOrderPosts()).toHaveLength(1);
+    expect(orderKeys(distributorOrderPosts())).toEqual([keyA]);
+    expect(markerFacts("distributor")).toEqual(facts);
+    expect(storedSession("distributor")?.idempotencyKey).toBe(keyA);
+  });
+
+  it("C · una sesión SIN identificador del backend no demuestra continuidad", async () => {
+    /* El backend no envía el identificador de sesión: no hay prueba de
+       continuidad y NO se sustituye por el descuento ni por el vencimiento. */
+    const original = fetchMock.getMockImplementation()!;
+    fetchMock.mockImplementation(async (input, init) => {
+      const url = String(input);
+      if (url.endsWith("/api/distributor/login")) {
+        calls.push({ url, method: init?.method ?? "GET", body: JSON.parse(String(init?.body)) });
+        sessionAuthenticated = true;
+        sessionExpiresAt = SHARED_EXPIRES_AT;
+        sessionId = null;
+        return jsonResponse({
+          ok: true,
+          authenticated: true,
+          discountPercent: DISCOUNT_PERCENT,
+          expiresAt: sessionExpiresAt,
+        });
+      }
+      if (url.endsWith("/api/distributor/session")) {
+        calls.push({ url, method: "GET", body: null });
+        return sessionAuthenticated
+          ? jsonResponse({
+              ok: true,
+              authenticated: true,
+              discountPercent: DISCOUNT_PERCENT,
+              expiresAt: sessionExpiresAt,
+            })
+          : jsonResponse({ ok: true, authenticated: false });
+      }
+      return original(input, init);
+    });
+    try {
+      renderApp();
+      await loginDistributor("a");
+
+      await openCheckout();
+      fillForm();
+      const uuid = vi.spyOn(crypto, "randomUUID");
+      try {
+        await clickSubmit();
+        /* Sin prueba de continuidad no se prepara ni se envía nada: ni
+           clave nueva, ni POST, ni registros escritos. */
+        expect(distributorOrderPosts()).toHaveLength(0);
+        expect(uuid).not.toHaveBeenCalled();
+        expect(localStorage.getItem(DIST_LOCAL)).toBeNull();
+        expect(sessionStorage.getItem(DIST_SESSION)).toBeNull();
+      } finally {
+        uuid.mockRestore();
+      }
+    } finally {
+      fetchMock.mockImplementation(original);
+    }
   });
 
   it("D · tras recargar, el intento distribuidor queda bloqueado y se conserva", async () => {

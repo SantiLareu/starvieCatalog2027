@@ -16,14 +16,14 @@ const REFERENCE = "0df502b3-51aa-461d-a1b6-19363712c567";
 const OTHER_REFERENCE = "11111111-2222-4333-8444-555555555555";
 
 /**
- * Huella de VALOR de la sesión ("v1:<descuento>:<vencimiento>"): el
- * checkout la compara por valor, así que una revalidación de la MISMA
- * sesión conserva la huella.
+ * Prueba de continuidad de la sesión: el IDENTIFICADOR OPACO DE SESIÓN
+ * que devuelve el backend. El checkout la compara por valor, así que una
+ * revalidación de la MISMA sesión conserva la prueba.
  */
-const SESSION_FINGERPRINT = "v1:20:2026-11-20T20:00:00.000Z";
+const SESSION_FINGERPRINT = "Zk3vJ8xQ1nT5pR7wY2bA";
 
-/** Segunda cuenta: otra huella de sesión (otro vencimiento). */
-const OTHER_SESSION_FINGERPRINT = "v1:20:2026-11-21T20:00:00.000Z";
+/** Segunda cuenta: otra sesión del backend (otro identificador). */
+const OTHER_SESSION_FINGERPRINT = "Q7wY2bA0Zk3vJ8xQ1nT5pR";
 
 /* La conciliación es exclusiva del canal distribuidor: su compartmento. */
 const LOCAL_KEY = "starvie-order-attempt-v2-distributor";

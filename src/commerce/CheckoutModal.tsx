@@ -118,12 +118,18 @@ type CheckoutModalProps = {
   distributorNetByProduct?: Record<string, number | null>;
   onDistributorSessionExpired?: () => void;
   /**
-   * Huella de VALOR de la sesión de distribuidor (SOLO en memoria):
-   * "v1:<descuento>:<fin de sesión>". Se compara POR VALOR, así que una
-   * revalidación inocua de la MISMA sesión (montaje, foco, visibilidad,
-   * temporizador) NO invalida el intento, mientras que un login nuevo, un
-   * logout o una expiración (huella `null`) sí lo hacen.
-   * NO es un identificador de cuenta, no se persiste y no viaja al backend.
+   * Prueba de continuidad de la sesión de distribuidor (SOLO en memoria): el
+   * IDENTIFICADOR OPACO DE SESIÓN que devuelve el backend (`sessionId`).
+   *
+   * Se compara POR VALOR, así que una revalidación inocua de la MISMA
+   * sesión (montaje, foco, visibilidad, temporizador) NO invalida el intento
+   * (el backend devuelve el mismo identificador), mientras que un login
+   * nuevo, un logout o una expiración (prueba `null`) sí lo hacen.
+   *
+   * `null` significa que NO hay continuidad demostrada: sin ese valor el
+   * intento no se reenvía, no se libera y no se concilia. NO es un
+   * identificador de cuenta ni una credencial, no se persiste y no viaja al
+   * backend.
    */
   distributorSessionFingerprint?: string | null;
 };
@@ -207,13 +213,15 @@ export function CheckoutModal({
 
   /* ── Canal del intento + huella viva de sesión ──────────────────── */
   /* El canal queda fijado mientras el checkout está abierto (lo fija
-     CartDrawer al abrir). La huella viva es el VALOR de la sesión: si
-     cambia (login nuevo, logout, expiración) el intento ya no es
-     reenviable; si la misma sesión se revalida, la huella NO cambia y el
-     intento sigue siendo reenviable, liberable y conciliable. */
+     CartDrawer al abrir). La prueba viva es el IDENTIFICADOR OPACO DE SESIÓN
+     que devuelve el backend: si cambia (login nuevo, logout, expiración) el
+     intento ya no es reenviable; si la misma sesión se revalida, el
+     identificador NO cambia y el intento sigue siendo reenviable, liberable
+     y conciliable. Si el servidor no lo envío, la prueba es `null`: la
+     continuidad NO está demostrada. */
   const channel: OrderAttemptChannel = distributorMode ? "distributor" : "public";
   const liveFingerprint = distributorSessionFingerprint ?? null;
-  /* Última huella conocida: permite descartar una respuesta que llega
+  /* Última prueba conocida: permite descartar una respuesta que llega
      después de que la sesión cambió. */
   const liveFingerprintRef = useRef(liveFingerprint);
   liveFingerprintRef.current = liveFingerprint;
@@ -592,10 +600,17 @@ export function CheckoutModal({
        registro como lo liberaba origin/main: cada canal tiene su propio
        compartmento de almacenamiento, así que un registro de otro canal
        nunca se toca desde acá. */
-    if (channel === "distributor" && mode.kind !== "completed" &&
-        !canResolveAttemptLocally(getStoredAttemptStatus({ channel }), getAttemptSession({ channel }))) {
-      setServerError(RELEASE_NOT_ALLOWED_MESSAGE);
-      return;
+    if (channel === "distributor" && mode.kind !== "completed") {
+      /* Sin prueba de continuidad viva no se puede atribuir el registro a
+         ninguna cuenta: no se libera nada (el registro se conserva). */
+      if (!liveFingerprint) {
+        setServerError(CONTEXT_MISMATCH_MESSAGE);
+        return;
+      }
+      if (!canResolveAttemptLocally(getStoredAttemptStatus({ channel }), getAttemptSession({ channel }))) {
+        setServerError(RELEASE_NOT_ALLOWED_MESSAGE);
+        return;
+      }
     }
     const resolved = mode.kind === "completed"
       ? getStoredAttemptStatus({ channel }).kind === "missing" && getStoredSessionPresence({ channel }) === "missing"
@@ -804,8 +819,14 @@ export function CheckoutModal({
      confirmación y el botón de liberación aparecen en los mismos estados que
      antes. El canal DISTRIBUIDOR sólo los habilita cuando el intento es
      realmente liberable en local: un registro heredado, de otro canal o de
-     otra sesión no se libera nunca. */
-  const releaseUiAllowed = distributorMode ? localResolutionAllowed : true;
+     otra sesión no se libera nunca.
+     Además, el canal DISTRIBUIDOR exige una PRUEBA DE CONTINUIDAD viva (el
+     identificador de sesión del backend): sin ella no se puede atribuir el
+     registro a ninguna cuenta, así que no se libera nada. `null` (sesión
+     no autenticada o backend sin `sessionId`) nunca autoriza una liberación. */
+  const releaseUiAllowed = distributorMode
+    ? localResolutionAllowed && liveFingerprint !== null
+    : true;
   const persistedReference = persistedAttempt.kind === "valid" || persistedAttempt.kind === "expired"
     ? persistedAttempt.snapshot.idempotencyKey : persistedSession?.idempotencyKey ?? null;
   const persistedStatus = persistedAttempt.kind === "valid" || persistedAttempt.kind === "expired"

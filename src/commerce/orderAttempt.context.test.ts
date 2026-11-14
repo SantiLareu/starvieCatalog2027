@@ -7,9 +7,10 @@
  *  - Cada canal tiene su propio compartmento de almacenamiento: una clave
  *    nunca viaja de un canal al otro.
  *  - Un registro heredado (sin canal) se conserva pero no se reenvía.
- *  - El canal distribuidor exige la MISMA huella de sesión (valor estable
- *    frente a una revalidación inocua, distinta ante otra cuenta): el canal
- *    público no depende de una sesión y sobrevive a una recarga.
+ *  - El canal distribuidor exige la MISMA prueba de sesión (el
+ *    identificador opaco del backend: estable frente a una revalidación
+ *    inocua, distinto ante otra cuenta): el canal público no depende de una
+ *    sesión y sobrevive a una recarga.
  *  - La atribución es metadata local: nunca viaja en el cuerpo del pedido.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -89,10 +90,11 @@ function rawSession(extra: Record<string, unknown> = {}, createdAt: string) {
 
 /* Clave y pruebas exclusivas de las regresiones independientes. */
 const VERIFIER_KEY = "verifier-immutable";
-/* Huellas de VALOR de la sesión: "v1:<descuento>:<vencimiento>". La misma
-   sesión revalidada produce la MISMA huella; otra cuenta, otra huella. */
-const VERIFIER_PROOF_A = "v1:20:2026-11-11T20:00:00.000Z";
-const VERIFIER_PROOF_B = "v1:20:2026-11-12T20:00:00.000Z";
+/* Pruebas de continuidad: el IDENTIFICADOR OPACO DE SESIÓN que devuelve el
+   backend. La misma sesión revalidada produce el MISMO identificador; otra
+   cuenta, otro identificador. */
+const VERIFIER_PROOF_A = "Zk3vJ8xQ1nT5pR7wY2bA";
+const VERIFIER_PROOF_B = "Q7wY2bA0Zk3vJ8xQ1nT5pR";
 
 beforeEach(() => {
   localStorage.clear();
@@ -186,7 +188,7 @@ describe("atribución de canal del intento", () => {
   });
 });
 
-describe("huella viva de sesión (canal distribuidor)", () => {
+describe("prueba viva de sesión (canal distribuidor)", () => {
   it("el canal público se reenvía aunque no quede prueba en memoria", () => {
     expect(
       attemptContextAllowsRetry({
@@ -198,9 +200,9 @@ describe("huella viva de sesión (canal distribuidor)", () => {
     ).toBe(true);
   });
 
-  it("el canal distribuidor exige la MISMA huella de sesión", () => {
-    const fingerprintA = "v1:20:2026-11-11T20:00:00.000Z";
-    const fingerprintB = "v1:20:2026-11-12T20:00:00.000Z";
+  it("el canal distribuidor exige la MISMA prueba de sesión", () => {
+    const fingerprintA = "Zk3vJ8xQ1nT5pR7wY2bA";
+    const fingerprintB = "Q7wY2bA0Zk3vJ8xQ1nT5pR";
     rememberAttemptContext("k-dist", { channel: "distributor", distributorProof: fingerprintA });
 
     expect(
@@ -211,7 +213,8 @@ describe("huella viva de sesión (canal distribuidor)", () => {
         distributorProof: fingerprintA,
       }),
     ).toBe(true);
-    /* Otra cuenta (otra huella de sesión): no es la misma sesión. */
+    /* Otra cuenta (otro identificador de sesión): no es la misma sesión,
+       aunque comparta descuento y vencimiento. */
     expect(
       attemptContextAllowsRetry({
         idempotencyKey: "k-dist",
@@ -233,16 +236,17 @@ describe("huella viva de sesión (canal distribuidor)", () => {
 
   it("S3 · una revalidación inocua de la MISMA sesión conserva el reenvío", () => {
     /* La revalidación (montaje, foco, visibilidad, temporizador) construye
-       un objeto de autenticación NUEVO con el MISMO valor de sesión: la
-       huella no cambia y el intento sigue siendo reenviable, liberable y
-       conciliable. */
-    const fingerprint = "v1:20:2026-11-11T20:00:00.000Z";
+       un objeto de autenticación NUEVO con el MISMO identificador de
+       sesión: la prueba no cambia y el intento sigue siendo reenviable,
+       liberable y conciliable. */
+    const fingerprint = "Zk3vJ8xQ1nT5pR7wY2bA";
     rememberAttemptContext("k-reval", { channel: "distributor", distributorProof: fingerprint });
 
     const revalidated = {
       status: "authenticated" as const,
       discountPercent: 20,
       expiresAt: "2026-11-11T20:00:00.000Z",
+      sessionId: fingerprint,
     };
     const otroObjeto = { ...revalidated };
     /* El objeto es otro (la identidad cambió) pero el VALOR es el mismo. */
@@ -258,8 +262,8 @@ describe("huella viva de sesión (canal distribuidor)", () => {
     ).toBe(true);
   });
 
-  it("S3 · la huella de sesión NUNCA se persiste", () => {
-    const fingerprint = "v1:20:2026-11-11T20:00:00.000Z";
+  it("S3 · la prueba de sesión NUNCA se persiste", () => {
+    const fingerprint = "Zk3vJ8xQ1nT5pR7wY2bA";
     const prepared = prepareAttempt(contact, lines, { channel: "distributor" });
     expect(prepared).not.toBe(false);
     const key = (prepared as { idempotencyKey: string }).idempotencyKey;
@@ -274,26 +278,26 @@ describe("huella viva de sesión (canal distribuidor)", () => {
       ),
     ].join("|");
     expect(dump).not.toContain(fingerprint);
-    expect(dump).not.toContain("v1:20:");
+    expect(dump).not.toContain("sessionId");
   });
 
   it("un registro sin canal no se reenvía por ningún canal", () => {
     rememberAttemptContext("k-legacy", {
       channel: "distributor",
-      distributorProof: "v1:20:2026-11-11T20:00:00.000Z",
+      distributorProof: "Zk3vJ8xQ1nT5pR7wY2bA",
     });
     expect(
       attemptContextAllowsRetry({
         idempotencyKey: "k-legacy",
         persistedChannel: undefined,
         channel: "distributor",
-        distributorProof: "v1:20:2026-11-11T20:00:00.000Z",
+        distributorProof: "Zk3vJ8xQ1nT5pR7wY2bA",
       }),
     ).toBe(false);
   });
 
   it("olvidar el contexto cierra la prueba viva de ese intento", () => {
-    const proof = "v1:20:2026-11-11T20:00:00.000Z";
+    const proof = "Zk3vJ8xQ1nT5pR7wY2bA";
     rememberAttemptContext("k-1", { channel: "distributor", distributorProof: proof });
     expect(getAttemptContext("k-1")?.channel).toBe("distributor");
     forgetAttemptContext("k-1");
@@ -314,7 +318,7 @@ describe("huella viva de sesión (canal distribuidor)", () => {
     const key = (prepared as { idempotencyKey: string }).idempotencyKey;
     rememberAttemptContext(key, {
       channel: "distributor",
-      distributorProof: "v1:20:2026-11-11T20:00:00.000Z",
+      distributorProof: "Zk3vJ8xQ1nT5pR7wY2bA",
     });
     clearAttempt({ channel: "distributor" });
     expect(getAttemptContext(key)).toBeNull();

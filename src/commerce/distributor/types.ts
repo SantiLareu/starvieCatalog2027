@@ -11,6 +11,13 @@
  * El frontend nunca lee ni guarda el token: viaja solo como cookie con
  * `credentials: "include"`. Mutaciones exigen header
  * `X-Requested-With: distributor` + `Content-Type: application/json`.
+ *
+ * Identificador de sesión: el backend devuelve `sessionId`, un valor opaco,
+ * estable y NO secreto derivado del hash del token de sesión (derivación de
+ * un solo sentido, con separación de dominio). Es estable durante la vida de
+ * la sesión, distinto en cada login y distinto en cada cuenta, y NO es una
+ * credencial: nunca habilita autenticación por sí mismo. Es la PRUEBA de
+ * continuidad que usa el checkout del canal distribuidor.
  */
 
 /** Respuesta de GET /api/distributor/session y POST /api/distributor/login. */
@@ -23,6 +30,13 @@ export type DistributorSessionResponse =
       discountPercent: number;
       /** Expiración ISO de la sesión (TTL del servidor: 8 h). */
       expiresAt: string;
+      /**
+       * Identificador opaco de la sesión, tal como lo devuelve el backend.
+       *
+       * `null` si el servidor no lo envió (backend anterior): sin este valor
+       * NO hay continuidad demostrada y NUNCA se fabrica un sustituto.
+       */
+      sessionId: string | null;
     };
 
 /** Línea autoritativa de GET /api/distributor/quote. Importes en ARS o null. */
@@ -112,6 +126,11 @@ export type DistributorAuthState =
       status: "authenticated";
       discountPercent: number;
       expiresAt: string;
+      /**
+       * Identificador opaco de la sesión devuelto por el backend. `null`
+       * si el servidor no lo envió: sin él no hay continuidad demostrada.
+       */
+      sessionId: string | null;
     }
   /** Sin sesión. `expired` = hubo sesión y venció o fue rechazada (401). */
   | { status: "anonymous"; expired?: boolean };
@@ -126,7 +145,16 @@ export type DistributorLoginError =
   | { kind: "network" };
 
 export type DistributorLoginResult =
-  | { kind: "ok"; discountPercent: number; expiresAt: string }
+  | {
+      kind: "ok";
+      discountPercent: number;
+      expiresAt: string;
+      /**
+       * Identificador opaco de la sesión que acaba de abrir el backend.
+       * `null` si el servidor no lo envió: sin él no hay continuidad.
+       */
+      sessionId: string | null;
+    }
   | { kind: "error"; error: DistributorLoginError };
 
 /** Resultado de una cotización: el importe neto solo existe si vino del servidor. */

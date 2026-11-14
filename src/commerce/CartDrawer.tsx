@@ -360,11 +360,13 @@ export function CartDrawer() {
         distributorTotal={distributorTotal}
         distributorNetByProduct={distributorNetByProduct}
         onDistributorSessionExpired={() => distributor?.expireSession()}
-        /* Huella de VALOR de la sesión (sólo memoria): el backend devuelve el
-           mismo vencimiento almacenado en cada revalidación, así que una
-           revalidación inocua conserva la huella y el intento sigue siendo
-           reenviable. Un login nuevo, un logout o una expiración cambian la
-           huella (o la borran) y el intento deja de ser reenviable. */
+        /* Prueba de continuidad de la sesión (sólo memoria): el identificador
+           opaco de sesión que devuelve el backend. El backend devuelve el
+           MISMO identificador en cada revalidación de la misma sesión, así
+           que una revalidación inocua conserva la prueba y el intento sigue
+           siendo reenviable. Un login nuevo, un logout o una expiración
+           cambian la prueba (o la borran) y el intento deja de ser
+           reenviable. Sin ese valor no hay continuidad demostrada. */
         distributorSessionFingerprint={distributor?.sessionFingerprint ?? null}
         submitFn={checkoutDist.mode ? submitDistributorOrder : undefined}
       />

@@ -22,6 +22,12 @@ function jsonResponse(status: number, body: unknown): Response {
   });
 }
 
+/**
+ * Identificador opaco de sesión que devuelve el backend (derivación de un
+ * solo sentido sobre el hash del token de sesión, en base64url).
+ */
+const SESSION_ID = "Zk3vJ8xQ1nT5pR7wY2bA";
+
 describe("cliente HTTP de distribuidores (contratos verificados)", () => {
   it("sin base configurada no realiza ninguna solicitud", async () => {
     vi.unstubAllEnvs();
@@ -43,13 +49,14 @@ describe("cliente HTTP de distribuidores (contratos verificados)", () => {
     expect(fetchImpl).not.toHaveBeenCalled();
   });
 
-  it("login exitoso devuelve descuento y expiración, con cookie y header CSRF", async () => {
+  it("login exitoso devuelve descuento, expiración y el identificador de sesión, con cookie y header CSRF", async () => {
     const fetchImpl = vi.fn(async () =>
       jsonResponse(200, {
         ok: true,
         authenticated: true,
         discountPercent: 20,
         expiresAt: "2026-11-11T20:00:00.000Z",
+        sessionId: SESSION_ID,
       }),
     ) as unknown as typeof fetch;
 
@@ -58,6 +65,7 @@ describe("cliente HTTP de distribuidores (contratos verificados)", () => {
       kind: "ok",
       discountPercent: 20,
       expiresAt: "2026-11-11T20:00:00.000Z",
+      sessionId: SESSION_ID,
     });
 
     const [url, init] = (fetchImpl as unknown as ReturnType<typeof vi.fn>).mock.calls[0];
@@ -65,6 +73,82 @@ describe("cliente HTTP de distribuidores (contratos verificados)", () => {
     expect(init.credentials).toBe("include");
     expect(init.headers["X-Requested-With"]).toBe("distributor");
     expect(JSON.parse(init.body)).toEqual({ cuit: "20111111112", password: "secreto" });
+  });
+
+  it("el login y la sesión devuelven el identificador opaco tal como lo mandó el backend", async () => {
+    const fetchImpl = vi.fn(async () =>
+      jsonResponse(200, {
+        ok: true,
+        authenticated: true,
+        discountPercent: 20,
+        expiresAt: "2026-11-11T20:00:00.000Z",
+        sessionId: SESSION_ID,
+      }),
+    ) as unknown as typeof fetch;
+
+    const login = await loginDistributor("20111111112", "secreto", fetchImpl);
+    expect(login.kind).toBe("ok");
+    if (login.kind === "ok") expect(login.sessionId).toBe(SESSION_ID);
+
+    const session = await fetchDistributorSession(fetchImpl);
+    expect(session).toEqual({
+      ok: true,
+      authenticated: true,
+      discountPercent: 20,
+      expiresAt: "2026-11-11T20:00:00.000Z",
+      sessionId: SESSION_ID,
+    });
+  });
+
+  it("sin identificador de sesión la continuidad NO queda demostrada (nunca se fabrica)", async () => {
+    /* El backend no lo envía (backend anterior): el resultado lo lleva
+       ausente. No se sustituye por el descuento ni por el vencimiento. */
+    const sinIdentificador = vi.fn(async () =>
+      jsonResponse(200, {
+        ok: true,
+        authenticated: true,
+        discountPercent: 20,
+        expiresAt: "2026-11-11T20:00:00.000Z",
+      }),
+    ) as unknown as typeof fetch;
+
+    const login = await loginDistributor("20111111112", "secreto", sinIdentificador);
+    expect(login).toEqual({
+      kind: "ok",
+      discountPercent: 20,
+      expiresAt: "2026-11-11T20:00:00.000Z",
+      sessionId: null,
+    });
+
+    const session = await fetchDistributorSession(sinIdentificador);
+    expect(session).toEqual({
+      ok: true,
+      authenticated: true,
+      discountPercent: 20,
+      expiresAt: "2026-11-11T20:00:00.000Z",
+      sessionId: null,
+    });
+  });
+
+  it("un identificador de sesión vacío o con espacios no prueba continuidad", async () => {
+    for (const sessionId of ["", "   ", "con espacio"]) {
+      const fetchImpl = vi.fn(async () =>
+        jsonResponse(200, {
+          ok: true,
+          authenticated: true,
+          discountPercent: 20,
+          expiresAt: "2026-11-11T20:00:00.000Z",
+          sessionId,
+        }),
+      ) as unknown as typeof fetch;
+
+      const login = await loginDistributor("20111111112", "secreto", fetchImpl);
+      expect(login.kind).toBe("ok");
+      if (login.kind === "ok") expect(login.sessionId).toBeNull();
+
+      const session = await fetchDistributorSession(fetchImpl);
+      expect(session).toMatchObject({ ok: true, authenticated: true, sessionId: null });
+    }
   });
 
   it("login 401 es credenciales inválidas y 404 es backend no disponible", async () => {

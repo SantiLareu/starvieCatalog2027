@@ -9,6 +9,11 @@
  *   GET  /api/distributor/order-resolution?reference=         -> estado de la conciliación
  *   POST /api/distributor/orders   { contact, lines, idempotencyKey, turnstileToken? }
  *
+ * `/login` y `/session` devuelven además `sessionId`: el identificador
+ * opaco, estable y no secreto de la sesión. Es la prueba de continuidad que
+ * consume el checkout del canal distribuidor; si el servidor no lo envía,
+ * el resultado lo lleva como ausente y nunca se fabrica un sustituto.
+ *
  * Seguridad:
  * - `credentials: "include"` siempre: la cookie `__Host-ds` es HttpOnly y el
  *   frontend jamás ve, guarda ni envía el token a mano.
@@ -79,6 +84,29 @@ function serverError(data: unknown): string | null {
   return isRecord(data) && typeof data.error === "string" ? data.error : null;
 }
 
+/**
+ * Identificador opaco de sesión que devuelve el backend.
+ *
+ * El backend lo deriva del hash del token de sesión (derivación de un solo
+ * sentido, con separación de dominio): es estable durante la vida de la
+ * sesión, distinto en cada login y en cada cuenta, y NO es una credencial.
+ * Es la PRUEBA de continuidad que usa el checkout del canal distribuidor.
+ *
+ * Si el servidor no lo envía, el resultado lo lleva como AUSENTE (`null`):
+ * NUNCA se fabrica un sustituto (ni con el descuento ni con el
+ * vencimiento), porque sin ese identificador la continuidad de la sesión no
+ * está demostrada.
+ */
+function parseSessionId(value: unknown): string | null {
+  if (typeof value !== "string") return null;
+  const trimmed = value.trim();
+  if (trimmed === "") return null;
+  /* Un identificador opaco no lleva espacios: un valor con espacios no es
+     un identificador de sesión y no puede probar continuidad. */
+  if (/\s/.test(trimmed)) return null;
+  return trimmed;
+}
+
 async function distributorFetch(
   path: string,
   init: RequestInit,
@@ -130,6 +158,9 @@ export async function fetchDistributorSession(
       authenticated: true,
       discountPercent: data.discountPercent,
       expiresAt: data.expiresAt,
+      /* El identificador de sesión viaja tal cual lo devuelve el backend; si
+         no viene, queda ausente: la continuidad no está demostrada. */
+      sessionId: parseSessionId(data.sessionId),
     };
   } catch {
     return { ok: false, unavailable: true };
@@ -175,7 +206,14 @@ export async function loginDistributor(
       Number.isFinite(data.discountPercent) &&
       typeof data.expiresAt === "string"
     ) {
-      return { kind: "ok", discountPercent: data.discountPercent, expiresAt: data.expiresAt };
+      return {
+        kind: "ok",
+        discountPercent: data.discountPercent,
+        expiresAt: data.expiresAt,
+        /* El identificador de sesión viaja tal cual lo devuelve el backend;
+           si no viene, queda ausente: la continuidad no está demostrada. */
+        sessionId: parseSessionId(data.sessionId),
+      };
     }
     return { kind: "error", error: { kind: "unavailable" } };
   }

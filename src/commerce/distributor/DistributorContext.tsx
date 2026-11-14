@@ -14,14 +14,19 @@
  * - Las cotizaciones se cachean por producto+cantidad y son la única fuente
  *   del precio distribuidor visible. Un 401 en quote/pedido vence la sesión
  *   local y conserva el carrito (identidad + cantidades, como siempre).
- * - El contrato de sesión NO expone identificador de cuenta. La continuidad
- *   local se mide con una HUELLA DE VALOR (`v1:<descuento>:<vencimiento>`):
- *   el backend devuelve el vencimiento almacenado de la sesión, así que la
- *   huella es estable frente a una revalidación inocua y cambia frente a un
- *   login nuevo, un logout o una expiración. Toda revalidación autenticada
- *   invalida las cotizaciones (epoch) y las vuelve a pedir, y el descuento
- *   queda SIN confirmar hasta que una cotización vigente lo corrobora. El
- *   carrito nunca se modifica por este motivo.
+ * - El contrato de sesión NO expone identificador de cuenta, pero SÍ expone
+ *   el IDENTIFICADOR OPACO DE SESIÓN (`sessionId`) que devuelve el backend:
+ *   un valor estable durante la vida de la sesión, distinto en cada login y
+ *   en cada cuenta, y no secreto. La continuidad local se mide con ESE
+ *   valor: el backend lo devuelve en el login y en cada revalidación de la
+ *   MISMA sesión, así que la prueba es estable frente a una revalidación
+ *   inocua y cambia frente a un login nuevo, un logout o una expiración.
+ *   Si el servidor NO lo envía, la prueba es `null`: la continuidad NO está
+ *   demostrada y nunca se sustituye por el descuento ni por el vencimiento.
+ *   Toda revalidación autenticada invalida las cotizaciones (epoch) y las
+ *   vuelve a pedir, y el descuento queda SIN confirmar hasta que una
+ *   cotización vigente lo corrobora. El carrito nunca se modifica por este
+ *   motivo.
  */
 import {
   createContext,
@@ -52,15 +57,21 @@ type DistributorContextValue = {
   /** Porcentaje autorizado por el servidor; null si no hay sesión. */
   discountPercent: number | null;
   /**
-   * Huella de VALOR de la sesión (sólo en memoria): "v1:<descuento>:<fin de
-   * sesión>". Es estable para la misma sesión (el backend devuelve el
-   * vencimiento almacenado, con la misma precisión de milisegundos, en el
-   * login y en cada revalidación) y cambia con un login nuevo, con un logout
-   * y con la expiración (pasa a null).
+   * Identificador opaco de la sesión que devuelve el backend (`sessionId`).
+   * `null` si no hay sesión autenticada o si el servidor no lo envió.
+   */
+  sessionId: string | null;
+  /**
+   * Prueba de continuidad de la sesión (SOLO en memoria): ES el `sessionId`
+   * del backend, sin transformaciones.
    *
-   * NO es un identificador de cuenta: es la señal de continuidad local que
-   * usa el checkout para saber si un intento sigue siendo reenviable. Nunca
-   * se persiste ni viaja al backend.
+   * Es estable para la MISMA sesión (el backend devuelve el mismo
+   * identificador en el login y en cada revalidación) y cambia con un login
+   * nuevo, con un logout y con la expiración (pasa a null).
+   *
+   * NO es un identificador de cuenta ni una credencial: es la señal de
+   * continuidad local que usa el checkout para saber si un intento sigue
+   * siendo reenviable. Nunca se persiste ni viaja al backend.
    */
   sessionFingerprint: string | null;
   /**
@@ -92,19 +103,22 @@ function quoteKey(productId: string, qty: number): string {
 }
 
 /**
- * Huella de valor de la sesión de distribuidor.
+ * Prueba de continuidad de la sesión de distribuidor.
  *
- * El backend devuelve el vencimiento ALMACENADO de la sesión (mismo valor
- * en el login y en cada revalidación), así que (descuento, vencimiento)
- * identifica el VALOR de la sesión: es estable frente a una revalidación
- * inocua y cambia frente a un login nuevo, un logout o una expiración.
- * Sin sesión autenticada no hay huella (`null`).
+ * ES el identificador opaco que devuelve el backend (`sessionId`): una
+ * derivación de un solo sentido sobre el hash del token de sesión, estable
+ * durante la vida de la sesión, distinta en cada login y en cada cuenta, y
+ * no secreta.
+ *
+ * Sin sesión autenticada no hay prueba (`null`). Tampoco la hay si el
+ * servidor no envió el identificador: en ese caso la continuidad NO está
+ * demostrada y NUNCA se sustituye por el descuento ni por el vencimiento.
  */
 export function distributorSessionFingerprint(
   auth: DistributorAuthState,
 ): string | null {
   if (auth.status !== "authenticated") return null;
-  return `v1:${auth.discountPercent}:${auth.expiresAt}`;
+  return auth.sessionId;
 }
 
 export function DistributorProvider({ children }: { children: ReactNode }) {
@@ -203,18 +217,17 @@ export function DistributorProvider({ children }: { children: ReactNode }) {
         );
         return;
       }
-      // La sesión revalidada NO se puede atribuir a la misma cuenta: el
-      // contrato vigente sólo expone status/discountPercent/expiresAt y el
-      // porcentaje o el vencimiento no distinguen a un distribuidor de otro.
-      // Las cotizaciones ya quedaron ocultas al empezar la revalidación: aquí
-      // se incrementa el epoch UNA vez para que los consumidores pidan una
-      // cotización nueva al backend (el importe final siempre lo calcula el
-      // servidor).
+      // La sesión revalidada conserva su identificador opaco: es la prueba
+      // de continuidad que usa el checkout. Las cotizaciones ya quedaron
+      // ocultas al empezar la revalidación: aquí se incrementa el epoch UNA
+      // vez para que los consumidores pidan una cotización nueva al backend
+      // (el importe final siempre lo calcula el servidor).
       invalidateQuotes();
       setAuth({
         status: "authenticated",
         discountPercent: session.discountPercent,
         expiresAt: session.expiresAt,
+        sessionId: session.sessionId,
       });
     } finally {
       refreshInflightRef.current = false;
@@ -268,6 +281,9 @@ export function DistributorProvider({ children }: { children: ReactNode }) {
         status: "authenticated",
         discountPercent: result.discountPercent,
         expiresAt: result.expiresAt,
+        // El identificador de sesión que abre este login: es la prueba de
+        // continuidad. Si el backend no lo envió, NO hay prueba.
+        sessionId: result.sessionId,
       });
     } else if (result.error.kind === "unavailable") {
       setAuth({ status: "unavailable" });
@@ -350,6 +366,7 @@ export function DistributorProvider({ children }: { children: ReactNode }) {
       auth,
       isAuthenticated: auth.status === "authenticated",
       discountPercent: auth.status === "authenticated" ? auth.discountPercent : null,
+      sessionId: auth.status === "authenticated" ? auth.sessionId : null,
       sessionFingerprint: distributorSessionFingerprint(auth),
       quoteEpoch,
       discountConfirmed,

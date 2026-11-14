@@ -20,7 +20,11 @@ const actualDistributor = await vi.importActual<
 >("./distributor/DistributorContext");
 
 let capturedCheckoutProps: any = null;
-/** Huella de VALOR de la sesión vigente del mock. */
+/**
+ * Prueba de continuidad de la sesión vigente del mock: el identificador
+ * opaco de sesión que devuelve el backend.
+ */
+const SESSION_ID = "Zk3vJ8xQ1nT5pR7wY2bA";
 let currentFingerprint: string | null = null;
 vi.mock("./CheckoutModal", () => ({
   CHECKOUT_HERO_SRC: "checkout-hero",
@@ -90,6 +94,7 @@ function mockDistributor(
       kind: "ok",
       discountPercent: 20,
       expiresAt: "2026-11-11T20:00:00.000Z",
+      sessionId: SESSION_ID,
     }),
   );
   const logout = vi.fn(async (): Promise<{ kind: "ok" | "unconfirmed" }> => ({ kind: "ok" }));
@@ -101,17 +106,19 @@ function mockDistributor(
         status: "authenticated" as const,
         discountPercent: 20,
         expiresAt: "2026-11-20T20:00:00.000Z",
+        sessionId: SESSION_ID,
       }
     : { status: "anonymous" as const };
-  /* La huella es el VALOR de la sesión: el mismo mientras la sesión siga
-     viva, null cuando no hay sesión. */
-  currentFingerprint = authenticated ? "v1:20:2026-11-20T20:00:00.000Z" : null;
+  /* La prueba de continuidad ES el identificador de sesión del backend: el
+     mismo mientras la sesión siga viva, null cuando no hay sesión. */
+  currentFingerprint = authenticated ? SESSION_ID : null;
   mockedDistributor.mockReturnValue(
     authenticated
       ? {
           auth,
           isAuthenticated: true,
           discountPercent: 20,
+          sessionId: authenticated ? SESSION_ID : null,
           sessionFingerprint: currentFingerprint,
           quoteEpoch: 0,
           discountConfirmed: true,
@@ -126,6 +133,7 @@ function mockDistributor(
           auth,
           isAuthenticated: false,
           discountPercent: null,
+          sessionId: null,
           sessionFingerprint: null,
           quoteEpoch: 0,
           discountConfirmed: false,
@@ -150,7 +158,7 @@ describe("CartDrawer · la vía distribuidor queda fijada al abrir el checkout (
     expect(capturedCheckoutProps.open).toBe(true);
     expect(capturedCheckoutProps.distributorMode).toBe(true);
     expect(capturedCheckoutProps.submitFn).toBe(submitDistributorOrder);
-    // Huella viva: sólo con sesión autenticada (y es un VALOR, no un objeto).
+    // Prueba viva: sólo con sesión autenticada (y es un VALOR, no un objeto).
     expect(capturedCheckoutProps.distributorSessionFingerprint).toBe(currentFingerprint);
     expect(typeof capturedCheckoutProps.distributorSessionFingerprint).toBe("string");
 
@@ -161,7 +169,7 @@ describe("CartDrawer · la vía distribuidor queda fijada al abrir el checkout (
     expect(capturedCheckoutProps.open).toBe(true);
     expect(capturedCheckoutProps.distributorMode).toBe(true);
     expect(capturedCheckoutProps.submitFn).toBe(submitDistributorOrder);
-    // Sin sesión autenticada no hay huella: el reintento se bloquearía.
+    // Sin sesión autenticada no hay prueba: el reintento se bloquearía.
     expect(capturedCheckoutProps.distributorSessionFingerprint).toBeNull();
   });
 

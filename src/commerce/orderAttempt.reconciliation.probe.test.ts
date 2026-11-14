@@ -107,7 +107,7 @@ afterEach(() => {
 describe("P2 · RECEIVED cierra cualquier estado del intento distribuidor", () => {
   it("P2.1 intento incierto del canal distribuidor + referencia EXACTA => se cierra", () => {
     seed({ status: "accepted", channel: "distributor" });
-    rememberAttemptContext(REF, { channel: "distributor", distributorProof: "v1:20:2026-11-20T20:00:00.000Z" });
+    rememberAttemptContext(REF, { channel: "distributor", distributorProof: "Zk3vJ8xQ1nT5pR7wY2bA" });
     expect(getAttemptContext(REF)).not.toBeNull();
 
     expect(closeAttemptByReconciliation(REF, "RECEIVED")).toBe(true);

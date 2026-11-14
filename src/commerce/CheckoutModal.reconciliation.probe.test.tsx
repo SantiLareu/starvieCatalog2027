@@ -20,10 +20,11 @@ const SESSION_KEY = "starvie-order-attempt-v2-distributor-session";
 const PUBLIC_DISCLAIMER =
   "Consultar con RealStep no habilita por sí solo una compra nueva: este catálogo todavía no tiene un mecanismo verificable para resolverlo manualmente.";
 
-/* Huellas de VALOR de la sesión: A es la sesión vigente y B es otra
-   cuenta (otro vencimiento ⇒ otra huella). */
-const PROOF_A = "v1:20:2026-11-20T20:00:00.000Z";
-const PROOF_B = "v1:20:2026-11-21T20:00:00.000Z";
+/* Pruebas de continuidad: el IDENTIFICADOR OPACO DE SESIÓN que devuelve el
+   backend. A es la sesión vigente y B es otra cuenta (otra sesión ⇒ otro
+   identificador). */
+const PROOF_A = "Zk3vJ8xQ1nT5pR7wY2bA";
+const PROOF_B = "Q7wY2bA0Zk3vJ8xQ1nT5pR";
 
 const product = {
   id: "raptor+", sku: "PSTRP41000", nombre: "Raptor+", categoria: "palas",

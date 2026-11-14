@@ -31,6 +31,14 @@ function deferred<T>() {
   return { promise, resolve, reject };
 }
 
+/**
+ * Identificador opaco de sesión que devuelve el backend. Es estable
+ * durante la vida de la sesión y distinto en cada login.
+ */
+const SESSION_ID = "Zk3vJ8xQ1nT5pR7wY2bA";
+/** Otra sesión del backend (otra cuenta u otro login). */
+const OTHER_SESSION_ID = "Q7wY2bA0Zk3vJ8xQ1nT5pR";
+
 function Probe() {
   const distributor = useDistributor();
   return (
@@ -146,6 +154,7 @@ describe("DistributorContext · protección frente a respuestas de sesiones ante
         if (url.includes("/api/distributor/session")) {
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: 20,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -185,6 +194,7 @@ describe("DistributorContext · protección frente a respuestas de sesiones ante
         if (url.includes("/api/distributor/session")) {
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: 20,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -223,6 +233,7 @@ describe("DistributorContext · protección frente a respuestas de sesiones ante
           if (loginCalls === 1) return firstLogin.promise;
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: 30,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -246,6 +257,7 @@ describe("DistributorContext · protección frente a respuestas de sesiones ante
     firstLogin.resolve(
       json({
         ok: true,
+        sessionId: loginCalls === 1 ? SESSION_ID : OTHER_SESSION_ID,
         authenticated: true,
         discountPercent: 20,
         expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -271,6 +283,7 @@ describe("DistributorContext · protección frente a respuestas de sesiones ante
           loginCalls += 1;
           return json({
             ok: true,
+            sessionId: loginCalls === 1 ? SESSION_ID : OTHER_SESSION_ID,
             authenticated: true,
             discountPercent: loginCalls === 1 ? 20 : 30,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -338,6 +351,7 @@ describe("DistributorContext · la revalidación que no puede probarse como la m
         if (url.includes("/api/distributor/session")) {
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: 20,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -386,6 +400,7 @@ describe("DistributorContext · la revalidación que no puede probarse como la m
           // con el mismo porcentaje.
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: 20,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -434,6 +449,7 @@ describe("DistributorContext · la revalidación que no puede probarse como la m
           sessionCalls += 1;
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: sessionCalls === 1 ? 20 : 30,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -481,6 +497,7 @@ describe("DistributorContext · la revalidación que no puede probarse como la m
         if (url.includes("/api/distributor/session")) {
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: 20,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -530,6 +547,7 @@ describe("DistributorContext · la revalidación que no puede probarse como la m
           loginCalls += 1;
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: 20,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -586,6 +604,7 @@ describe("DistributorContext · la revalidación que no puede probarse como la m
           if (sessionCalls === 1) {
             return json({
               ok: true,
+              sessionId: SESSION_ID,
               authenticated: true,
               discountPercent: 20,
               expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -657,6 +676,7 @@ describe("DistributorContext · la revalidación oculta los precios desde que em
           if (sessionCalls === 1) {
             return json({
               ok: true,
+              sessionId: SESSION_ID,
               authenticated: true,
               discountPercent: 20,
               expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -701,6 +721,7 @@ describe("DistributorContext · la revalidación oculta los precios desde que em
     sessions[0].resolve(
       json({
         ok: true,
+        sessionId: SESSION_ID,
         authenticated: true,
         discountPercent: 20,
         expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -721,6 +742,7 @@ describe("DistributorContext · la revalidación oculta los precios desde que em
           sessionCalls += 1;
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: sessionCalls === 1 ? 20 : 30,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -756,6 +778,7 @@ describe("DistributorContext · la revalidación oculta los precios desde que em
         if (url.includes("/api/distributor/session")) {
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: 20,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -792,6 +815,7 @@ describe("DistributorContext · la revalidación oculta los precios desde que em
         if (url.includes("/api/distributor/session")) {
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: 20,
             expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
@@ -829,20 +853,21 @@ describe("DistributorContext · la revalidación oculta los precios desde que em
     );
   });
 });
-
-/* ══════════════════════════════════════════════════════════════════════
- * S3 · Huella de VALOR de la sesión.
+/* ═══════════════════════════════════════════════════════
+ * S3 · Prueba de continuidad: el identificador de sesión del backend.
  *
- * La huella ("v1:<descuento>:<vencimiento>") es lo que usa el checkout
- * para saber si un intento sigue siendo reenviable. Debe ser estable frente
- * a una revalidación inocua de la MISMA sesión (el backend devuelve el
- * vencimiento almacenado) y cambiar frente a un login nuevo, un logout o
- * una expiración.
- * ══════════════════════════════════════════════════════════════════════ */
-describe("DistributorContext · huella de valor de la sesión", () => {
+ * La prueba de continuidad ES el `sessionId` que devuelve el backend: un
+ * valor opaco, estable durante la vida de la sesión, distinto en cada login
+ * y en cada cuenta, y no secreto. Es lo que usa el checkout para saber si un
+ * intento sigue siendo reenviable. Debe ser estable frente a una
+ * revalidación inocua de la MISMA sesión y cambiar frente a un login nuevo,
+ * un logout o una expiración. Si el servidor NO lo envía, no hay prueba:
+ * nunca se sustituye por el descuento ni por el vencimiento.
+ * ═════════════════════════════════════════════════ */
+describe("DistributorContext · prueba de continuidad (identificador de sesión)", () => {
   const EXPIRES_AT = "2026-11-20T20:00:00.000Z";
 
-  it("sin sesión autenticada no hay huella", async () => {
+  it("sin sesión autenticada no hay prueba", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async () => json({ ok: true, authenticated: false })),
@@ -857,13 +882,14 @@ describe("DistributorContext · huella de valor de la sesión", () => {
     expect(fingerprintText()).toBe("none");
   });
 
-  it("con sesión, la huella es el valor del descuento y del vencimiento", async () => {
+  it("con sesión, la prueba ES el identificador que devolvió el backend", async () => {
     vi.stubGlobal(
       "fetch",
       vi.fn(async (url: string) => {
         if (url.includes("/api/distributor/session")) {
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: 20,
             expiresAt: EXPIRES_AT,
@@ -879,10 +905,10 @@ describe("DistributorContext · huella de valor de la sesión", () => {
       </DistributorProvider>,
     );
     await waitFor(() => expect(authText()).toBe("authenticated"));
-    expect(fingerprintText()).toBe(`v1:20:${EXPIRES_AT}`);
+    expect(fingerprintText()).toBe(SESSION_ID);
   });
 
-  it("una revalidación de la MISMA sesión conserva la huella", async () => {
+  it("una revalidación de la MISMA sesión conserva la prueba", async () => {
     let sessionCalls = 0;
     vi.stubGlobal(
       "fetch",
@@ -891,6 +917,7 @@ describe("DistributorContext · huella de valor de la sesión", () => {
           sessionCalls += 1;
           return json({
             ok: true,
+            sessionId: SESSION_ID,
             authenticated: true,
             discountPercent: 20,
             expiresAt: EXPIRES_AT,
@@ -908,15 +935,15 @@ describe("DistributorContext · huella de valor de la sesión", () => {
     await waitFor(() => expect(authText()).toBe("authenticated"));
     const before = fingerprintText();
 
-    /* Revalidación por foco: el backend devuelve el mismo vencimiento
-       almacenado ⇒ la huella NO cambia. */
+    /* Revalidación por foco: el backend devuelve el mismo identificador
+       de sesión ⇒ la prueba NO cambia. */
     window.dispatchEvent(new Event("focus"));
     await waitFor(() => expect(sessionCalls).toBe(2));
     await waitFor(() => expect(fingerprintText()).toBe(before));
-    expect(fingerprintText()).toBe(`v1:20:${EXPIRES_AT}`);
+    expect(fingerprintText()).toBe(SESSION_ID);
   });
 
-  it("un login nuevo cambia la huella y un logout la borra", async () => {
+  it("un login nuevo cambia la prueba y un logout la borra", async () => {
     let loginCalls = 0;
     vi.stubGlobal(
       "fetch",
@@ -928,6 +955,7 @@ describe("DistributorContext · huella de valor de la sesión", () => {
           loginCalls += 1;
           return json({
             ok: true,
+            sessionId: loginCalls === 1 ? SESSION_ID : OTHER_SESSION_ID,
             authenticated: true,
             discountPercent: 20,
             expiresAt: loginCalls === 1
@@ -953,17 +981,95 @@ describe("DistributorContext · huella de valor de la sesión", () => {
     fireEvent.click(screen.getByText("login"));
     await waitFor(() => expect(authText()).toBe("authenticated"));
     const primera = fingerprintText();
-    expect(primera).toBe(`v1:20:${EXPIRES_AT}`);
+    expect(primera).toBe(SESSION_ID);
 
-    /* Logout: sin sesión no hay huella. */
+    /* Logout: sin sesión no hay prueba. */
     fireEvent.click(screen.getByText("logout"));
     await waitFor(() => expect(authText()).toBe("anonymous"));
     expect(fingerprintText()).toBe("none");
 
-    /* Login nuevo: el backend devuelve OTRO vencimiento ⇒ otra huella. */
+    /* Login nuevo: el backend devuelve OTRO identificador ⇒ otra prueba. */
     fireEvent.click(screen.getByText("login"));
     await waitFor(() => expect(authText()).toBe("authenticated"));
     expect(fingerprintText()).not.toBe(primera);
-    expect(fingerprintText()).toBe("v1:20:2026-11-21T20:00:00.000Z");
+    expect(fingerprintText()).toBe(OTHER_SESSION_ID);
+  });
+
+  it("una sesión SIN identificador del backend no deja prueba de continuidad", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/api/distributor/session")) {
+          /* El servidor no envía el identificador: la continuidad NO está
+             demostrada y no se sustituye por el descuento ni por el
+             vencimiento. */
+          return json({
+            ok: true,
+            authenticated: true,
+            discountPercent: 20,
+            expiresAt: EXPIRES_AT,
+          });
+        }
+        throw new Error(`fetch inesperado: ${url}`);
+      }),
+    );
+
+    render(
+      <DistributorProvider>
+        <Probe />
+      </DistributorProvider>,
+    );
+    await waitFor(() => expect(authText()).toBe("authenticated"));
+    expect(fingerprintText()).toBe("none");
+    expect(fingerprintText()).not.toContain("v1:");
+    expect(fingerprintText()).not.toContain(EXPIRES_AT);
+  });
+
+  it("dos sesiones con el MISMO descuento y el MISMO vencimiento tienen pruebas DISTINTAS", async () => {
+    /* La colisión que tenía la huella anterior: dos cuentas con el
+       mismo porcentaje y el mismo vencimiento. Con el identificador del
+       backend cada sesión tiene su propia prueba. */
+    let loginCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/api/distributor/session")) {
+          return json({ ok: true, authenticated: false });
+        }
+        if (url.includes("/api/distributor/login")) {
+          loginCalls += 1;
+          return json({
+            ok: true,
+            sessionId: loginCalls === 1 ? SESSION_ID : OTHER_SESSION_ID,
+            authenticated: true,
+            discountPercent: 20,
+            expiresAt: EXPIRES_AT,
+          });
+        }
+        if (url.includes("/api/distributor/logout")) {
+          return json({ ok: true, authenticated: false });
+        }
+        throw new Error(`fetch inesperado: ${url}`);
+      }),
+    );
+
+    render(
+      <DistributorProvider>
+        <Probe />
+      </DistributorProvider>,
+    );
+    await waitFor(() => expect(authText()).toBe("anonymous"));
+
+    fireEvent.click(screen.getByText("login"));
+    await waitFor(() => expect(authText()).toBe("authenticated"));
+    const primera = fingerprintText();
+
+    fireEvent.click(screen.getByText("logout"));
+    await waitFor(() => expect(authText()).toBe("anonymous"));
+
+    fireEvent.click(screen.getByText("login"));
+    await waitFor(() => expect(authText()).toBe("authenticated"));
+    expect(fingerprintText()).not.toBe(primera);
+    expect(fingerprintText()).toBe(OTHER_SESSION_ID);
   });
 });
