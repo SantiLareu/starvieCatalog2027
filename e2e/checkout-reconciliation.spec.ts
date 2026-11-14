@@ -250,8 +250,9 @@ async function seedAttempt(
     status?: string;
   },
 ): Promise<void> {
+  const keys = attemptKeys(options.channel);
   await page.addInitScript(
-    ({ reference, channel, withSession, status }) => {
+    ({ reference, channel, withSession, status, keys }) => {
       const marker = {
         version: "v2",
         idempotencyKey: reference,
@@ -261,10 +262,10 @@ async function seedAttempt(
         status,
         channel,
       };
-      localStorage.setItem("starvie-order-attempt-v2", JSON.stringify(marker));
+      localStorage.setItem(keys.marker, JSON.stringify(marker));
       if (withSession) {
         sessionStorage.setItem(
-          "starvie-order-attempt-v2-session",
+          keys.session,
           JSON.stringify({
             ...marker,
             contact: {
@@ -281,8 +282,23 @@ async function seedAttempt(
       channel: options.channel,
       withSession: options.withSession,
       status: options.status ?? "accepted",
+      keys,
     },
   );
+}
+
+/** El intento de pedido vive en un compartimento por canal: el público
+ *  conserva las claves históricas y el distribuidor tiene las suyas, para que
+ *  un intento pendiente de un canal no bloquee ni pise al otro. */
+const PUBLIC_ATTEMPT_MARKER_KEY = "starvie-order-attempt-v2";
+const PUBLIC_ATTEMPT_SESSION_KEY = "starvie-order-attempt-v2-session";
+const DISTRIBUTOR_ATTEMPT_MARKER_KEY = "starvie-order-attempt-v2-distributor";
+const DISTRIBUTOR_ATTEMPT_SESSION_KEY = "starvie-order-attempt-v2-distributor-session";
+
+function attemptKeys(channel: "public" | "distributor") {
+  return channel === "distributor"
+    ? { marker: DISTRIBUTOR_ATTEMPT_MARKER_KEY, session: DISTRIBUTOR_ATTEMPT_SESSION_KEY }
+    : { marker: PUBLIC_ATTEMPT_MARKER_KEY, session: PUBLIC_ATTEMPT_SESSION_KEY };
 }
 
 async function openCheckout(page: Page) {
@@ -490,7 +506,10 @@ test.describe("conciliación del canal distribuidor", () => {
        referencia sigue visible. */
     await expect(dialog.getByText(/El pedido falló definitivamente/)).toBeVisible();
     const marker = JSON.parse(
-      (await page.evaluate(() => localStorage.getItem("starvie-order-attempt-v2"))) ?? "{}",
+      (await page.evaluate(
+        (key) => localStorage.getItem(key),
+        DISTRIBUTOR_ATTEMPT_MARKER_KEY,
+      )) ?? "{}",
     ) as { status?: string; idempotencyKey?: string };
     expect(marker.status).toBe("failed");
     const reference = marker.idempotencyKey ?? "";
@@ -509,10 +528,16 @@ test.describe("conciliación del canal distribuidor", () => {
 
     /* La transición ocurre: el intento queda cerrado (marcador y sesión). */
     await expect
-      .poll(() => page.evaluate(() => localStorage.getItem("starvie-order-attempt-v2")))
+      .poll(() => page.evaluate(
+        (key) => localStorage.getItem(key),
+        DISTRIBUTOR_ATTEMPT_MARKER_KEY,
+      ))
       .toBeNull();
     expect(
-      await page.evaluate(() => sessionStorage.getItem("starvie-order-attempt-v2-session")),
+      await page.evaluate(
+        (key) => sessionStorage.getItem(key),
+        DISTRIBUTOR_ATTEMPT_SESSION_KEY,
+      ),
     ).toBeNull();
     /* Y NO se envía ningún pedido nuevo: el único POST fue el del intento
        que falló, y la conciliación no reenvía nada. */
@@ -561,8 +586,14 @@ test.describe("conciliación del canal distribuidor", () => {
 
     /* Ni un pedido, ni un correo, y el registro del intento sigue intacto. */
     expectNoOrders(calls);
-    expect(await page.evaluate(() => localStorage.getItem("starvie-order-attempt-v2"))).not.toBeNull();
-    expect(await page.evaluate(() => sessionStorage.getItem("starvie-order-attempt-v2-session"))).not.toBeNull();
+    expect(await page.evaluate(
+      (key) => localStorage.getItem(key),
+      DISTRIBUTOR_ATTEMPT_MARKER_KEY,
+    )).not.toBeNull();
+    expect(await page.evaluate(
+      (key) => sessionStorage.getItem(key),
+      DISTRIBUTOR_ATTEMPT_SESSION_KEY,
+    )).not.toBeNull();
   });
 
   for (const status of ["UNRESOLVED", "UNKNOWN", "EXPIRED"] as const) {
@@ -618,10 +649,10 @@ test.describe("conciliación del canal distribuidor", () => {
     });
     const dialog = await openDistributorCheckout(page);
 
-    const before = await page.evaluate(() => ({
-      marker: localStorage.getItem("starvie-order-attempt-v2"),
-      session: sessionStorage.getItem("starvie-order-attempt-v2-session"),
-    }));
+    const before = await page.evaluate((keys) => ({
+      marker: localStorage.getItem(keys.marker),
+      session: sessionStorage.getItem(keys.session),
+    }), attemptKeys("distributor"));
 
     await dialog.getByRole("button", { name: "Consultar estado del pedido" }).click();
     await expect(dialog.getByText(RESOLUTION_MESSAGES.UNKNOWN)).toBeVisible();
@@ -633,10 +664,10 @@ test.describe("conciliación del canal distribuidor", () => {
     expect(
       calls.externalCalls.filter(url => /mail|smtp|sendgrid|postmark|resend/i.test(url)),
     ).toEqual([]);
-    const after = await page.evaluate(() => ({
-      marker: localStorage.getItem("starvie-order-attempt-v2"),
-      session: sessionStorage.getItem("starvie-order-attempt-v2-session"),
-    }));
+    const after = await page.evaluate((keys) => ({
+      marker: localStorage.getItem(keys.marker),
+      session: sessionStorage.getItem(keys.session),
+    }), attemptKeys("distributor"));
     expect(after).toEqual(before);
   });
 });

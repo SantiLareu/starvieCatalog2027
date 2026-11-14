@@ -9,6 +9,11 @@
  *   key: "starvie-order-attempt-v2-session"
  *   value: full OrderPayload + lines snapshot + createdAt anchor
  *
+ * El canal DISTRIBUIDOR tiene su propio compartmento (claves
+ * "starvie-order-attempt-v2-distributor" y
+ * "starvie-order-attempt-v2-distributor-session"): un intento pendiente de
+ * un canal nunca bloquea al otro ni se borra desde el otro.
+ *
  * Retención: ≤23h desde createdAt. Nunca se borra el marcador al expirar.
  *
  * prepareAttempt: gate principal. Verifica marcador existente antes de escribir.
@@ -33,8 +38,41 @@ const ATTEMPT_STORAGE_VERSION = "v2";
 const RETENTION_MS = 23 * 3600 * 1000; // 23h
 
 /* ── keys ─────────────────────────────────────────────────────────── */
+/*
+ * Cada canal tiene su PROPIO compartmento de almacenamiento:
+ *
+ *   público      → "starvie-order-attempt-v2" / "…-v2-session"
+ *   distribuidor → "starvie-order-attempt-v2-distributor" /
+ *                  "starvie-order-attempt-v2-distributor-session"
+ *
+ * El canal público conserva las claves históricas de origin/main. La
+ * separación evita que un intento pendiente del canal distribuidor bloquee
+ * la compra pública del mismo navegador (y al revés) y que una clave de
+ * idempotencia viaje de un canal al otro.
+ */
 const LOCAL_KEY = `starvie-order-attempt-${ATTEMPT_STORAGE_VERSION}`;
 const SESSION_KEY = `starvie-order-attempt-${ATTEMPT_STORAGE_VERSION}-session`;
+const DISTRIBUTOR_LOCAL_KEY = `starvie-order-attempt-${ATTEMPT_STORAGE_VERSION}-distributor`;
+const DISTRIBUTOR_SESSION_KEY = `starvie-order-attempt-${ATTEMPT_STORAGE_VERSION}-distributor-session`;
+
+/** Claves del compartmento de un canal. */
+export type AttemptStorageKeys = {
+  localKey: string;
+  sessionKey: string;
+};
+
+/**
+ * Claves de almacenamiento del canal. El canal público es el defecto y
+ * conserva las claves históricas; el canal distribuidor usa su propio
+ * compartmento.
+ */
+export function attemptStorageKeys(
+  channel: OrderAttemptChannel = "public",
+): AttemptStorageKeys {
+  return channel === "distributor"
+    ? { localKey: DISTRIBUTOR_LOCAL_KEY, sessionKey: DISTRIBUTOR_SESSION_KEY }
+    : { localKey: LOCAL_KEY, sessionKey: SESSION_KEY };
+}
 
 /* ── types ────────────────────────────────────────────────────────── */
 
@@ -162,9 +200,12 @@ function resolveStorage(
   return fallback;
 }
 
-function readJsonLocal(storage: Storage | null): OrderAttemptSnapshot | null {
+function readJsonLocal(
+  storage: Storage | null,
+  localKey: string,
+): OrderAttemptSnapshot | null {
   try {
-    const raw = storage?.getItem(LOCAL_KEY);
+    const raw = storage?.getItem(localKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || !isValidAttempt(parsed)) {
@@ -176,26 +217,33 @@ function readJsonLocal(storage: Storage | null): OrderAttemptSnapshot | null {
   }
 }
 
-function writeJsonLocal(storage: Storage, data: OrderAttemptSnapshot): boolean {
+function writeJsonLocal(
+  storage: Storage,
+  data: OrderAttemptSnapshot,
+  localKey: string,
+): boolean {
   try {
-    storage.setItem(LOCAL_KEY, JSON.stringify(data));
+    storage.setItem(localKey, JSON.stringify(data));
     return true;
   } catch {
     return false;
   }
 }
 
-function removeJsonLocal(storage: Storage): void {
+function removeJsonLocal(storage: Storage, localKey: string): void {
   try {
-    storage.removeItem(LOCAL_KEY);
+    storage.removeItem(localKey);
   } catch {
     // no-op
   }
 }
 
-function readJsonSession(storage: Storage | null): OrderAttemptSession | null {
+function readJsonSession(
+  storage: Storage | null,
+  sessionKey: string,
+): OrderAttemptSession | null {
   try {
-    const raw = storage?.getItem(SESSION_KEY);
+    const raw = storage?.getItem(sessionKey);
     if (!raw) return null;
     const parsed = JSON.parse(raw);
     if (!parsed || typeof parsed !== "object" || !isValidSession(parsed)) {
@@ -210,18 +258,19 @@ function readJsonSession(storage: Storage | null): OrderAttemptSession | null {
 function writeJsonSession(
   storage: Storage,
   data: OrderAttemptSession,
+  sessionKey: string,
 ): boolean {
   try {
-    storage.setItem(SESSION_KEY, JSON.stringify(data));
+    storage.setItem(sessionKey, JSON.stringify(data));
     return true;
   } catch {
     return false;
   }
 }
 
-function removeJsonSession(storage: Storage): void {
+function removeJsonSession(storage: Storage, sessionKey: string): void {
   try {
-    storage.removeItem(SESSION_KEY);
+    storage.removeItem(sessionKey);
   } catch {
     // no-op
   }
@@ -364,11 +413,14 @@ function isAttemptExpired(snapshot: OrderAttemptSnapshot): boolean {
  */
 export function getStoredAttemptStatus(options?: {
   storage?: Pick<Storage, "getItem">;
+  /** Canal cuyo compartmento se consulta. Defecto: público. */
+  channel?: OrderAttemptChannel;
 }): OrderAttemptStatus {
   const storageItem = resolveStorage(
     options?.storage as Storage | undefined,
     safeGetGlobalStorage("localStorage"),
   );
+  const { localKey } = attemptStorageKeys(options?.channel);
 
   /* Unavailable: storage itself unavailable. */
   if (!storageItem) {
@@ -377,7 +429,7 @@ export function getStoredAttemptStatus(options?: {
 
   let raw: string | null;
   try {
-    raw = storageItem.getItem(LOCAL_KEY);
+    raw = storageItem.getItem(localKey);
   } catch {
     return { kind: "unavailable" };
   }
@@ -420,15 +472,19 @@ export function getStoredAttemptStatus(options?: {
 /**
  * Atomic two-step preparation of a purchase attempt.
  *
- * The channel (public / distributor) is part of the attempt: it is written in
- * BOTH records (session + marker) and it is immutable. A reuse is only
- * allowed when the stored channel matches the requested one exactly, so an
- * idempotency key never travels from one channel to another.
+ * Cada canal tiene su PROPIO compartmento de almacenamiento (claves
+ * distintas en localStorage y sessionStorage): el registro que se lee y se
+ * escribe es SIEMPRE el del canal pedido, así que una clave de idempotencia
+ * nunca viaja de un canal al otro y un intento pendiente de un canal nunca
+ * bloquea al otro.
+ *
+ * The channel (public / distributor) is also part of the attempt: it is
+ * written in BOTH records (session + marker) and it is immutable.
  *
  * El canal es la atribución del canal DISTRIBUIDOR: la regla de reutilizar
- * un registro exige el MISMO canal sólo en ese canal. El canal público
- * conserva las reglas de origin/main (sin atribución, un registro heredado
- * se reenvía como antes).
+ * un registro exige el MISMO canal sólo en ese canal (un registro heredado o
+ * público nunca se adopta). El canal público conserva las reglas de
+ * origin/main (sin atribución, un registro heredado se reenvía como antes).
  *
  * When NO existing valid marker exists:
  *  1. Saves full payload to sessionStorage (contact snapshot).
@@ -459,12 +515,15 @@ export function prepareAttempt(
   cartLines: { productId: string; qty: number }[],
   options: {
     /** Canal del intento. Explícito: nunca se deduce del contexto. */
-    channel: OrderAttemptChannel;
+    channel?: OrderAttemptChannel;
     storage?: Storage;
     sessionStorage?: Storage;
   },
 ): PreparedAttemptPayload | false {
   if (cartLines.length === 0) return false;
+
+  const channel: OrderAttemptChannel = options?.channel ?? "public";
+  const { localKey, sessionKey } = attemptStorageKeys(channel);
 
   const localStorageItem = resolveStorage(
     options?.storage,
@@ -478,9 +537,10 @@ export function prepareAttempt(
   /* Both storages must be available for atomic operation. */
   if (!localStorageItem || !sessionStorageItem) return false;
 
-  /* Check existing marker status. */
+  /* Check existing marker status (compartimento del canal). */
   const status = getStoredAttemptStatus({
     storage: localStorageItem,
+    channel,
   });
 
   /*
@@ -488,7 +548,7 @@ export function prepareAttempt(
    * Enforce immutable contract — key+lines+contact must match.
    */
   if (status.kind === "valid") {
-    const existingSession = readJsonSession(sessionStorageItem);
+    const existingSession = readJsonSession(sessionStorageItem, sessionKey);
     const newLines = [...cartLines].map((l) => ({
       productId: l.productId,
       qty: l.qty,
@@ -507,17 +567,15 @@ export function prepareAttempt(
       !linesEqual(status.snapshot.lines, existingSession.lines) ||
       !linesEqual(existingSession.lines, newLines) ||
       !contactEqual(existingSession.contact, contact) ||
-      /* Canal inmutable: la clave nunca viaja de un canal a otro. La regla
-         del canal DISTRIBUIDOR exige el MISMO canal (un registro heredado
-         o de otro canal no se reenvía). El canal público conserva el
-         comportamiento de origin/main salvo en un caso: un registro que
-         pertenece al DISTRIBUIDOR no se reenvía como pedido público, para
-         que ese pedido no pueda duplicarse en otra vía. */
-      (options.channel === "distributor"
-        ? (status.snapshot.channel !== options.channel ||
-          existingSession.channel !== options.channel)
-        : (status.snapshot.channel === "distributor" ||
-          existingSession.channel === "distributor"))
+      /* Canal inmutable: la clave nunca viaja de un canal a otro. Cada canal
+         tiene su propio compartmento, así que el registro leído ya es del
+         canal pedido; el canal DISTRIBUIDOR exige además que el registro
+         esté atribuido a él (un registro heredado o público no se adopta).
+         El canal público conserva el comportamiento de origin/main: trata
+         el registro de su compartmento como propio. */
+      (channel === "distributor" &&
+        (status.snapshot.channel !== channel ||
+          existingSession.channel !== channel))
     ) {
       return false;
     }
@@ -538,7 +596,7 @@ export function prepareAttempt(
   // A leftover session may represent an interrupted write: do not replace it
   // with another key or silently discard contact from an uncertain attempt.
   try {
-    if (sessionStorageItem.getItem(SESSION_KEY) !== null) return false;
+    if (sessionStorageItem.getItem(sessionKey) !== null) return false;
   } catch {
     return false;
   }
@@ -561,10 +619,10 @@ export function prepareAttempt(
     contact: { ...contact },
     lines: newLines,
     createdAt: now,
-    channel: options.channel,
+    channel,
   };
 
-  if (!writeJsonSession(sessionStorageItem, session)) return false;
+  if (!writeJsonSession(sessionStorageItem, session, sessionKey)) return false;
 
   const marker: OrderAttemptSnapshot = {
     version: ATTEMPT_STORAGE_VERSION,
@@ -572,11 +630,11 @@ export function prepareAttempt(
     orderId: null,
     lines: newLines,
     createdAt: now,
-    channel: options.channel,
+    channel,
   };
 
-  if (!writeJsonLocal(localStorageItem, marker)) {
-    removeJsonSession(sessionStorageItem);
+  if (!writeJsonLocal(localStorageItem, marker, localKey)) {
+    removeJsonSession(sessionStorageItem, sessionKey);
     return false;
   }
 
@@ -604,9 +662,9 @@ export function saveAttempt(
     completed?: boolean;
     storage?: Pick<Storage, "getItem" | "setItem">;
     /**
-     * Canal del intento. Si se omite, el registro queda SIN atribución
-     * (equivalente a un registro heredado): se conserva pero no se reenvía
-     * por ningún canal.
+     * Canal del intento: elige el compartmento de almacenamiento. Si se
+     * omite, el registro queda SIN atribución (equivalente a un registro
+     * heredado): se conserva pero no se reenvía por el canal distribuidor.
      */
     channel?: OrderAttemptChannel;
   },
@@ -634,15 +692,16 @@ export function saveAttempt(
     safeGetGlobalStorage("localStorage"),
   );
   if (!storageItem) return false;
+  const { localKey, sessionKey } = attemptStorageKeys(options?.channel);
   try {
     // Deprecated entry point: creation only. Never replace even an invalid or
     // expired marker; the explicit resolution flow owns removal.
-    if (storageItem.getItem(LOCAL_KEY) !== null) return false;
-    if (getStoredSessionPresence() !== "missing") return false;
+    if (storageItem.getItem(localKey) !== null) return false;
+    if (getStoredSessionPresence({ channel: options?.channel }) !== "missing") return false;
   } catch {
     return false;
   }
-  return writeJsonLocal(storageItem, snapshot);
+  return writeJsonLocal(storageItem, snapshot, localKey);
 }
 
 /**
@@ -657,7 +716,7 @@ export function saveAttemptSession(
   orderId?: string | null,
   options?: {
     storage?: Pick<Storage, "getItem" | "setItem">;
-    /** Canal del intento (inmutable). Sin canal ⇒ registro no reenviable. */
+    /** Canal del intento (inmutable) y compartmento de almacenamiento. */
     channel?: OrderAttemptChannel;
   },
 ): boolean {
@@ -683,13 +742,14 @@ export function saveAttemptSession(
     safeGetGlobalStorage("sessionStorage"),
   );
   if (!storageItem) return false;
+  const { localKey, sessionKey } = attemptStorageKeys(options?.channel);
   try {
-    if (storageItem.getItem(SESSION_KEY) !== null) return false;
-    if (getStoredAttemptStatus().kind !== "missing") return false;
+    if (storageItem.getItem(sessionKey) !== null) return false;
+    if (getStoredAttemptStatus({ channel: options?.channel }).kind !== "missing") return false;
   } catch {
     return false;
   }
-  return writeJsonSession(storageItem, session);
+  return writeJsonSession(storageItem, session, sessionKey);
 }
 
 /**
@@ -708,6 +768,8 @@ export function updateAttempt(
     status?: "accepted" | "processing" | "completed" | "failed" | "conflict" | "validation";
     completed?: boolean;
     storage?: Pick<Storage, "getItem" | "setItem">;
+    /** Canal cuyo compartmento se actualiza. Defecto: público. */
+    channel?: OrderAttemptChannel;
   },
 ): boolean {
   const snapshot = getAttempt(options);
@@ -759,7 +821,7 @@ export function updateAttempt(
     status: options?.status ?? snapshot.status,
   };
 
-  return writeJsonLocal(storageItem, updated);
+  return writeJsonLocal(storageItem, updated, attemptStorageKeys(options?.channel).localKey);
 }
 
 /**
@@ -774,6 +836,8 @@ export function updateAttemptSession(
   orderId: string | null,
   options?: {
     storage?: Pick<Storage, "getItem" | "setItem">;
+    /** Canal cuyo compartmento se actualiza. Defecto: público. */
+    channel?: OrderAttemptChannel;
   },
 ): boolean {
   const session = getAttemptSession(options);
@@ -790,7 +854,7 @@ export function updateAttemptSession(
     orderId: orderId ?? null,
   };
 
-  return writeJsonSession(storageItem, updated);
+  return writeJsonSession(storageItem, updated, attemptStorageKeys(options?.channel).sessionKey);
 }
 
 /**
@@ -801,12 +865,14 @@ export function updateAttemptSession(
  */
 export function getAttempt(options?: {
   storage?: Pick<Storage, "getItem">;
+  /** Canal cuyo compartmento se lee. Defecto: público. */
+  channel?: OrderAttemptChannel;
 }): OrderAttemptSnapshot | null {
   const storageItem = resolveStorage(
     options?.storage as Storage | undefined,
     safeGetGlobalStorage("localStorage"),
   );
-  const snapshot = readJsonLocal(storageItem);
+  const snapshot = readJsonLocal(storageItem, attemptStorageKeys(options?.channel).localKey);
   if (!snapshot) return null;
   if (isAttemptExpired(snapshot)) {
     return null;
@@ -821,17 +887,21 @@ export function getAttempt(options?: {
  */
 export function getAttemptSession(options?: {
   storage?: Pick<Storage, "getItem">;
+  /** Canal cuyo compartmento se lee. Defecto: público. */
+  channel?: OrderAttemptChannel;
 }): OrderAttemptSession | null {
   const storageItem = resolveStorage(
     options?.storage as Storage | undefined,
     safeGetGlobalStorage("sessionStorage"),
   );
-  return readJsonSession(storageItem);
+  return readJsonSession(storageItem, attemptStorageKeys(options?.channel).sessionKey);
 }
 
 /** Detect an orphaned session without exposing its contact data. */
 export function getStoredSessionPresence(options?: {
   storage?: Pick<Storage, "getItem">;
+  /** Canal cuyo compartmento se lee. Defecto: público. */
+  channel?: OrderAttemptChannel;
 }): "missing" | "present" | "unavailable" {
   const storage = resolveStorage(
     options?.storage as Storage | undefined,
@@ -839,7 +909,9 @@ export function getStoredSessionPresence(options?: {
   );
   if (!storage) return "unavailable";
   try {
-    return storage.getItem(SESSION_KEY) === null ? "missing" : "present";
+    return storage.getItem(attemptStorageKeys(options?.channel).sessionKey) === null
+      ? "missing"
+      : "present";
   } catch {
     return "unavailable";
   }
@@ -857,17 +929,20 @@ export function getStoredSessionPresence(options?: {
 export function clearAttempt(options?: {
   storage?: Pick<Storage, "getItem" | "removeItem">;
   sessionStorage?: Pick<Storage, "getItem" | "removeItem">;
+  /** Canal cuyo compartmento se limpia. Defecto: público. */
+  channel?: OrderAttemptChannel;
 }): void {
   const localStorageItem = resolveStorage(
     options?.storage as Storage | undefined,
     safeGetGlobalStorage("localStorage"),
   );
+  const { localKey, sessionKey } = attemptStorageKeys(options?.channel);
   /* El contexto vivo en memoria se olvida con el registro: nunca queda una
      prueba huérfana que autorice un reenvío posterior. */
   let clearedKey: string | null = null;
   if (localStorageItem) {
     try {
-      const raw = localStorageItem.getItem(LOCAL_KEY);
+      const raw = localStorageItem.getItem(localKey);
       if (raw) {
         const parsed = JSON.parse(raw) as Record<string, unknown>;
         if (typeof parsed.idempotencyKey === "string") clearedKey = parsed.idempotencyKey;
@@ -875,7 +950,7 @@ export function clearAttempt(options?: {
     } catch {
       clearedKey = null;
     }
-    removeJsonLocal(localStorageItem);
+    removeJsonLocal(localStorageItem, localKey);
   }
   if (clearedKey) forgetAttemptContext(clearedKey);
   const sessionStorageItem = resolveStorage(
@@ -883,7 +958,7 @@ export function clearAttempt(options?: {
     safeGetGlobalStorage("sessionStorage"),
   );
   if (sessionStorageItem) {
-    removeJsonSession(sessionStorageItem);
+    removeJsonSession(sessionStorageItem, sessionKey);
   }
 }
 
@@ -896,23 +971,29 @@ export function clearAttempt(options?: {
 export function finalizeCompletedAttempt(
   idempotencyKey: string,
   orderId: string,
-  options?: { storage?: Storage; sessionStorage?: Storage },
+  options?: {
+    storage?: Storage;
+    sessionStorage?: Storage;
+    /** Canal cuyo compartmento se cierra. Defecto: público. */
+    channel?: OrderAttemptChannel;
+  },
 ): boolean {
   if (!orderId.trim()) return false;
   const local = resolveStorage(options?.storage, safeGetGlobalStorage("localStorage"));
   const session = resolveStorage(options?.sessionStorage, safeGetGlobalStorage("sessionStorage"));
   if (!local || !session) return false;
+  const { localKey, sessionKey } = attemptStorageKeys(options?.channel);
 
   try {
-    const originalRaw = local.getItem(LOCAL_KEY);
-    const current = getStoredAttemptStatus({ storage: local });
+    const originalRaw = local.getItem(localKey);
+    const current = getStoredAttemptStatus({ storage: local, channel: options?.channel });
     if (current.kind !== "valid" && current.kind !== "expired") return false;
     const snapshot = current.snapshot;
     if (snapshot.idempotencyKey !== idempotencyKey ||
         (snapshot.orderId !== null && snapshot.orderId !== orderId) ||
         ["failed", "conflict", "validation"].includes(snapshot.status ?? "")) return false;
 
-    const sessionRaw = session.getItem(SESSION_KEY);
+    const sessionRaw = session.getItem(sessionKey);
     if (sessionRaw !== null) {
       const stored = JSON.parse(sessionRaw);
       if (!stored || typeof stored !== "object" || !isValidSession(stored) ||
@@ -921,25 +1002,25 @@ export function finalizeCompletedAttempt(
           stored.channel !== snapshot.channel ||
           (stored.orderId !== null && stored.orderId !== orderId)) return false;
     }
-    if (local.getItem(LOCAL_KEY) !== originalRaw) return false;
+    if (local.getItem(localKey) !== originalRaw) return false;
 
     let completedRaw = originalRaw;
     if (snapshot.status !== "completed") {
       completedRaw = JSON.stringify({
         ...snapshot, orderId, status: "completed", completedAt: new Date().toISOString(),
       });
-      local.setItem(LOCAL_KEY, completedRaw);
+      local.setItem(localKey, completedRaw);
     }
-    if (local.getItem(LOCAL_KEY) !== completedRaw || session.getItem(SESSION_KEY) !== sessionRaw) return false;
+    if (local.getItem(localKey) !== completedRaw || session.getItem(sessionKey) !== sessionRaw) return false;
 
     // Keep the completed marker if session removal fails. Check again before
     // removing the marker so a different attempt is never intentionally cleared.
-    session.removeItem(SESSION_KEY);
-    if (session.getItem(SESSION_KEY) !== null || local.getItem(LOCAL_KEY) !== completedRaw) return false;
-    local.removeItem(LOCAL_KEY);
+    session.removeItem(sessionKey);
+    if (session.getItem(sessionKey) !== null || local.getItem(localKey) !== completedRaw) return false;
+    local.removeItem(localKey);
     /* Pedido confirmado: la prueba viva de ese intento deja de existir. */
     forgetAttemptContext(idempotencyKey);
-    return local.getItem(LOCAL_KEY) === null && session.getItem(SESSION_KEY) === null;
+    return local.getItem(localKey) === null && session.getItem(sessionKey) === null;
   } catch {
     return false;
   }
@@ -1005,7 +1086,8 @@ export function resolveAttemptForNewPurchase(
     storage?: Storage;
     sessionStorage?: Storage;
     /**
-     * Canal del intento. `public` conserva exactamente las reglas de
+     * Canal del intento: elige el compartmento de almacenamiento (cada
+     * canal tiene el suyo). `public` conserva exactamente las reglas de
      * origin/main. Cualquier otro valor (o su ausencia) aplica la compuerta
      * de liberación local (`canResolveAttemptLocally`): por omisión, el
      * comportamiento es estricto (fail closed).
@@ -1017,35 +1099,31 @@ export function resolveAttemptForNewPurchase(
   const local = resolveStorage(options?.storage, safeGetGlobalStorage("localStorage"));
   const session = resolveStorage(options?.sessionStorage, safeGetGlobalStorage("sessionStorage"));
   if (!local || !session) return false;
+  const channel: OrderAttemptChannel = options?.channel ?? "public";
+  const { localKey, sessionKey } = attemptStorageKeys(channel);
 
   let originalRaw: string | null;
   let originalSessionRaw: string | null;
   try {
-    originalRaw = local.getItem(LOCAL_KEY);
-    originalSessionRaw = session.getItem(SESSION_KEY);
+    originalRaw = local.getItem(localKey);
+    originalSessionRaw = session.getItem(sessionKey);
   } catch {
     return false;
   }
 
-  const current = getStoredAttemptStatus({ storage: local });
+  const current = getStoredAttemptStatus({ storage: local, channel });
   if (current.kind !== expected.kind) return false;
   /* La compuerta de liberación local es una protección del canal
      DISTRIBUIDOR: sólo se exige que el resultado sea definitivo y que el
      servidor no conserve un pedido pendiente. El default es estricto
      (fail closed). El canal público la desactiva explícitamente y conserva
      las reglas de origin/main (resultado terminal, o incierto con la
-     confirmación del cliente) — salvo que el REGISTRO pertenezca al
-     distribuidor: la protección acompaña al pedido, no a la pantalla desde
-     la que se lo toca. */
-  const storedSession = getAttemptSession({ storage: session });
-  const ownedByDistributor =
-    (current.kind === "valid" || current.kind === "expired"
-      ? current.snapshot.channel
-      : storedSession?.channel) === "distributor";
-  if ((options?.channel !== "public" || ownedByDistributor) &&
-      !canResolveAttemptLocally(current, storedSession)) return false;
+     confirmación del cliente). Cada canal tiene su propio compartmento: el
+     registro que se toca es SIEMPRE el de su canal. */
+  const storedSession = getAttemptSession({ storage: session, channel });
+  if (options?.channel !== "public" && !canResolveAttemptLocally(current, storedSession)) return false;
   if (current.kind === "missing") {
-    if (!confirmedUncertain || getStoredSessionPresence({ storage: session }) !== "present") return false;
+    if (!confirmedUncertain || getStoredSessionPresence({ storage: session, channel }) !== "present") return false;
   } else if (current.kind === "valid" || current.kind === "expired") {
     if (expected.kind !== current.kind) return false;
     const a = current.snapshot;
@@ -1064,16 +1142,16 @@ export function resolveAttemptForNewPurchase(
   try {
     // Leave the marker in place if the session cannot be removed. If removing
     // the marker then fails, the remaining marker still blocks a new POST.
-    if (local.getItem(LOCAL_KEY) !== originalRaw || session.getItem(SESSION_KEY) !== originalSessionRaw) return false;
-    session.removeItem(SESSION_KEY);
-    if (session.getItem(SESSION_KEY) !== null) return false;
-    if (local.getItem(LOCAL_KEY) !== originalRaw) return false;
-    local.removeItem(LOCAL_KEY);
+    if (local.getItem(localKey) !== originalRaw || session.getItem(sessionKey) !== originalSessionRaw) return false;
+    session.removeItem(sessionKey);
+    if (session.getItem(sessionKey) !== null) return false;
+    if (local.getItem(localKey) !== originalRaw) return false;
+    local.removeItem(localKey);
     /* Resolución explícita: la prueba viva de ese intento deja de existir. */
     if (current.kind === "valid" || current.kind === "expired") {
       forgetAttemptContext(current.snapshot.idempotencyKey);
     }
-    return local.getItem(LOCAL_KEY) === null;
+    return local.getItem(localKey) === null;
   } catch {
     return false;
   }
@@ -1119,7 +1197,9 @@ export function canCloseAttemptByReconciliation(
     safeGetGlobalStorage("localStorage"),
   );
   if (!local) return false;
-  const current = getStoredAttemptStatus({ storage: local });
+  /* La conciliación es EXCLUSIVA del canal distribuidor: se consulta su
+     compartmento. El checkout público nunca se cierra por esta vía. */
+  const current = getStoredAttemptStatus({ storage: local, channel: "distributor" });
   if (current.kind !== "valid" && current.kind !== "expired") return false;
   const snapshot = current.snapshot;
   if (snapshot.idempotencyKey !== key) return false;
@@ -1165,35 +1245,38 @@ export function closeAttemptByReconciliation(
   const local = resolveStorage(options?.storage, safeGetGlobalStorage("localStorage"));
   const session = resolveStorage(options?.sessionStorage, safeGetGlobalStorage("sessionStorage"));
   if (!local || !session) return false;
+  /* Compartmento del canal distribuidor: la conciliación nunca toca el
+     registro del canal público. */
+  const { localKey, sessionKey } = attemptStorageKeys("distributor");
 
   let originalRaw: string | null;
   let originalSessionRaw: string | null;
   try {
-    originalRaw = local.getItem(LOCAL_KEY);
-    originalSessionRaw = session.getItem(SESSION_KEY);
+    originalRaw = local.getItem(localKey);
+    originalSessionRaw = session.getItem(sessionKey);
   } catch {
     return false;
   }
   if (originalRaw === null) return false;
 
   if (!canCloseAttemptByReconciliation(key, decision, { storage: local })) return false;
-  const current = getStoredAttemptStatus({ storage: local });
+  const current = getStoredAttemptStatus({ storage: local, channel: "distributor" });
   if (current.kind !== "valid" && current.kind !== "expired") return false;
   const snapshot = current.snapshot;
 
   try {
     /* El marcador no cambió desde la consulta: si otra pestaña lo movió, no
        se borra nada. */
-    if (local.getItem(LOCAL_KEY) !== originalRaw) return false;
-    if (session.getItem(SESSION_KEY) !== originalSessionRaw) return false;
-    session.removeItem(SESSION_KEY);
-    if (session.getItem(SESSION_KEY) !== null) return false;
-    if (local.getItem(LOCAL_KEY) !== originalRaw) return false;
-    local.removeItem(LOCAL_KEY);
+    if (local.getItem(localKey) !== originalRaw) return false;
+    if (session.getItem(sessionKey) !== originalSessionRaw) return false;
+    session.removeItem(sessionKey);
+    if (session.getItem(sessionKey) !== null) return false;
+    if (local.getItem(localKey) !== originalRaw) return false;
+    local.removeItem(localKey);
     /* La resolución es explícita: la prueba viva de ese intento deja de
        existir y no habilita ningún reenvío posterior. */
     forgetAttemptContext(snapshot.idempotencyKey);
-    return local.getItem(LOCAL_KEY) === null;
+    return local.getItem(localKey) === null;
   } catch {
     return false;
   }
@@ -1205,6 +1288,8 @@ export function closeAttemptByReconciliation(
  */
 export function hasPendingAttempt(options?: {
   storage?: Pick<Storage, "getItem">;
+  /** Canal cuyo compartmento se consulta. Defecto: público. */
+  channel?: OrderAttemptChannel;
 }): boolean {
   const snapshot = getAttempt(options);
   return snapshot !== null && !snapshot.completedAt &&
@@ -1219,6 +1304,8 @@ export function hasPendingAttempt(options?: {
  */
 export function hasStoredAttempt(options?: {
   storage?: Pick<Storage, "getItem">;
+  /** Canal cuyo compartmento se consulta. Defecto: público. */
+  channel?: OrderAttemptChannel;
 }): boolean {
   const storageItem = resolveStorage(
     options?.storage as Storage | undefined,
@@ -1226,7 +1313,7 @@ export function hasStoredAttempt(options?: {
   );
   if (!storageItem) return false;
   try {
-    const raw = storageItem.getItem(LOCAL_KEY);
+    const raw = storageItem.getItem(attemptStorageKeys(options?.channel).localKey);
     if (!raw) return false;
     const parsed = JSON.parse(raw);
     return parsed && typeof parsed === "object" && isValidAttempt(parsed);

@@ -14,13 +14,16 @@ import type { CommerceProduct, PresentedLine } from "./types";
 
 const REF = "0df502b3-51aa-461d-a1b6-19363712c567";
 const OTHER_REF = "11111111-2222-4333-8444-555555555555";
-const LOCAL_KEY = "starvie-order-attempt-v2";
-const SESSION_KEY = "starvie-order-attempt-v2-session";
+/* La conciliación es exclusiva del canal distribuidor: su compartmento. */
+const LOCAL_KEY = "starvie-order-attempt-v2-distributor";
+const SESSION_KEY = "starvie-order-attempt-v2-distributor-session";
 const PUBLIC_DISCLAIMER =
   "Consultar con RealStep no habilita por sí solo una compra nueva: este catálogo todavía no tiene un mecanismo verificable para resolverlo manualmente.";
 
-const PROOF_A = { status: "authenticated" as const, discountPercent: 20, expiresAt: "2026-01-01T00:00:00.000Z", tag: "A" };
-const PROOF_B = { status: "authenticated" as const, discountPercent: 20, expiresAt: "2026-01-01T00:00:00.000Z", tag: "B" };
+/* Huellas de VALOR de la sesión: A es la sesión vigente y B es otra
+   cuenta (otro vencimiento ⇒ otra huella). */
+const PROOF_A = "v1:20:2026-11-20T20:00:00.000Z";
+const PROOF_B = "v1:20:2026-11-21T20:00:00.000Z";
 
 const product = {
   id: "raptor+", sku: "PSTRP41000", nombre: "Raptor+", categoria: "palas",
@@ -71,7 +74,7 @@ function renderDistributor(overrides: Partial<React.ComponentProps<typeof Checko
     clearCart,
     submitFn,
     distributorMode: true,
-    distributorSessionProof: PROOF_A,
+    distributorSessionFingerprint: PROOF_A,
     distributorDiscountPercent: 20,
     distributorTotal: 800,
     distributorNetByProduct: { "raptor+": 800 },
@@ -154,7 +157,7 @@ describe("P3 · aislamiento de sesión", () => {
     rerender(<CheckoutModal {...({
       open: true, onClose: vi.fn(), presented, total: 1000, clearCart: vi.fn(),
       submitFn: vi.fn(async () => ({ kind: "unknown" as const, error: "sin red" })),
-      distributorMode: true, distributorSessionProof: PROOF_B,
+      distributorMode: true, distributorSessionFingerprint: PROOF_B,
       distributorDiscountPercent: 20, distributorTotal: 800,
       distributorNetByProduct: { "raptor+": 800 },
     } as React.ComponentProps<typeof CheckoutModal>)} />);
@@ -181,7 +184,7 @@ describe("P3 · aislamiento de sesión", () => {
     rerender(<CheckoutModal {...({
       open: true, onClose: vi.fn(), presented, total: 1000, clearCart: vi.fn(),
       submitFn: vi.fn(async () => ({ kind: "unknown" as const, error: "sin red" })),
-      distributorMode: true, distributorSessionProof: PROOF_B,
+      distributorMode: true, distributorSessionFingerprint: PROOF_B,
       distributorDiscountPercent: 20, distributorTotal: 800,
       distributorNetByProduct: { "raptor+": 800 },
     } as React.ComponentProps<typeof CheckoutModal>)} />);
@@ -387,7 +390,19 @@ describe("P3 · integridad de la referencia y no-regresión del canal público",
   });
 
   it("P3.11 el canal público no gana ninguna capacidad de conciliación", async () => {
-    seed({ channel: "public" });
+    /* El intento público vive en SU compartmento (el histórico). */
+    const publicLocal = "starvie-order-attempt-v2";
+    const publicSession = "starvie-order-attempt-v2-session";
+    const createdAt = new Date().toISOString();
+    const marker = {
+      version: "v2", idempotencyKey: REF, orderId: null,
+      lines: [{ productId: "raptor+", qty: 2 }], createdAt, status: "accepted", channel: "public",
+    };
+    localStorage.setItem(publicLocal, JSON.stringify(marker));
+    sessionStorage.setItem(publicSession, JSON.stringify({
+      ...marker,
+      contact: { name: "Cliente", legalName: "Empresa", email: "cliente@example.test" },
+    }));
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
     render(

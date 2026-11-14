@@ -1,14 +1,15 @@
 /**
- * Guards de atribución del intento de pedido (canal + prueba viva).
+ * Guards de atribución del intento de pedido (canal + huella de sesión).
  *
  * Cubre el contrato de S3/S4/S5:
  *  - El canal (público/distribuidor) queda escrito en AMBOS registros
  *    (marcador en localStorage + sesión en sessionStorage) y es inmutable.
- *  - Una clave de idempotencia nunca se reutiliza en otro canal.
+ *  - Cada canal tiene su propio compartmento de almacenamiento: una clave
+ *    nunca viaja de un canal al otro.
  *  - Un registro heredado (sin canal) se conserva pero no se reenvía.
- *  - El canal distribuidor exige la MISMA prueba viva (el objeto exacto de
- *    autenticación): el canal público no depende de una sesión y sobrevive
- *    a una recarga.
+ *  - El canal distribuidor exige la MISMA huella de sesión (valor estable
+ *    frente a una revalidación inocua, distinta ante otra cuenta): el canal
+ *    público no depende de una sesión y sobrevive a una recarga.
  *  - La atribución es metadata local: nunca viaja en el cuerpo del pedido.
  */
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
@@ -32,6 +33,8 @@ import type { PresentedLine } from "./types";
 
 const LOCAL_KEY = "starvie-order-attempt-v2";
 const SESSION_KEY = "starvie-order-attempt-v2-session";
+const DIST_LOCAL_KEY = "starvie-order-attempt-v2-distributor";
+const DIST_SESSION_KEY = "starvie-order-attempt-v2-distributor-session";
 
 const contact = {
   name: "Ana Test",
@@ -86,8 +89,10 @@ function rawSession(extra: Record<string, unknown> = {}, createdAt: string) {
 
 /* Clave y pruebas exclusivas de las regresiones independientes. */
 const VERIFIER_KEY = "verifier-immutable";
-const VERIFIER_PROOF_A = { status: "authenticated", discountPercent: 20 };
-const VERIFIER_PROOF_B = { status: "authenticated", discountPercent: 20 };
+/* Huellas de VALOR de la sesión: "v1:<descuento>:<vencimiento>". La misma
+   sesión revalidada produce la MISMA huella; otra cuenta, otra huella. */
+const VERIFIER_PROOF_A = "v1:20:2026-11-11T20:00:00.000Z";
+const VERIFIER_PROOF_B = "v1:20:2026-11-12T20:00:00.000Z";
 
 beforeEach(() => {
   localStorage.clear();
@@ -105,8 +110,8 @@ describe("atribución de canal del intento", () => {
     const prepared = prepareAttempt(contact, lines, { channel: "distributor" });
     expect(prepared).not.toBe(false);
 
-    const marker = JSON.parse(localStorage.getItem(LOCAL_KEY)!);
-    const session = JSON.parse(sessionStorage.getItem(SESSION_KEY)!);
+    const marker = JSON.parse(localStorage.getItem(DIST_LOCAL_KEY)!);
+    const session = JSON.parse(sessionStorage.getItem(DIST_SESSION_KEY)!);
     expect(marker.channel).toBe("distributor");
     expect(session.channel).toBe("distributor");
     expect(marker.idempotencyKey).toBe(session.idempotencyKey);
@@ -126,7 +131,13 @@ describe("atribución de canal del intento", () => {
   it("una clave creada en un canal no se reutiliza en el otro", () => {
     const prepared = prepareAttempt(contact, lines, { channel: "public" });
     expect(prepared).not.toBe(false);
-    expect(prepareAttempt(contact, lines, { channel: "distributor" })).toBe(false);
+    const publico = prepareAttempt(contact, lines, { channel: "distributor" });
+    expect(publico).not.toBe(false);
+    /* Cada canal tiene su propia clave: la del público nunca viaja al
+       distribuidor (ni al revés). */
+    expect((publico as { idempotencyKey: string }).idempotencyKey).not.toBe(
+      (prepared as { idempotencyKey: string }).idempotencyKey,
+    );
     /* El registro original queda intacto. */
     expect(getAttempt()?.channel).toBe("public");
     expect(getAttempt()?.idempotencyKey).toBe(
@@ -147,9 +158,13 @@ describe("atribución de canal del intento", () => {
     expect((reused as { idempotencyKey: string }).idempotencyKey).toBe(
       "11111111-1111-4111-8111-111111111111",
     );
-    /* El canal distribuidor exige su propio canal: no reenvía el registro
-       heredado. */
-    expect(prepareAttempt(contact, lines, { channel: "distributor" })).toBe(false);
+    /* El canal distribuidor exige su propio canal: no adopta el registro
+       heredado (arranca el suyo, con su propia clave). */
+    const distribuidor = prepareAttempt(contact, lines, { channel: "distributor" });
+    expect(distribuidor).not.toBe(false);
+    expect((distribuidor as { idempotencyKey: string }).idempotencyKey).not.toBe(
+      "11111111-1111-4111-8111-111111111111",
+    );
     /* No se adivina ni se borra: el registro queda exactamente como estaba. */
     expect(localStorage.getItem(LOCAL_KEY)).toBe(rawMarker({}, createdAt));
     expect(sessionStorage.getItem(SESSION_KEY)).toBe(rawSession({}, createdAt));
@@ -171,7 +186,7 @@ describe("atribución de canal del intento", () => {
   });
 });
 
-describe("prueba viva de sesión (canal distribuidor)", () => {
+describe("huella viva de sesión (canal distribuidor)", () => {
   it("el canal público se reenvía aunque no quede prueba en memoria", () => {
     expect(
       attemptContextAllowsRetry({
@@ -183,26 +198,26 @@ describe("prueba viva de sesión (canal distribuidor)", () => {
     ).toBe(true);
   });
 
-  it("el canal distribuidor exige la MISMA prueba viva", () => {
-    const proofA = { status: "authenticated", discountPercent: 20 };
-    const proofB = { status: "authenticated", discountPercent: 20 };
-    rememberAttemptContext("k-dist", { channel: "distributor", distributorProof: proofA });
+  it("el canal distribuidor exige la MISMA huella de sesión", () => {
+    const fingerprintA = "v1:20:2026-11-11T20:00:00.000Z";
+    const fingerprintB = "v1:20:2026-11-12T20:00:00.000Z";
+    rememberAttemptContext("k-dist", { channel: "distributor", distributorProof: fingerprintA });
 
     expect(
       attemptContextAllowsRetry({
         idempotencyKey: "k-dist",
         persistedChannel: "distributor",
         channel: "distributor",
-        distributorProof: proofA,
+        distributorProof: fingerprintA,
       }),
     ).toBe(true);
-    /* Mismo descuento y expiración, OTRO objeto: no es la misma sesión. */
+    /* Otra cuenta (otra huella de sesión): no es la misma sesión. */
     expect(
       attemptContextAllowsRetry({
         idempotencyKey: "k-dist",
         persistedChannel: "distributor",
         channel: "distributor",
-        distributorProof: proofB,
+        distributorProof: fingerprintB,
       }),
     ).toBe(false);
     /* Sin prueba viva (recarga / cierre de sesión): conservador. */
@@ -216,23 +231,69 @@ describe("prueba viva de sesión (canal distribuidor)", () => {
     ).toBe(false);
   });
 
+  it("S3 · una revalidación inocua de la MISMA sesión conserva el reenvío", () => {
+    /* La revalidación (montaje, foco, visibilidad, temporizador) construye
+       un objeto de autenticación NUEVO con el MISMO valor de sesión: la
+       huella no cambia y el intento sigue siendo reenviable, liberable y
+       conciliable. */
+    const fingerprint = "v1:20:2026-11-11T20:00:00.000Z";
+    rememberAttemptContext("k-reval", { channel: "distributor", distributorProof: fingerprint });
+
+    const revalidated = {
+      status: "authenticated" as const,
+      discountPercent: 20,
+      expiresAt: "2026-11-11T20:00:00.000Z",
+    };
+    const otroObjeto = { ...revalidated };
+    /* El objeto es otro (la identidad cambió) pero el VALOR es el mismo. */
+    expect(otroObjeto).not.toBe(revalidated);
+    expect(otroObjeto).toEqual(revalidated);
+    expect(
+      attemptContextAllowsRetry({
+        idempotencyKey: "k-reval",
+        persistedChannel: "distributor",
+        channel: "distributor",
+        distributorProof: fingerprint,
+      }),
+    ).toBe(true);
+  });
+
+  it("S3 · la huella de sesión NUNCA se persiste", () => {
+    const fingerprint = "v1:20:2026-11-11T20:00:00.000Z";
+    const prepared = prepareAttempt(contact, lines, { channel: "distributor" });
+    expect(prepared).not.toBe(false);
+    const key = (prepared as { idempotencyKey: string }).idempotencyKey;
+    rememberAttemptContext(key, { channel: "distributor", distributorProof: fingerprint });
+
+    const dump = [
+      ...Array.from({ length: localStorage.length }, (_, index) =>
+        localStorage.getItem(localStorage.key(index) ?? ""),
+      ),
+      ...Array.from({ length: sessionStorage.length }, (_, index) =>
+        sessionStorage.getItem(sessionStorage.key(index) ?? ""),
+      ),
+    ].join("|");
+    expect(dump).not.toContain(fingerprint);
+    expect(dump).not.toContain("v1:20:");
+  });
+
   it("un registro sin canal no se reenvía por ningún canal", () => {
     rememberAttemptContext("k-legacy", {
       channel: "distributor",
-      distributorProof: { status: "authenticated" },
+      distributorProof: "v1:20:2026-11-11T20:00:00.000Z",
     });
     expect(
       attemptContextAllowsRetry({
         idempotencyKey: "k-legacy",
         persistedChannel: undefined,
         channel: "distributor",
-        distributorProof: { status: "authenticated" },
+        distributorProof: "v1:20:2026-11-11T20:00:00.000Z",
       }),
     ).toBe(false);
   });
 
   it("olvidar el contexto cierra la prueba viva de ese intento", () => {
-    const proof = { status: "authenticated" };
+    const proof = "v1:20:2026-11-11T20:00:00.000Z";
     rememberAttemptContext("k-1", { channel: "distributor", distributorProof: proof });
     expect(getAttemptContext("k-1")?.channel).toBe("distributor");
     forgetAttemptContext("k-1");
@@ -253,9 +314,9 @@ describe("prueba viva de sesión (canal distribuidor)", () => {
     const key = (prepared as { idempotencyKey: string }).idempotencyKey;
     rememberAttemptContext(key, {
       channel: "distributor",
-      distributorProof: { status: "authenticated" },
+      distributorProof: "v1:20:2026-11-11T20:00:00.000Z",
     });
-    clearAttempt();
+    clearAttempt({ channel: "distributor" });
     expect(getAttemptContext(key)).toBeNull();
   });
 });
@@ -267,7 +328,7 @@ describe("regresiones independientes del vínculo en memoria", () => {
   const key = VERIFIER_KEY;
   const proofA = VERIFIER_PROOF_A;
   const proofB = VERIFIER_PROOF_B;
-  function allows(proof: object | null) {
+  function allows(proof: string | null) {
     return attemptContextAllowsRetry({
       idempotencyKey: key,
       persistedChannel: "distributor",

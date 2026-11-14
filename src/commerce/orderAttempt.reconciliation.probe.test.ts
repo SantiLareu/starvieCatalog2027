@@ -26,8 +26,9 @@ import {
 } from "./orderAttempt";
 import { getAttemptContext, rememberAttemptContext } from "./orderAttemptContext";
 
-const LOCAL_KEY = "starvie-order-attempt-v2";
-const SESSION_KEY = "starvie-order-attempt-v2-session";
+/* La conciliación es EXCLUSIVA del canal distribuidor: su compartmento. */
+const LOCAL_KEY = "starvie-order-attempt-v2-distributor";
+const SESSION_KEY = "starvie-order-attempt-v2-distributor-session";
 const REF = "0df502b3-51aa-461d-a1b6-19363712c567";
 const OTHER_REF = "11111111-2222-4333-8444-555555555555";
 
@@ -106,7 +107,7 @@ afterEach(() => {
 describe("P2 · RECEIVED cierra cualquier estado del intento distribuidor", () => {
   it("P2.1 intento incierto del canal distribuidor + referencia EXACTA => se cierra", () => {
     seed({ status: "accepted", channel: "distributor" });
-    rememberAttemptContext(REF, { channel: "distributor", distributorProof: { id: "A" } });
+    rememberAttemptContext(REF, { channel: "distributor", distributorProof: "v1:20:2026-11-20T20:00:00.000Z" });
     expect(getAttemptContext(REF)).not.toBeNull();
 
     expect(closeAttemptByReconciliation(REF, "RECEIVED")).toBe(true);
@@ -201,6 +202,28 @@ describe("P2 · NOT_RECEIVED sólo cierra los estados inciertos", () => {
 });
 
 describe("P2 · lo que NUNCA se puede cerrar (y el storage queda byte a byte igual)", () => {
+  it("P2.16b un intento del canal PÚBLICO (su propio compartmento) no se cierra", () => {
+    /* La conciliación vive en el compartmento del distribuidor: el intento
+       público ni siquiera es visible para ella. */
+    const publicLocal = "starvie-order-attempt-v2";
+    const publicSession = "starvie-order-attempt-v2-session";
+    const createdAt = new Date().toISOString();
+    const marker = {
+      version: "v2", idempotencyKey: REF, orderId: null,
+      lines: [{ productId: "raptor+", qty: 2 }], createdAt, status: "accepted", channel: "public",
+    };
+    localStorage.setItem(publicLocal, JSON.stringify(marker));
+    sessionStorage.setItem(publicSession, JSON.stringify({
+      ...marker,
+      contact: { name: "Cliente", legalName: "Empresa", email: "cliente@example.test" },
+    }));
+    for (const decision of DECISIONS) {
+      expect(closeAttemptByReconciliation(REF, decision)).toBe(false);
+      expect(localStorage.getItem(publicLocal)).not.toBeNull();
+      expect(sessionStorage.getItem(publicSession)).not.toBeNull();
+    }
+  });
+
   it("P2.16 el canal público no se cierra con NINGUNA decisión", () => {
     for (const decision of DECISIONS) {
       seed({ status: "accepted", channel: "public" });

@@ -53,8 +53,20 @@ vi.mock("./CommerceContext", async (importOriginal) => ({
 }));
 
 /* ── constantes de storage (mismas claves que usa orderAttempt.ts) ──── */
-const LOCAL_KEY = "starvie-order-attempt-v2";
-const SESSION_KEY = "starvie-order-attempt-v2-session";
+/* Cada canal tiene su propio compartmento: el público conserva las claves
+   históricas de origin/main y el distribuidor usa las suyas. */
+const PUBLIC_LOCAL = "starvie-order-attempt-v2";
+const PUBLIC_SESSION = "starvie-order-attempt-v2-session";
+const DIST_LOCAL = "starvie-order-attempt-v2-distributor";
+const DIST_SESSION = "starvie-order-attempt-v2-distributor-session";
+
+type Channel = "public" | "distributor";
+
+function keys(channel: Channel): { local: string; session: string } {
+  return channel === "distributor"
+    ? { local: DIST_LOCAL, session: DIST_SESSION }
+    : { local: PUBLIC_LOCAL, session: PUBLIC_SESSION };
+}
 
 /* ── dobles de servidor ─────────────────────────────────────────────── */
 const DISTRIBUTOR_BASE = "https://distributor.test";
@@ -62,8 +74,9 @@ const CUIT_A = "20-11111111-1";
 const CUIT_B = "20-22222222-2";
 const PASSWORD = "clave-de-prueba";
 const DISCOUNT_PERCENT = 20;
-/* Mismo vencimiento para A y B: el tiempo NO puede identificar a la cuenta. */
-const EXPIRES_AT = new Date(Date.now() + 3_600_000).toISOString();
+/* El backend devuelve el vencimiento ALMACENADO de la sesión: cada login
+   abre una sesión nueva (vencimiento nuevo) y las revalidaciones de la
+   misma sesión devuelven SIEMPRE el mismo. */
 const ORDER_ID = "ord-1";
 
 type FetchCall = {
@@ -75,6 +88,9 @@ type FetchCall = {
 let calls: FetchCall[] = [];
 let unexpectedCalls: string[] = [];
 let sessionAuthenticated = false;
+/* Vencimiento de la sesión vigente (el que devuelve /session). */
+let sessionExpiresAt: string | null = null;
+let loginCount = 0;
 
 function jsonResponse(data: unknown, status = 200): Response {
   return {
@@ -109,21 +125,26 @@ const fetchMock = vi.fn(async (input: RequestInfo | URL, init?: RequestInit) => 
           ok: true,
           authenticated: true,
           discountPercent: DISCOUNT_PERCENT,
-          expiresAt: EXPIRES_AT,
+          expiresAt: sessionExpiresAt,
         })
       : jsonResponse({ ok: true, authenticated: false });
   }
   if (url.endsWith("/api/distributor/login") && method === "POST") {
     sessionAuthenticated = true;
+    /* Cada login abre una sesión nueva: el backend devuelve un
+       vencimiento nuevo (precisión de milisegundos). */
+    loginCount += 1;
+    sessionExpiresAt = new Date(Date.now() + 3_600_000 + loginCount * 1000).toISOString();
     return jsonResponse({
       ok: true,
       authenticated: true,
       discountPercent: DISCOUNT_PERCENT,
-      expiresAt: EXPIRES_AT,
+      expiresAt: sessionExpiresAt,
     });
   }
   if (url.endsWith("/api/distributor/logout") && method === "POST") {
     sessionAuthenticated = false;
+    sessionExpiresAt = null;
     return jsonResponse({ ok: true });
   }
   if (url.includes("/api/distributor/quote") && method === "GET") {
@@ -183,15 +204,11 @@ const mockedCommerce = vi.mocked(useCommerce);
 const clearCartSpy = vi.fn();
 
 /**
- * Prueba viva de sesión para los montajes directos del modal en canal
- * distribuidor: el canal exige un objeto de autenticación exacto y estable
- * (identidad de objeto). Sin prueba viva el checkout no prepara ni reenvía.
+ * Huella de VALOR de la sesión para los montajes directos del modal en canal
+ * distribuidor: el canal exige la huella vigente ("v1:<descuento>:<fin de
+ * sesión>"). Sin huella el checkout no prepara ni reenvía nada.
  */
-const SESSION_PROOF = {
-  status: "authenticated" as const,
-  discountPercent: DISCOUNT_PERCENT,
-  expiresAt: "2026-11-11T20:00:00.000Z",
-};
+const SESSION_FINGERPRINT = "v1:20:2026-11-20T20:00:00.000Z";
 
 function mockCommerce() {
   mockedCommerce.mockReturnValue({
@@ -232,13 +249,13 @@ function distributorOrderPosts() {
 function orderKeys(list: FetchCall[]) {
   return list.map((call) => String(call.body?.idempotencyKey ?? "<sin clave>"));
 }
-function storedMarker(): Record<string, unknown> | null {
-  const raw = localStorage.getItem(LOCAL_KEY);
+function storedMarker(channel: Channel = "public"): Record<string, unknown> | null {
+  const raw = localStorage.getItem(keys(channel).local);
   if (!raw) return null;
   return JSON.parse(raw) as Record<string, unknown>;
 }
-function markerFacts() {
-  const marker = storedMarker();
+function markerFacts(channel: Channel = "public") {
+  const marker = storedMarker(channel);
   if (!marker) return null;
   return {
     idempotencyKey: String(marker.idempotencyKey),
@@ -247,8 +264,8 @@ function markerFacts() {
     orderId: marker.orderId ?? null,
   };
 }
-function storedSession(): Record<string, unknown> | null {
-  const raw = sessionStorage.getItem(SESSION_KEY);
+function storedSession(channel: Channel = "public"): Record<string, unknown> | null {
+  const raw = sessionStorage.getItem(keys(channel).session);
   if (!raw) return null;
   return JSON.parse(raw) as Record<string, unknown>;
 }
@@ -359,6 +376,8 @@ beforeEach(() => {
   calls = [];
   unexpectedCalls = [];
   sessionAuthenticated = false;
+  sessionExpiresAt = null;
+  loginCount = 0;
   clearCartSpy.mockClear();
   mockCommerce();
   vi.stubGlobal("fetch", fetchMock as unknown as typeof fetch);
@@ -378,8 +397,10 @@ afterEach(() => {
 
 function storageBytes() {
   return [
-    localStorage.getItem(LOCAL_KEY),
-    sessionStorage.getItem(SESSION_KEY),
+    localStorage.getItem(PUBLIC_LOCAL),
+    localStorage.getItem(DIST_LOCAL),
+    sessionStorage.getItem(PUBLIC_SESSION),
+    sessionStorage.getItem(DIST_SESSION),
     localStorage.getItem("starvie-cart-v1"),
   ];
 }
@@ -404,19 +425,18 @@ describe("Contexto del intento de pedido (A–H)", () => {
     /* 2. Entra un distribuidor y se reabre el checkout (canal distribuidor). */
     await loginDistributor("a");
     await openCheckout();
-    /* Aviso único de contexto: el registro se conserva y la resolución
-       sigue siendo explícita. */
-    expect(screen.getByRole("alert")).toHaveTextContent(
-      /pertenece a otro canal o a otra sesión/,
-    );
+    fillForm();
     await clickSubmit();
 
-    /* RED: hoy la clave pública se reenvía al endpoint de distribuidores. */
-    expect(orderKeys(distributorOrderPosts())).toEqual([]);
+    /* Cada canal tiene su propio compartmento: la clave pública NUNCA se
+       reenvía por la vía de distribuidores. La compra del distribuidor es
+       independiente (su propia clave, su propio registro). */
+    await waitFor(() => expect(distributorOrderPosts()).toHaveLength(1));
+    expect(orderKeys(distributorOrderPosts())).not.toContain(publicKey);
     expect(orderKeys(publicOrderPosts())).toEqual([publicKey]);
     /* El intento original se conserva: no se borra ni se rota la clave. */
-    expect(markerFacts()).toEqual(factsAfterPublic);
-    expect(storedSession()?.idempotencyKey).toBe(publicKey);
+    expect(markerFacts("public")).toEqual(factsAfterPublic);
+    expect(storedSession("public")?.idempotencyKey).toBe(publicKey);
     expect(clearCartSpy).not.toHaveBeenCalled();
   });
 
@@ -431,23 +451,26 @@ describe("Contexto del intento de pedido (A–H)", () => {
     const distributorKey = String(
       distributorOrderPosts()[0].body?.idempotencyKey,
     );
-    const factsAfterDistributor = markerFacts();
+    const factsAfterDistributor = markerFacts("distributor");
     await closeCheckout();
 
     /* Cae la sesión del distribuidor y se reabre el checkout como público. */
     await logoutDistributor();
     await openCheckout();
+    fillForm();
     await clickSubmit();
 
-    /* RED: hoy el intento distribuidor se reenvía como pedido público. */
-    expect(orderKeys(publicOrderPosts())).toEqual([]);
+    /* El intento del distribuidor NUNCA se degrada a pedido público: la
+       compra pública usa su propia clave y su propio compartmento. */
+    await waitFor(() => expect(publicOrderPosts()).toHaveLength(1));
+    expect(orderKeys(publicOrderPosts())).not.toContain(distributorKey);
     expect(orderKeys(distributorOrderPosts())).toEqual([distributorKey]);
-    expect(markerFacts()).toEqual(factsAfterDistributor);
-    expect(storedSession()?.idempotencyKey).toBe(distributorKey);
+    expect(markerFacts("distributor")).toEqual(factsAfterDistributor);
+    expect(storedSession("distributor")?.idempotencyKey).toBe(distributorKey);
     expect(clearCartSpy).not.toHaveBeenCalled();
   });
 
-  it("C · cambiar de distribuidor con el mismo descuento y vencimiento no reintenta", async () => {
+  it("C · cambiar de distribuidor (otra sesión ⇒ otra huella) no reintenta", async () => {
     renderApp();
     await loginDistributor("a");
 
@@ -456,10 +479,11 @@ describe("Contexto del intento de pedido (A–H)", () => {
     await clickSubmit();
     await waitFor(() => expect(distributorOrderPosts()).toHaveLength(1));
     const keyA = String(distributorOrderPosts()[0].body?.idempotencyKey);
-    const facts = markerFacts();
+    const facts = markerFacts("distributor");
     await closeCheckout();
 
-    /* Sale A y entra B: mismo descuento y mismo vencimiento, otra cuenta. */
+    /* Sale A y entra B: otra cuenta ⇒ el backend abre otra sesión con otro
+       vencimiento ⇒ otra huella de sesión. */
     await logoutDistributor();
     await loginDistributor("b");
     const logins = calls.filter(
@@ -476,8 +500,8 @@ describe("Contexto del intento de pedido (A–H)", () => {
        sumar un segundo POST con la MISMA clave. */
     expect(distributorOrderPosts()).toHaveLength(1);
     expect(orderKeys(distributorOrderPosts())).toEqual([keyA]);
-    expect(markerFacts()).toEqual(facts);
-    expect(storedSession()?.idempotencyKey).toBe(keyA);
+    expect(markerFacts("distributor")).toEqual(facts);
+    expect(storedSession("distributor")?.idempotencyKey).toBe(keyA);
   });
 
   it("D · tras recargar, el intento distribuidor queda bloqueado y se conserva", async () => {
@@ -489,11 +513,15 @@ describe("Contexto del intento de pedido (A–H)", () => {
     await clickSubmit();
     await waitFor(() => expect(distributorOrderPosts()).toHaveLength(1));
     const key = String(distributorOrderPosts()[0].body?.idempotencyKey);
-    const facts = markerFacts();
+    const facts = markerFacts("distributor");
     await closeCheckout();
 
     /* Recarga: se desmonta la app y se monta de nuevo. El contexto
-       autenticado en memoria es nuevo (mismo descuento y vencimiento). */
+       autenticado en memoria es nuevo (mismo descuento y vencimiento) y el
+       contexto VIVO del intento se pierde (sólo vive en memoria: una recarga
+       real lo vacía). */
+    const { forgetAttemptContext } = await import("./orderAttemptContext");
+    forgetAttemptContext(key);
     cleanup();
     renderApp();
     await waitFor(() =>
@@ -509,8 +537,8 @@ describe("Contexto del intento de pedido (A–H)", () => {
        El único envío legítimo es el primero: tras recargar no se reenvía. */
     expect(distributorOrderPosts()).toHaveLength(1);
     expect(orderKeys(distributorOrderPosts())).toEqual([key]);
-    expect(markerFacts()).toEqual(facts);
-    expect(storedSession()?.idempotencyKey).toBe(key);
+    expect(markerFacts("distributor")).toEqual(facts);
+    expect(storedSession("distributor")?.idempotencyKey).toBe(key);
   });
 
   it("D · control: tras recargar, el reintento público sigue con la misma clave", async () => {
@@ -572,7 +600,7 @@ describe("Contexto del intento de pedido (A–H)", () => {
         total={1000}
         clearCart={clearCartSpy}
         distributorMode
-        distributorSessionProof={SESSION_PROOF}
+        distributorSessionFingerprint={SESSION_FINGERPRINT}
         distributorDiscountPercent={DISCOUNT_PERCENT}
         submitFn={submitFn}
       />,
@@ -585,15 +613,15 @@ describe("Contexto del intento de pedido (A–H)", () => {
 
     /* El intento se conserva: no se descarta en silencio ni se rota la clave. */
     const key = submitFn.mock.calls[0][0].idempotencyKey;
-    expect(storedMarker()?.idempotencyKey).toBe(key);
-    expect(storedSession()?.idempotencyKey).toBe(key);
+    expect(storedMarker("distributor")?.idempotencyKey).toBe(key);
+    expect(storedSession("distributor")?.idempotencyKey).toBe(key);
     expect(clearCartSpy).not.toHaveBeenCalled();
 
     /* Reintento en el mismo contexto: misma clave. */
     await clickSubmit();
     await waitFor(() => expect(submitFn).toHaveBeenCalledTimes(2));
     expect(submitFn.mock.calls[1][0].idempotencyKey).toBe(key);
-    expect(storedMarker()?.idempotencyKey).toBe(key);
+    expect(storedMarker("distributor")?.idempotencyKey).toBe(key);
   });
 
   it("E · un intento distribuidor incierto no se reenvía como pedido público", async () => {
@@ -620,7 +648,7 @@ describe("Contexto del intento de pedido (A–H)", () => {
         {...baseProps}
         open
         distributorMode
-        distributorSessionProof={SESSION_PROOF}
+        distributorSessionFingerprint={SESSION_FINGERPRINT}
         distributorDiscountPercent={DISCOUNT_PERCENT}
         submitFn={distributorSubmit}
       />,
@@ -630,7 +658,7 @@ describe("Contexto del intento de pedido (A–H)", () => {
     await clickSubmit();
     await waitFor(() => expect(distributorSubmit).toHaveBeenCalledOnce());
     const key = distributorSubmit.mock.calls[0][0].idempotencyKey;
-    expect(storedMarker()?.idempotencyKey).toBe(key);
+    expect(storedMarker("distributor")?.idempotencyKey).toBe(key);
 
     /* Se cierra el checkout y se reabre en canal público (sesión caída). */
     rerender(
@@ -657,12 +685,16 @@ describe("Contexto del intento de pedido (A–H)", () => {
         submitFn={publicSubmit}
       />,
     );
+    fillForm();
     await clickSubmit();
 
-    /* RED: hoy el intento distribuidor se reenvía como pedido público. */
-    expect(publicSubmit).not.toHaveBeenCalled();
-    expect(storedMarker()?.idempotencyKey).toBe(key);
-    expect(storedSession()?.idempotencyKey).toBe(key);
+    /* El canal público tiene su propio compartmento: la clave del
+       distribuidor NUNCA se envía al endpoint público. La compra pública es
+       independiente y el registro del distribuidor sobrevive intacto. */
+    await waitFor(() => expect(publicSubmit).toHaveBeenCalledOnce());
+    expect(publicSubmit.mock.calls[0][0].idempotencyKey).not.toBe(key);
+    expect(storedMarker("distributor")?.idempotencyKey).toBe(key);
+    expect(storedSession("distributor")?.idempotencyKey).toBe(key);
   });
 
   it("F · un registro v2 heredado sin canal ni cuenta se reenvía con la misma clave", async () => {
@@ -675,7 +707,7 @@ describe("Contexto del intento de pedido (A–H)", () => {
       email: "heredado@example.com",
     };
     localStorage.setItem(
-      LOCAL_KEY,
+      PUBLIC_LOCAL,
       JSON.stringify({
         version: "v2",
         idempotencyKey: legacyKey,
@@ -685,7 +717,7 @@ describe("Contexto del intento de pedido (A–H)", () => {
       }),
     );
     sessionStorage.setItem(
-      SESSION_KEY,
+      PUBLIC_SESSION,
       JSON.stringify({
         version: "v2",
         idempotencyKey: legacyKey,
@@ -745,8 +777,8 @@ describe("Contexto del intento de pedido (A–H)", () => {
 
     await waitFor(() => expect(distributorOrderPosts()).toHaveLength(2));
     expect(orderKeys(distributorOrderPosts())).toEqual([key, key]);
-    expect(storedMarker()?.idempotencyKey).toBe(key);
-    expect(storedSession()?.idempotencyKey).toBe(key);
+    expect(storedMarker("distributor")?.idempotencyKey).toBe(key);
+    expect(storedSession("distributor")?.idempotencyKey).toBe(key);
     expect(clearCartSpy).not.toHaveBeenCalled();
   });
 
@@ -759,17 +791,17 @@ describe("Contexto del intento de pedido (A–H)", () => {
     await clickSubmit();
     await waitFor(() => expect(distributorOrderPosts()).toHaveLength(1));
     const key = String(distributorOrderPosts()[0].body?.idempotencyKey);
-    const facts = markerFacts();
+    const facts = markerFacts("distributor");
 
     /* La sesión distribuidora cae con el checkout abierto: el canal sigue
-       fijado (distribuidor) pero la prueba viva se perdió. */
+       fijado (distribuidor) pero la huella viva se perdió. */
     await logoutDistributor();
     await clickSubmit();
 
     expect(distributorOrderPosts()).toHaveLength(1);
     expect(publicOrderPosts()).toHaveLength(0);
-    expect(markerFacts()).toEqual(facts);
-    expect(storedSession()?.idempotencyKey).toBe(key);
+    expect(markerFacts("distributor")).toEqual(facts);
+    expect(storedSession("distributor")?.idempotencyKey).toBe(key);
     expect(clearCartSpy).not.toHaveBeenCalled();
   });
 });
@@ -808,17 +840,21 @@ describe("Regresiones independientes del guard de contexto", () => {
     } finally { uuid.mockRestore(); }
   });
 
-  it("S4 refresh with identical discount/expiry loses continuity, preserves bytes", async () => {
+  it("S3/S4 refresh with identical discount/expiry KEEPS the continuity, preserves bytes", async () => {
     renderApp(); await loginDistributor("a"); await openCheckout(); fillForm(); await clickSubmit();
     expect(distributorOrderPosts()).toHaveLength(1);
+    const firstKey = orderKeys(distributorOrderPosts())[0];
     const bytes = storageBytes();
     const sessions = calls.filter(c => c.url.endsWith("/api/distributor/session")).length;
+    /* Revalidación inocua (cambio de pestaña): el backend devuelve el
+       MISMO vencimiento almacenado ⇒ la huella de sesión NO cambia. */
     fireEvent(window, new Event("focus")); await settle();
     expect(calls.filter(c => c.url.endsWith("/api/distributor/session"))).toHaveLength(sessions + 1);
     await clickSubmit();
-    expect(distributorOrderPosts()).toHaveLength(1);
+    /* El intento sigue siendo reenviable: mismo registro y misma clave. */
+    expect(distributorOrderPosts()).toHaveLength(2);
+    expect(orderKeys(distributorOrderPosts())).toEqual([firstKey, firstKey]);
     expect(publicOrderPosts()).toHaveLength(0);
-    expect(screen.getByRole("alert").textContent).toBe("Este pedido pertenece a otro canal o a otra sesión. No se puede reenviar con la referencia anterior; conservamos su registro y consultá a StarVie antes de iniciar otro.");
     expectPreserved(bytes);
   });
 
@@ -872,21 +908,27 @@ describe("Regresiones independientes del guard de contexto", () => {
     } finally { fetchMock.mockImplementation(original); }
   });
 
-  it.each(["public-crossing", "distributor-crossing"])("S3/S5 %s rejects with byte-identical records and cart", async (scenario) => {
+  it.each(["public-crossing", "distributor-crossing"])("S3/S5 %s never reuses the attempt of the other channel", async (scenario) => {
     localStorage.setItem("starvie-cart-v1", JSON.stringify({version: 1, lines: [{productId:"raptor+",qty:2}]}));
     renderApp();
     if (scenario === "distributor-crossing") await loginDistributor("a");
     await openCheckout(); fillForm(); await clickSubmit(); await closeCheckout();
+    const firstKey = orderKeys(orderPosts())[0];
+    const firstChannel = scenario === "distributor-crossing" ? "distributor" : "public";
+    const facts = markerFacts(firstChannel);
     if (scenario === "public-crossing") await loginDistributor("a");
     else await logoutDistributor();
-    const bytes = storageBytes(); const posts = orderPosts().length;
-    const uuid = vi.spyOn(crypto, "randomUUID");
-    try {
-      await openCheckout(); await clickSubmit();
-      expect(orderPosts()).toHaveLength(posts);
-      expect(uuid).not.toHaveBeenCalled();
-      expectPreserved(bytes);
-    } finally { uuid.mockRestore(); }
+    const posts = orderPosts().length;
+    await openCheckout(); fillForm(); await clickSubmit();
+    /* El otro canal arranca su PROPIO intento (compartimento propio): nunca
+       reutiliza la clave del canal anterior. */
+    expect(orderPosts().length).toBe(posts + 1);
+    expect(orderKeys(orderPosts())[posts]).not.toBe(firstKey);
+    /* El registro del primer canal queda byte a byte igual. */
+    expect(markerFacts(firstChannel)).toEqual(facts);
+    /* Y el carrito no se toca. */
+    expect(localStorage.getItem("starvie-cart-v1")).toBeTruthy();
+    expect(clearCartSpy).not.toHaveBeenCalled();
   });
 
   it("S3/S5 legacy reuses the same key and keeps byte-identical records and cart", async () => {
@@ -894,7 +936,7 @@ describe("Regresiones independientes del guard de contexto", () => {
     renderApp();
     await openCheckout(); fillForm(); await clickSubmit(); await closeCheckout();
     /* El registro pierde la atribución de canal: queda heredado. */
-    for (const [storage, key] of [[localStorage, LOCAL_KEY], [sessionStorage, SESSION_KEY]] as const) {
+    for (const [storage, key] of [[localStorage, PUBLIC_LOCAL], [sessionStorage, PUBLIC_SESSION]] as const) {
       const data = JSON.parse(storage.getItem(key)!); delete data.channel; storage.setItem(key, JSON.stringify(data));
     }
     const bytes = storageBytes(); const posts = orderPosts().length;
@@ -920,7 +962,7 @@ describe("Uncertain distributor closure", () => {
   async function uncertainDealer() {
     renderApp(); await loginDistributor("a"); await openCheckout(); fillForm(); await clickSubmit();
     expect(distributorOrderPosts()).toHaveLength(1);
-    return String(storedMarker()!.idempotencyKey);
+    return String(storedMarker("distributor")!.idempotencyKey);
   }
   function clipboardDouble(reject = false) {
     const descriptor = Object.getOwnPropertyDescriptor(navigator, "clipboard");
@@ -943,7 +985,7 @@ describe("Uncertain distributor closure", () => {
         "No vuelvas a enviarlo todavía.",
       ]);
       expect(screen.queryByText("Sin conexión con el servidor. Reintentá.")).toBeNull();
-      expect(storedMarker()).toMatchObject({ status: "accepted", channel: "distributor" });
+      expect(storedMarker("distributor")).toMatchObject({ status: "accepted", channel: "distributor" });
       expect(clearCartSpy).not.toHaveBeenCalled();
     } finally { fetchMock.mockImplementation(original); }
   });
@@ -981,55 +1023,81 @@ describe("Uncertain distributor closure", () => {
     expect(screen.getByText(/Sólo una resolución de RealStep habilita continuar/i)).toBeVisible();
     expect(calls.some(c => /admin|investig|lookup/.test(c.url))).toBe(false);
   });
-  it.each(["reload", "same-account login", "logout", "refresh"])("S4 %s preserves the reference with no checkbox-only release or new order", async (transition) => {
+  it.each(["reload", "same-account login"])("S4 %s preserves the reference with no checkbox-only release or new order", async (transition) => {
     const key = await uncertainDealer(); await closeCheckout();
     if (transition === "reload") {
+      /* Una recarga real vacía el contexto en memoria (sólo memoria). */
       const { forgetAttemptContext } = await import("./orderAttemptContext"); forgetAttemptContext(key);
       cleanup(); renderApp(); await waitFor(() => expect(screen.getByTestId("auth-status")).toHaveTextContent("authenticated"));
-    } else if (transition === "refresh") {
-      fireEvent(window, new Event("focus")); await settle();
     } else {
-      await logoutDistributor(); if (transition === "same-account login") await loginDistributor("a");
+      /* Un login nuevo abre otra sesión: el backend devuelve otro
+         vencimiento ⇒ otra huella ⇒ el intento deja de ser reenviable. */
+      await logoutDistributor(); await loginDistributor("a");
     }
     const bytes = storageBytes(); const uuid = vi.spyOn(crypto, "randomUUID");
     try {
       await openCheckout();
-      if (transition === "logout") {
-        /* El canal público recupera la casilla de origin/main, pero no la
-           referencia: el registro la conserva byte a byte. */
-        expect(screen.queryByText(key)).toBeNull();
-        const checkbox = screen.getByRole("checkbox", { name: /Confirmo que consulté/ });
-        expect(checkbox).toBeVisible();
-        expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
-        /* La protección acompaña al PEDIDO, no a la pantalla: un registro
-           del distribuidor no se libera desde el checkout público. */
-        fireEvent.click(checkbox);
-        fireEvent.click(screen.getByRole("button", { name: "Resolver intento e iniciar nueva compra" }));
-        expect(screen.getByRole("alert")).toHaveTextContent(/pertenece a otro canal o a otra sesión/);
-        /* El registro se conserva byte a byte: ni clave nueva, ni pedido. */
-        expectPreserved(bytes);
-        expect(localStorage.getItem("starvie-cart-v1")).toBe(bytes[2]);
-        expect(clearCartSpy).not.toHaveBeenCalled();
-        await clickSubmit();
-        expect(orderPosts()).toHaveLength(1);
-        expect(distributorOrderPosts()).toHaveLength(1);
-        expect(publicOrderPosts()).toHaveLength(0);
-        expect(uuid).not.toHaveBeenCalled();
-        return;
-      } else {
-        expect(screen.getByText(key)).toBeVisible();
-        expect(screen.queryByRole("checkbox", { name: /Confirmo que consulté/ })).toBeNull();
-        expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
-      }
+      expect(screen.getByText(key)).toBeVisible();
+      expect(screen.queryByRole("checkbox", { name: /Confirmo que consulté/ })).toBeNull();
+      expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
       await clickSubmit(); expectPreserved(bytes); expect(uuid).not.toHaveBeenCalled();
       expect(distributorOrderPosts()).toHaveLength(1); expect(publicOrderPosts()).toHaveLength(0);
     } finally { uuid.mockRestore(); }
   });
-  it("S4 legacy without a channel is reused by the public channel and retried with the same key", async () => {
+  it("S3 refresh (misma sesión ⇒ misma huella) keeps the attempt retryable with the same key", async () => {
     const key = await uncertainDealer(); await closeCheckout();
-    for (const [storage, storageKey] of [[localStorage, LOCAL_KEY], [sessionStorage, SESSION_KEY]] as const) {
-      const value = JSON.parse(storage.getItem(storageKey)!); delete value.channel; storage.setItem(storageKey, JSON.stringify(value));
-    }
+    /* Revalidación inocua: el backend devuelve el mismo vencimiento
+       almacenado ⇒ la huella no cambia y el intento sigue siendo
+       reenviable con su MISMA referencia. */
+    fireEvent(window, new Event("focus")); await settle();
+    const bytes = storageBytes();
+    await openCheckout();
+    expect(screen.getByText(key)).toBeVisible();
+    expect(screen.queryByRole("checkbox", { name: /Confirmo que consulte/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Reintentar envío" })).toBeEnabled();
+    await clickSubmit();
+    expect(distributorOrderPosts()).toHaveLength(2);
+    expect(orderKeys(distributorOrderPosts())).toEqual([key, key]);
+    expect(publicOrderPosts()).toHaveLength(0);
+    expectPreserved(bytes);
+  });
+  it("S4 logout: el canal público arranca una compra nueva y NO toca el registro del distribuidor", async () => {
+    const key = await uncertainDealer(); await closeCheckout();
+    const markerBefore = localStorage.getItem(DIST_LOCAL);
+    const sessionBefore = sessionStorage.getItem(DIST_SESSION);
+    await logoutDistributor();
+    await openCheckout();
+    /* El canal público tiene su propio compartmento: no ve el intento del
+       distribuidor (ni su referencia, ni su casilla de liberación). */
+    expect(screen.queryByText(key)).toBeNull();
+    expect(screen.queryByRole("checkbox", { name: /Confirmo que consulté/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
+    /* La compra pública es posible e independiente… */
+    fillForm();
+    await clickSubmit();
+    await waitFor(() => expect(publicOrderPosts()).toHaveLength(1));
+    expect(orderKeys(publicOrderPosts())).not.toContain(key);
+    /* …y el registro del distribuidor queda byte a byte igual. */
+    expect(localStorage.getItem(DIST_LOCAL)).toBe(markerBefore);
+    expect(sessionStorage.getItem(DIST_SESSION)).toBe(sessionBefore);
+    expect(clearCartSpy).not.toHaveBeenCalled();
+  });
+  it("S4 legacy without a channel is reused by the public channel and retried with the same key", async () => {
+    await uncertainDealer(); await closeCheckout();
+    /* El registro heredado es el histórico del canal PÚBLICO (persistido sin
+       el campo `channel` en su compartmento de siempre). */
+    const legacyKey = "11111111-1111-4111-8111-111111111111";
+    const legacyCreatedAt = new Date().toISOString();
+    const legacyLines = [{ productId: "raptor+", qty: 2 }];
+    const legacyContact = { name: "Cliente", legalName: "Empresa", email: "cliente@example.test" };
+    localStorage.setItem(PUBLIC_LOCAL, JSON.stringify({
+      version: "v2", idempotencyKey: legacyKey, orderId: null,
+      lines: legacyLines, createdAt: legacyCreatedAt,
+    }));
+    sessionStorage.setItem(PUBLIC_SESSION, JSON.stringify({
+      version: "v2", idempotencyKey: legacyKey, orderId: null,
+      contact: legacyContact, lines: legacyLines, createdAt: legacyCreatedAt,
+    }));
     await logoutDistributor(); const bytes = storageBytes(); await openCheckout();
     /* El canal público conserva las reglas de origin/main: el registro
        heredado se reutiliza, no se bloquea. */
@@ -1037,15 +1105,15 @@ describe("Uncertain distributor closure", () => {
     expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
     expect(screen.getByRole("button", { name: "Reintentar envío" })).toBeEnabled();
     /* El canal público no muestra la referencia (origin/main). */
-    expect(screen.queryByText(key)).toBeNull();
+    expect(screen.queryByText(legacyKey)).toBeNull();
     /* El reintento usa la MISMA clave: no se crea otro intento. */
     await clickSubmit();
     expect(publicOrderPosts()).toHaveLength(1);
-    expect(orderKeys(publicOrderPosts())).toEqual([key]);
+    expect(orderKeys(publicOrderPosts())).toEqual([legacyKey]);
     expect(distributorOrderPosts()).toHaveLength(1);
     /* El registro se conserva byte a byte y el carrito no se toca. */
-    expect(storedMarker()?.idempotencyKey).toBe(key);
-    expect(localStorage.getItem("starvie-cart-v1")).toBe(bytes[2]);
+    expect(storedMarker()?.idempotencyKey).toBe(legacyKey);
+    expect(localStorage.getItem("starvie-cart-v1")).toBe(bytes[4]);
     expect(clearCartSpy).not.toHaveBeenCalled();
   });
   it("S5 ordinary dealer completion keeps one-step confirmation and hides the uncertainty notice", async () => {
@@ -1061,7 +1129,7 @@ describe("Uncertain distributor closure", () => {
       renderApp(); await loginDistributor("a"); await openCheckout(); fillForm(); await clickSubmit();
       await waitFor(() => expect(clearCartSpy).toHaveBeenCalledTimes(1));
       expect(distributorOrderPosts()).toHaveLength(1);
-      expect(localStorage.getItem(LOCAL_KEY)).toBeNull(); expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+      expect(localStorage.getItem(DIST_LOCAL)).toBeNull(); expect(sessionStorage.getItem(DIST_SESSION)).toBeNull();
       expect(screen.queryByRole("button", { name: "Copiar referencia" })).toBeNull();
       expect(screen.queryByText(warning)).toBeNull();
     } finally { fetchMock.mockImplementation(original); }
@@ -1083,7 +1151,7 @@ describe("Uncertain distributor closure", () => {
       expect(screen.queryByText(warning)).toBeNull();
       expect(screen.getByText(/El pedido llegó al servidor/)).toBeVisible();
       /* La referencia original, su copia y el contacto real siguen visibles. */
-      const key = String(storedMarker()!.idempotencyKey);
+      const key = String(storedMarker("distributor")!.idempotencyKey);
       expect(screen.getByText(key)).toBeVisible();
       expect(screen.getByRole("button", { name: "Copiar referencia" })).toBeVisible();
       expect(screen.getByRole("link", { name: "WhatsApp comercial de RealStep" })).toHaveAttribute("href", contactUrl);
@@ -1091,7 +1159,7 @@ describe("Uncertain distributor closure", () => {
          puede que el cliente ya haya sido notificado. */
       expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
       expect(screen.queryByRole("checkbox", { name: /Confirmo que consulté/ })).toBeNull();
-      expect(localStorage.getItem(LOCAL_KEY)).toBeTruthy();
+      expect(localStorage.getItem(DIST_LOCAL)).toBeTruthy();
     } finally { fetchMock.mockImplementation(original); }
   });
   it("S5/S6 public unknown-result output and normal retry keep working, with the reference preserved", async () => {

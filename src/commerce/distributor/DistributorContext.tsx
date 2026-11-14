@@ -14,11 +14,14 @@
  * - Las cotizaciones se cachean por producto+cantidad y son la única fuente
  *   del precio distribuidor visible. Un 401 en quote/pedido vence la sesión
  *   local y conserva el carrito (identidad + cantidades, como siempre).
- * - El contrato de sesión NO expone identificador de cuenta: una revalidación
- *   no puede probarse como la MISMA cuenta. Por eso toda revalidación
- *   autenticada invalida las cotizaciones (epoch) y las vuelve a pedir, y el
- *   descuento queda SIN confirmar hasta que una cotización vigente lo
- *   corrobora. El carrito nunca se modifica por este motivo.
+ * - El contrato de sesión NO expone identificador de cuenta. La continuidad
+ *   local se mide con una HUELLA DE VALOR (`v1:<descuento>:<vencimiento>`):
+ *   el backend devuelve el vencimiento almacenado de la sesión, así que la
+ *   huella es estable frente a una revalidación inocua y cambia frente a un
+ *   login nuevo, un logout o una expiración. Toda revalidación autenticada
+ *   invalida las cotizaciones (epoch) y las vuelve a pedir, y el descuento
+ *   queda SIN confirmar hasta que una cotización vigente lo corrobora. El
+ *   carrito nunca se modifica por este motivo.
  */
 import {
   createContext,
@@ -49,6 +52,18 @@ type DistributorContextValue = {
   /** Porcentaje autorizado por el servidor; null si no hay sesión. */
   discountPercent: number | null;
   /**
+   * Huella de VALOR de la sesión (sólo en memoria): "v1:<descuento>:<fin de
+   * sesión>". Es estable para la misma sesión (el backend devuelve el
+   * vencimiento almacenado, con la misma precisión de milisegundos, en el
+   * login y en cada revalidación) y cambia con un login nuevo, con un logout
+   * y con la expiración (pasa a null).
+   *
+   * NO es un identificador de cuenta: es la señal de continuidad local que
+   * usa el checkout para saber si un intento sigue siendo reenviable. Nunca
+   * se persiste ni viaja al backend.
+   */
+  sessionFingerprint: string | null;
+  /**
    * Epoch monotónico de cotizaciones. Se incrementa cada vez que las
    * cotizaciones se invalidan (revalidación de sesión no atribuible, login,
    * logout o expiración). Los consumidores lo dependen para volver a pedir
@@ -74,6 +89,22 @@ const DistributorContext = createContext<DistributorContextValue | null>(null);
 
 function quoteKey(productId: string, qty: number): string {
   return `${productId}:${qty}`;
+}
+
+/**
+ * Huella de valor de la sesión de distribuidor.
+ *
+ * El backend devuelve el vencimiento ALMACENADO de la sesión (mismo valor
+ * en el login y en cada revalidación), así que (descuento, vencimiento)
+ * identifica el VALOR de la sesión: es estable frente a una revalidación
+ * inocua y cambia frente a un login nuevo, un logout o una expiración.
+ * Sin sesión autenticada no hay huella (`null`).
+ */
+export function distributorSessionFingerprint(
+  auth: DistributorAuthState,
+): string | null {
+  if (auth.status !== "authenticated") return null;
+  return `v1:${auth.discountPercent}:${auth.expiresAt}`;
 }
 
 export function DistributorProvider({ children }: { children: ReactNode }) {
@@ -319,6 +350,7 @@ export function DistributorProvider({ children }: { children: ReactNode }) {
       auth,
       isAuthenticated: auth.status === "authenticated",
       discountPercent: auth.status === "authenticated" ? auth.discountPercent : null,
+      sessionFingerprint: distributorSessionFingerprint(auth),
       quoteEpoch,
       discountConfirmed,
       login,

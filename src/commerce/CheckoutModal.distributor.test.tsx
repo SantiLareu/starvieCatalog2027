@@ -16,15 +16,12 @@ afterEach(() => {
 });
 
 /**
- * Prueba viva de sesión (objeto de autenticación exacto). El canal
- * distribuidor la exige: sin ella el checkout no prepara ni reenvía nada.
- * Es un objeto estable: representa la misma sesión local durante el test.
+ * Huella de VALOR de la sesión de distribuidor. El canal distribuidor la
+ * exige: sin ella el checkout no prepara ni reenvía nada. Es el valor
+ * estable de la sesión ("v1:<descuento>:<vencimiento>"): una revalidación
+ * de la MISMA sesión devuelve la misma huella.
  */
-const SESSION_PROOF = {
-  status: "authenticated" as const,
-  discountPercent: 20,
-  expiresAt: "2026-11-11T20:00:00.000Z",
-};
+const SESSION_FINGERPRINT = "v1:20:2026-11-20T20:00:00.000Z";
 
 const product = {
   id: "raptor+",
@@ -78,7 +75,7 @@ describe("CheckoutModal · un 401 distribuidor nunca se reintenta como pedido p�
         total={1000}
         clearCart={clearCart}
         distributorMode
-        distributorSessionProof={SESSION_PROOF}
+        distributorSessionFingerprint={SESSION_FINGERPRINT}
         distributorDiscountPercent={20}
         distributorTotal={800}
         distributorNetByProduct={{ "raptor+": 800 }}
@@ -118,7 +115,7 @@ describe("CheckoutModal · el descuento sólo se muestra cuando está confirmado
         total={1000}
         clearCart={vi.fn()}
         distributorMode
-        distributorSessionProof={SESSION_PROOF}
+        distributorSessionFingerprint={SESSION_FINGERPRINT}
         distributorDiscountPercent={20}
         distributorDiscountConfirmed={discountConfirmed}
         distributorTotal={800}
@@ -269,7 +266,7 @@ function renderDistributorCheckout(submitFn: ReturnType<typeof distributorSubmit
       total={1000}
       clearCart={vi.fn()}
       distributorMode
-      distributorSessionProof={SESSION_PROOF}
+      distributorSessionFingerprint={SESSION_FINGERPRINT}
       distributorDiscountPercent={20}
       distributorTotal={800}
       distributorNetByProduct={{ "raptor+": 800 }}
@@ -303,7 +300,7 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
 
     /* Sin token no se puede enviar: ni POST ni intento creado. */
     expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
-    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
+    expect(localStorage.getItem("starvie-order-attempt-v2-distributor")).toBeNull();
 
     act(() => widget.callbacks().callback(TOKEN));
     expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
@@ -322,8 +319,8 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
     expect(calls[0].storageAtSend.session).not.toContain(TOKEN);
 
     await screen.findByRole("dialog", { name: "¡Pedido enviado con éxito!" });
-    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
-    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    expect(localStorage.getItem("starvie-order-attempt-v2-distributor")).toBeNull();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-distributor-session")).toBeNull();
   });
 
   it("sin token no hay POST ni intento creado, y el envío sigue bloqueado", async () => {
@@ -347,8 +344,8 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
     fireEvent.click(send);
 
     expect(calls).toHaveLength(0);
-    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
-    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    expect(localStorage.getItem("starvie-order-attempt-v2-distributor")).toBeNull();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-distributor-session")).toBeNull();
     expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
     expect(document.querySelectorAll(".checkout-turnstile")).toHaveLength(1);
   });
@@ -449,7 +446,7 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
     /* El backend NO creó ningún pedido: no puede quedar un intento
        marcado como aceptado-pero-no-confirmado, ni un aviso de "pedido
        sin confirmar" que le diga al usuario que no lo vuelva a enviar. */
-    const marker = JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!);
+    const marker = JSON.parse(localStorage.getItem("starvie-order-attempt-v2-distributor")!);
     expect(marker.status).not.toBe("accepted");
     expect(screen.queryByLabelText("Pedido sin confirmar")).toBeNull();
     expect(screen.queryByText(/No pudimos confirmar si RealStep recibió tu pedido/)).toBeNull();
@@ -476,8 +473,8 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
 
     /* El pedido termina confirmado: no queda un intento que bloquee. */
     await screen.findByRole("dialog", { name: "¡Pedido enviado con éxito!" });
-    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
-    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    expect(localStorage.getItem("starvie-order-attempt-v2-distributor")).toBeNull();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-distributor-session")).toBeNull();
   });
 
   it("consultar un pedido ya aceptado NO lleva token y conserva la misma clave", async () => {
@@ -526,7 +523,7 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
     expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
     expect(document.querySelectorAll(".checkout-turnstile")).toHaveLength(0);
     expect(calls).toHaveLength(0);
-    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
+    expect(localStorage.getItem("starvie-order-attempt-v2-distributor")).toBeNull();
   });
 
   it("un resultado realmente incierto del canal distribuidor conserva su aviso de pedido sin confirmar", async () => {
@@ -547,7 +544,7 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
     await waitFor(() => expect(calls).toHaveLength(1));
     await screen.findByLabelText("Pedido sin confirmar");
     expect(screen.getByText(/No pudimos confirmar si RealStep recibió tu pedido/)).toBeVisible();
-    expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).status).toBe("accepted");
+    expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2-distributor")!).status).toBe("accepted");
     expect(screen.getByRole("button", { name: "Reintentar envío" })).toBeEnabled();
   });
 });
@@ -567,7 +564,7 @@ describe("CheckoutModal distribuidor · un intento incierto no se libera localme
       orderId: "ord-dist",
       status: "accepted",
     });
-    const markerBefore = localStorage.getItem("starvie-order-attempt-v2");
+    const markerBefore = localStorage.getItem("starvie-order-attempt-v2-distributor");
     const uuid = vi.spyOn(crypto, "randomUUID");
     const submitFn = vi.fn(async () => ({ kind: "completed" as const, orderId: "ord-nuevo" }));
 
@@ -588,7 +585,7 @@ describe("CheckoutModal distribuidor · un intento incierto no se libera localme
     expect(screen.queryByRole("checkbox", { name: /Confirmo que consulté/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
     expect(screen.getByText(key)).toBeVisible();
-    expect(localStorage.getItem("starvie-order-attempt-v2")).toBe(markerBefore);
+    expect(localStorage.getItem("starvie-order-attempt-v2-distributor")).toBe(markerBefore);
     expect(uuid).not.toHaveBeenCalled();
     expect(submitFn).not.toHaveBeenCalled();
     uuid.mockRestore();
@@ -604,8 +601,8 @@ describe("CheckoutModal distribuidor · un intento incierto no se libera localme
  *   failed / conflict → NO liberables en NINGÚN canal.
  * ══════════════════════════════════════════════════════════════════ */
 describe("CheckoutModal distribuidor · estados definitivos y liberación local", () => {
-  const LOCAL_KEY = "starvie-order-attempt-v2";
-  const SESSION_KEY = "starvie-order-attempt-v2-session";
+  const LOCAL_KEY = "starvie-order-attempt-v2-distributor";
+  const SESSION_KEY = "starvie-order-attempt-v2-distributor-session";
   const RELEASE_BUTTON = "Resolver intento e iniciar nueva compra";
 
   beforeEach(() => {

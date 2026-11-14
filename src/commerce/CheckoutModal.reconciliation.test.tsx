@@ -15,21 +15,19 @@ import type { CommerceProduct, PresentedLine } from "./types";
 const REFERENCE = "0df502b3-51aa-461d-a1b6-19363712c567";
 const OTHER_REFERENCE = "11111111-2222-4333-8444-555555555555";
 
-const SESSION_PROOF = {
-  status: "authenticated" as const,
-  discountPercent: 20,
-  expiresAt: "2026-11-11T20:00:00.000Z",
-};
+/**
+ * Huella de VALOR de la sesión ("v1:<descuento>:<vencimiento>"): el
+ * checkout la compara por valor, así que una revalidación de la MISMA
+ * sesión conserva la huella.
+ */
+const SESSION_FINGERPRINT = "v1:20:2026-11-20T20:00:00.000Z";
 
-/** Segunda cuenta: objeto de autenticación distinto (otra sesión). */
-const OTHER_SESSION_PROOF = {
-  status: "authenticated" as const,
-  discountPercent: 20,
-  expiresAt: "2026-11-11T20:00:00.000Z",
-};
+/** Segunda cuenta: otra huella de sesión (otro vencimiento). */
+const OTHER_SESSION_FINGERPRINT = "v1:20:2026-11-21T20:00:00.000Z";
 
-const LOCAL_KEY = "starvie-order-attempt-v2";
-const SESSION_KEY = "starvie-order-attempt-v2-session";
+/* La conciliación es exclusiva del canal distribuidor: su compartmento. */
+const LOCAL_KEY = "starvie-order-attempt-v2-distributor";
+const SESSION_KEY = "starvie-order-attempt-v2-distributor-session";
 
 const product = {
   id: "raptor+",
@@ -76,7 +74,7 @@ function seedAttempt(options: { status?: string; channel?: "distributor" | "publ
     ...marker,
     contact: { name: "Cliente de prueba", legalName: "Empresa de prueba", email: "cliente@example.test" },
   }));
-  rememberAttemptContext(REFERENCE, { channel, distributorProof: SESSION_PROOF });
+  rememberAttemptContext(REFERENCE, { channel, distributorProof: SESSION_FINGERPRINT });
 }
 
 function resolutionBody(status: string, reference = REFERENCE, decidedAt: string | null = null) {
@@ -112,7 +110,7 @@ function renderDistributor(overrides: Partial<React.ComponentProps<typeof Checko
       total={1000}
       clearCart={clearCart}
       distributorMode
-      distributorSessionProof={SESSION_PROOF}
+      distributorSessionFingerprint={SESSION_FINGERPRINT}
       distributorDiscountPercent={20}
       distributorTotal={800}
       distributorNetByProduct={{ "raptor+": 800 }}
@@ -344,7 +342,7 @@ describe("CheckoutModal · fallos técnicos nunca desbloquean", () => {
     seedAttempt();
     const fetchMock = vi.fn();
     vi.stubGlobal("fetch", fetchMock);
-    renderDistributor({ distributorSessionProof: null });
+    renderDistributor({ distributorSessionFingerprint: null });
 
     expect(screen.queryByRole("button", { name: "Consultar estado del pedido" })).toBeNull();
     expect(fetchMock).not.toHaveBeenCalled();
@@ -437,7 +435,7 @@ describe("CheckoutModal · aislamiento de sesión", () => {
         total={1000}
         clearCart={vi.fn()}
         distributorMode
-        distributorSessionProof={OTHER_SESSION_PROOF}
+        distributorSessionFingerprint={OTHER_SESSION_FINGERPRINT}
         distributorDiscountPercent={20}
         distributorTotal={800}
         distributorNetByProduct={{ "raptor+": 800 }}

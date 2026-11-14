@@ -62,6 +62,10 @@ export function CartDrawer() {
 
   const distributor = useOptionalDistributor();
   const isDistributor = distributor?.isAuthenticated ?? false;
+  /* Cada canal consulta SU compartmento de intentos: el de un
+     distribuidor autenticado y el público (histórico) para el resto. Un
+     intento pendiente del canal contrario no bloquea la compra. */
+  const attemptChannel = isDistributor ? "distributor" : "public";
   // Formato del importe: el carrito público conserva su formato vigente
   // (símbolo atrás); la experiencia de distribuidores usa el signo adelante
   // para que el "$" nunca quede solo en otra línea.
@@ -196,7 +200,8 @@ export function CartDrawer() {
         ) : null}
 
         {presented.length === 0 ? (
-          getStoredAttemptStatus().kind !== "missing" || getStoredSessionPresence() !== "missing" ? (
+          getStoredAttemptStatus({ channel: attemptChannel }).kind !== "missing" ||
+          getStoredSessionPresence({ channel: attemptChannel }) !== "missing" ? (
             <p className="cart-empty">
               Hay un pedido anterior para revisar.{" "}
               <button
@@ -355,13 +360,12 @@ export function CartDrawer() {
         distributorTotal={distributorTotal}
         distributorNetByProduct={distributorNetByProduct}
         onDistributorSessionExpired={() => distributor?.expireSession()}
-        /* Prueba viva de sesión (sólo memoria): el objeto exacto de
-           autenticación vigente, sólo si la sesión está autenticada. Si el
-           canal cambia al reabrir el checkout, el modal bloquea el reenvío
-           del intento anterior. */
-        distributorSessionProof={
-          distributor && distributor.isAuthenticated ? distributor.auth : null
-        }
+        /* Huella de VALOR de la sesión (sólo memoria): el backend devuelve el
+           mismo vencimiento almacenado en cada revalidación, así que una
+           revalidación inocua conserva la huella y el intento sigue siendo
+           reenviable. Un login nuevo, un logout o una expiración cambian la
+           huella (o la borran) y el intento deja de ser reenviable. */
+        distributorSessionFingerprint={distributor?.sessionFingerprint ?? null}
         submitFn={checkoutDist.mode ? submitDistributorOrder : undefined}
       />
     </div>,

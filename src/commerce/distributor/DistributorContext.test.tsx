@@ -40,6 +40,7 @@ function Probe() {
         {distributor.auth.status === "anonymous" && distributor.auth.expired ? "-expired" : ""}
       </span>
       <span data-testid="discount">{distributor.discountPercent ?? "none"}</span>
+      <span data-testid="fingerprint">{distributor.sessionFingerprint ?? "none"}</span>
       <span data-testid="quote">{distributor.quoteFor("p1", 1).status}</span>
       <button type="button" onClick={() => void distributor.login("20111111112", "secreto")}>
         login
@@ -56,6 +57,10 @@ function Probe() {
 
 function authText(): string {
   return screen.getByTestId("auth").textContent ?? "";
+}
+
+function fingerprintText(): string {
+  return screen.getByTestId("fingerprint").textContent ?? "";
 }
 
 /** Cotización del servidor para p1 x 1 (importes autoritativos del backend). */
@@ -616,6 +621,27 @@ describe("DistributorContext · la revalidación que no puede probarse como la m
     expect(epochQuoteStatus()).not.toBe("ready");
     expect(screen.getByTestId("confirmed").textContent).toBe("false");
   });
+
+  it("una sesión vencida borra la huella (no hay continuidad)", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/api/distributor/session")) {
+          // El servidor ya no reconoce la sesión.
+          return json({ ok: true, authenticated: false });
+        }
+        throw new Error(`fetch inesperado: ${url}`);
+      }),
+    );
+
+    render(
+      <DistributorProvider>
+        <Probe />
+      </DistributorProvider>,
+    );
+    await waitFor(() => expect(authText()).toBe("anonymous"));
+    expect(fingerprintText()).toBe("none");
+  });
 });
 
 describe("DistributorContext · la revalidación oculta los precios desde que empieza (C-A)", () => {
@@ -801,5 +827,143 @@ describe("DistributorContext · la revalidación oculta los precios desde que em
     expect(document.querySelector(".distributor-price-line__badge")).toHaveTextContent(
       "20% de descuento",
     );
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+ * S3 · Huella de VALOR de la sesión.
+ *
+ * La huella ("v1:<descuento>:<vencimiento>") es lo que usa el checkout
+ * para saber si un intento sigue siendo reenviable. Debe ser estable frente
+ * a una revalidación inocua de la MISMA sesión (el backend devuelve el
+ * vencimiento almacenado) y cambiar frente a un login nuevo, un logout o
+ * una expiración.
+ * ══════════════════════════════════════════════════════════════════════ */
+describe("DistributorContext · huella de valor de la sesión", () => {
+  const EXPIRES_AT = "2026-11-20T20:00:00.000Z";
+
+  it("sin sesión autenticada no hay huella", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => json({ ok: true, authenticated: false })),
+    );
+
+    render(
+      <DistributorProvider>
+        <Probe />
+      </DistributorProvider>,
+    );
+    await waitFor(() => expect(authText()).toBe("anonymous"));
+    expect(fingerprintText()).toBe("none");
+  });
+
+  it("con sesión, la huella es el valor del descuento y del vencimiento", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/api/distributor/session")) {
+          return json({
+            ok: true,
+            authenticated: true,
+            discountPercent: 20,
+            expiresAt: EXPIRES_AT,
+          });
+        }
+        throw new Error(`fetch inesperado: ${url}`);
+      }),
+    );
+
+    render(
+      <DistributorProvider>
+        <Probe />
+      </DistributorProvider>,
+    );
+    await waitFor(() => expect(authText()).toBe("authenticated"));
+    expect(fingerprintText()).toBe(`v1:20:${EXPIRES_AT}`);
+  });
+
+  it("una revalidación de la MISMA sesión conserva la huella", async () => {
+    let sessionCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/api/distributor/session")) {
+          sessionCalls += 1;
+          return json({
+            ok: true,
+            authenticated: true,
+            discountPercent: 20,
+            expiresAt: EXPIRES_AT,
+          });
+        }
+        throw new Error(`fetch inesperado: ${url}`);
+      }),
+    );
+
+    render(
+      <DistributorProvider>
+        <Probe />
+      </DistributorProvider>,
+    );
+    await waitFor(() => expect(authText()).toBe("authenticated"));
+    const before = fingerprintText();
+
+    /* Revalidación por foco: el backend devuelve el mismo vencimiento
+       almacenado ⇒ la huella NO cambia. */
+    window.dispatchEvent(new Event("focus"));
+    await waitFor(() => expect(sessionCalls).toBe(2));
+    await waitFor(() => expect(fingerprintText()).toBe(before));
+    expect(fingerprintText()).toBe(`v1:20:${EXPIRES_AT}`);
+  });
+
+  it("un login nuevo cambia la huella y un logout la borra", async () => {
+    let loginCalls = 0;
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async (url: string) => {
+        if (url.includes("/api/distributor/session")) {
+          return json({ ok: true, authenticated: false });
+        }
+        if (url.includes("/api/distributor/login")) {
+          loginCalls += 1;
+          return json({
+            ok: true,
+            authenticated: true,
+            discountPercent: 20,
+            expiresAt: loginCalls === 1
+              ? EXPIRES_AT
+              : "2026-11-21T20:00:00.000Z",
+          });
+        }
+        if (url.includes("/api/distributor/logout")) {
+          return json({ ok: true, authenticated: false });
+        }
+        throw new Error(`fetch inesperado: ${url}`);
+      }),
+    );
+
+    render(
+      <DistributorProvider>
+        <Probe />
+      </DistributorProvider>,
+    );
+    await waitFor(() => expect(authText()).toBe("anonymous"));
+    expect(fingerprintText()).toBe("none");
+
+    fireEvent.click(screen.getByText("login"));
+    await waitFor(() => expect(authText()).toBe("authenticated"));
+    const primera = fingerprintText();
+    expect(primera).toBe(`v1:20:${EXPIRES_AT}`);
+
+    /* Logout: sin sesión no hay huella. */
+    fireEvent.click(screen.getByText("logout"));
+    await waitFor(() => expect(authText()).toBe("anonymous"));
+    expect(fingerprintText()).toBe("none");
+
+    /* Login nuevo: el backend devuelve OTRO vencimiento ⇒ otra huella. */
+    fireEvent.click(screen.getByText("login"));
+    await waitFor(() => expect(authText()).toBe("authenticated"));
+    expect(fingerprintText()).not.toBe(primera);
+    expect(fingerprintText()).toBe("v1:20:2026-11-21T20:00:00.000Z");
   });
 });

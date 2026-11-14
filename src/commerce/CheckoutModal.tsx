@@ -84,8 +84,8 @@ type ResolutionView = {
   reference: string;
   status: DistributorResolutionStatus;
   decidedAt: string | null;
-  /** Prueba viva de sesión vigente en el momento de la consulta. */
-  proof: object;
+  /** Huella de sesión vigente en el momento de la consulta. */
+  fingerprint: string;
 };
 
 type CheckoutSubmitFn = (
@@ -118,12 +118,14 @@ type CheckoutModalProps = {
   distributorNetByProduct?: Record<string, number | null>;
   onDistributorSessionExpired?: () => void;
   /**
-   * Prueba viva de sesión (SOLO en memoria): el objeto exacto de
-   * autenticación del distribuidor vigente. Se compara por identidad para
-   * detectar que la sesión cambió (login, logout, refresco o recarga).
+   * Huella de VALOR de la sesión de distribuidor (SOLO en memoria):
+   * "v1:<descuento>:<fin de sesión>". Se compara POR VALOR, así que una
+   * revalidación inocua de la MISMA sesión (montaje, foco, visibilidad,
+   * temporizador) NO invalida el intento, mientras que un login nuevo, un
+   * logout o una expiración (huella `null`) sí lo hacen.
    * NO es un identificador de cuenta, no se persiste y no viaja al backend.
    */
-  distributorSessionProof?: object | null;
+  distributorSessionFingerprint?: string | null;
 };
 
 const EMPTY_CONTACT: CheckoutContact = {
@@ -170,7 +172,7 @@ export function CheckoutModal({
   distributorTotal = null,
   distributorNetByProduct,
   onDistributorSessionExpired,
-  distributorSessionProof = null,
+  distributorSessionFingerprint = null,
 }: CheckoutModalProps) {
   const [contact, setContact] = useState<CheckoutContact>(EMPTY_CONTACT);
   const [fieldErrors, setFieldErrors] = useState<ContactErrors>({});
@@ -203,16 +205,18 @@ export function CheckoutModal({
   /* ── Double-click prevention (synchronous ref) ──────────────────── */
   const submittingRef = useRef(false);
 
-  /* ── Canal del intento + prueba viva de sesión ──────────────────── */
+  /* ── Canal del intento + huella viva de sesión ──────────────────── */
   /* El canal queda fijado mientras el checkout está abierto (lo fija
-     CartDrawer al abrir). La prueba viva es la SESIÓN VIGENTE: si cambia
-     (login, logout, refresco o recarga) el intento ya no es reenviable. */
+     CartDrawer al abrir). La huella viva es el VALOR de la sesión: si
+     cambia (login nuevo, logout, expiración) el intento ya no es
+     reenviable; si la misma sesión se revalida, la huella NO cambia y el
+     intento sigue siendo reenviable, liberable y conciliable. */
   const channel: OrderAttemptChannel = distributorMode ? "distributor" : "public";
-  const liveProof = distributorSessionProof ?? null;
-  /* Última prueba viva conocida: permite descartar una respuesta que llega
+  const liveFingerprint = distributorSessionFingerprint ?? null;
+  /* Última huella conocida: permite descartar una respuesta que llega
      después de que la sesión cambió. */
-  const liveProofRef = useRef(liveProof);
-  liveProofRef.current = liveProof;
+  const liveFingerprintRef = useRef(liveFingerprint);
+  liveFingerprintRef.current = liveFingerprint;
 
   /* ── Open: detect existing marker/session, prefill ──────────────── */
   useEffect(() => {
@@ -239,12 +243,12 @@ export function CheckoutModal({
     resolutionRequestRef.current += 1;
     closeRef.current?.focus();
 
-    const markerStatus: OrderAttemptStatus = getStoredAttemptStatus();
+    const markerStatus: OrderAttemptStatus = getStoredAttemptStatus({ channel });
     setObservedAttempt(markerStatus);
     if ((markerStatus.kind === "valid" || markerStatus.kind === "expired") &&
         markerStatus.snapshot.status === "completed" && markerStatus.snapshot.orderId?.trim()) {
       const marker = markerStatus.snapshot;
-      if (finalizeCompletedAttempt(marker.idempotencyKey, marker.orderId!)) {
+      if (finalizeCompletedAttempt(marker.idempotencyKey, marker.orderId!, { channel })) {
         setObservedAttempt({ kind: "missing" });
         setContact(EMPTY_CONTACT);
       } else {
@@ -257,14 +261,14 @@ export function CheckoutModal({
     }
     /* El canal distribuidor sin prueba viva autenticada no puede preparar ni
        reenviar nada: se bloquea conservando el registro existente. */
-    if (channel === "distributor" && !liveProof) {
+    if (channel === "distributor" && !liveFingerprint) {
       setMode({ kind: "blocked" });
       setServerError(CONTEXT_MISMATCH_MESSAGE);
       return;
     }
     if (markerStatus.kind === "missing") {
       setContact(EMPTY_CONTACT);
-      const sessionPresence = getStoredSessionPresence();
+      const sessionPresence = getStoredSessionPresence({ channel });
       if (sessionPresence !== "missing") {
         setMode({ kind: "blocked" });
         setServerError("Quedó información de un pedido anterior sin marcador. No podemos confirmar su resultado; consultá a StarVie antes de iniciar otro.");
@@ -297,7 +301,7 @@ export function CheckoutModal({
       return;
     }
 
-    const session: OrderAttemptSession | null = getAttemptSession();
+    const session: OrderAttemptSession | null = getAttemptSession({ channel });
     const blockMissingOriginal = () => {
       setMode({ kind: "blocked" });
       setServerError("No está disponible el pedido original completo. Conservamos su referencia; consultá a StarVie antes de iniciar otro.");
@@ -313,7 +317,7 @@ export function CheckoutModal({
         idempotencyKey: marker.idempotencyKey,
         persistedChannel: marker.channel,
         channel,
-        distributorProof: liveProof,
+        distributorProof: liveFingerprint,
       })) {
         setMode({ kind: "blocked" });
         setServerError(CONTEXT_MISMATCH_MESSAGE);
@@ -379,11 +383,11 @@ export function CheckoutModal({
       /* El canal distribuidor exige una prueba viva autenticada. Sin ella no
          se prepara ni se reenvía nada: ni clave nueva, ni token consumido, ni
          registros escritos, ni carrito tocado. */
-      if (channel === "distributor" && !liveProof) {
+      if (channel === "distributor" && !liveFingerprint) {
         contextMismatch = true;
-        throw new Error("distributor without live proof");
+        throw new Error("distributor without live fingerprint");
       }
-      const markerStatus = getStoredAttemptStatus();
+      const markerStatus = getStoredAttemptStatus({ channel });
       if (markerStatus.kind === "missing" && mode.kind === "idle") {
         const errors = validateContact(contact);
         setFieldErrors(errors);
@@ -406,12 +410,12 @@ export function CheckoutModal({
         /* El intento queda atado a este canal y a esta sesión viva. */
         rememberAttemptContext(prepared.idempotencyKey, {
           channel,
-          distributorProof: liveProof,
+          distributorProof: liveFingerprint,
         });
         payload = { contact: prepared.contact, lines: prepared.lines, idempotencyKey: prepared.idempotencyKey };
         tokenForRequest = tokenRef.current ?? undefined;
       } else if (markerStatus.kind === "valid" && mode.kind !== "idle") {
-        const session = getAttemptSession();
+        const session = getAttemptSession({ channel });
         if (!session || session.idempotencyKey !== markerStatus.snapshot.idempotencyKey) {
           throw new Error("original payload unavailable");
         }
@@ -423,7 +427,7 @@ export function CheckoutModal({
           idempotencyKey: markerStatus.snapshot.idempotencyKey,
           persistedChannel: markerStatus.snapshot.channel,
           channel,
-          distributorProof: liveProof,
+          distributorProof: liveFingerprint,
         })) {
           contextMismatch = true;
           throw new Error("attempt context changed");
@@ -469,12 +473,12 @@ export function CheckoutModal({
         case "completed": {
           setOrderId(result.orderId);
           setMode({ kind: "completed" });
-          const cleaned = finalizeCompletedAttempt(payload.idempotencyKey, result.orderId);
+          const cleaned = finalizeCompletedAttempt(payload.idempotencyKey, result.orderId, { channel });
           setCompletedCleanupFailed(!cleaned);
           if (!cleaned) {
             setServerError("El pedido está confirmado, pero su referencia local cambió o no se pudo limpiar. Volvé a abrir el checkout o contactá a StarVie antes de iniciar otra compra.");
           }
-          setObservedAttempt(getStoredAttemptStatus());
+          setObservedAttempt(getStoredAttemptStatus({ channel }));
           /* Clear cart after user sees the result. */
           clearCart();
           break;
@@ -486,14 +490,15 @@ export function CheckoutModal({
           /* Update marker with orderId and session with orderId (immutable). */
           try {
             updateAttempt(lines, {
+              channel,
               orderId: result.orderId,
               status: "processing",
             });
-            updateAttemptSession(result.orderId);
+            updateAttemptSession(result.orderId, { channel });
           } catch {
             /* Storage unavailable — proceed anyway. */
           }
-          setObservedAttempt(getStoredAttemptStatus());
+          setObservedAttempt(getStoredAttemptStatus({ channel }));
           break;
         }
         case "failed": {
@@ -504,21 +509,22 @@ export function CheckoutModal({
           /* Update marker with failed orderId (preserves createdAt, lines). */
           try {
             updateAttempt(lines, {
+              channel,
               orderId: resolvedOrderId,
               status: "failed",
             });
-            updateAttemptSession(resolvedOrderId);
+            updateAttemptSession(resolvedOrderId, { channel });
           } catch {
             /* Storage unavailable — proceed anyway. */
           }
-          setObservedAttempt(getStoredAttemptStatus());
+          setObservedAttempt(getStoredAttemptStatus({ channel }));
           break;
         }
         case "conflict": {
           setServerError(result.error);
           setMode({ kind: "terminal" });
-          updateAttempt(lines, { status: "conflict" });
-          setObservedAttempt(getStoredAttemptStatus());
+          updateAttempt(lines, { channel, status: "conflict" });
+          setObservedAttempt(getStoredAttemptStatus({ channel }));
           break;
         }
         case "rateLimited": {
@@ -533,17 +539,17 @@ export function CheckoutModal({
           setServerError(channel === "distributor" ? UNCERTAIN_ORDER_MESSAGE : result.error);
           setMode({ kind: wasProcessing ? "processing" : "retryable" });
           if (!wasProcessing) {
-            updateAttempt(lines, { status: "accepted" });
+            updateAttempt(lines, { channel, status: "accepted" });
           }
           /* El refresco del intento observado es del canal DISTRIBUIDOR: el
              público conserva el estado de origin/main. */
-          if (channel === "distributor") setObservedAttempt(getStoredAttemptStatus());
+          if (channel === "distributor") setObservedAttempt(getStoredAttemptStatus({ channel }));
           break;
         }
         case "verificationRequired": {
           if (!siteKey) {
             setServerError("El servidor requiere verificación y este checkout no está configurado para completarla. Conservamos el pedido original; contactá a StarVie.");
-            setObservedAttempt(getStoredAttemptStatus());
+            setObservedAttempt(getStoredAttemptStatus({ channel }));
             setMode({ kind: "blocked" });
           } else {
             setServerError(result.error);
@@ -556,8 +562,8 @@ export function CheckoutModal({
         case "validation": {
           setServerError(result.error);
           setMode({ kind: "terminal" });
-          updateAttempt(lines, { status: "validation" });
-          setObservedAttempt(getStoredAttemptStatus());
+          updateAttempt(lines, { channel, status: "validation" });
+          setObservedAttempt(getStoredAttemptStatus({ channel }));
           break;
         }
         case "sessionExpired": {
@@ -572,7 +578,7 @@ export function CheckoutModal({
     } catch {
       submittingRef.current = false;
       setServerError(channel === "distributor" ? UNCERTAIN_ORDER_MESSAGE : "Error de conexión.");
-      if (channel === "distributor") setObservedAttempt(getStoredAttemptStatus());
+      if (channel === "distributor") setObservedAttempt(getStoredAttemptStatus({ channel }));
       setMode({ kind: wasProcessing ? "processing" : "retryable" });
     }
   };
@@ -582,18 +588,17 @@ export function CheckoutModal({
     if (mode.kind === "completed" && completedCleanupFailed) return;
     if (mode.kind === "blocked" && !resolutionConfirmed) return;
     /* La compuerta de liberación local protege el pedido del DISTRIBUIDOR:
-       se aplica en su propio canal y también cuando su registro se toca
-       desde el checkout público. El canal público, para sus propios
-       registros, libera el intento como lo liberaba origin/main. */
-    if ((channel === "distributor" || attemptOwnedByDistributor) && mode.kind !== "completed" &&
-        !canResolveAttemptLocally(getStoredAttemptStatus(), getAttemptSession())) {
-      setServerError(attemptOwnedByDistributor && channel !== "distributor"
-        ? CONTEXT_MISMATCH_MESSAGE
-        : RELEASE_NOT_ALLOWED_MESSAGE);
+       se aplica en su propio canal. El canal público libera su propio
+       registro como lo liberaba origin/main: cada canal tiene su propio
+       compartmento de almacenamiento, así que un registro de otro canal
+       nunca se toca desde acá. */
+    if (channel === "distributor" && mode.kind !== "completed" &&
+        !canResolveAttemptLocally(getStoredAttemptStatus({ channel }), getAttemptSession({ channel }))) {
+      setServerError(RELEASE_NOT_ALLOWED_MESSAGE);
       return;
     }
     const resolved = mode.kind === "completed"
-      ? getStoredAttemptStatus().kind === "missing" && getStoredSessionPresence() === "missing"
+      ? getStoredAttemptStatus({ channel }).kind === "missing" && getStoredSessionPresence({ channel }) === "missing"
       : resolveAttemptForNewPurchase(
           observedAttempt,
           mode.kind === "blocked" && resolutionConfirmed,
@@ -631,9 +636,9 @@ export function CheckoutModal({
    *  - la respuesta se aplica sólo si su eco es la referencia consultada.
    */
   const consultResolution = async () => {
-    if (!distributorMode || !liveProof || !persistedReference) return;
+    if (!distributorMode || !liveFingerprint || !persistedReference) return;
     const reference = persistedReference;
-    const proof = liveProof;
+    const fingerprint = liveFingerprint;
     const requestId = resolutionRequestRef.current + 1;
     resolutionRequestRef.current = requestId;
     setResolutionLoading(true);
@@ -652,7 +657,7 @@ export function CheckoutModal({
         return;
       }
       /* La sesión cambió mientras consultábamos: la respuesta no se aplica. */
-      if (proof !== liveProofRef.current) {
+      if (fingerprint !== liveFingerprintRef.current) {
         setResolutionError("La sesión cambió durante la consulta: la respuesta no se aplica. Volvé a consultar la resolución.");
         return;
       }
@@ -660,7 +665,7 @@ export function CheckoutModal({
         reference,
         status: result.resolution.status,
         decidedAt: result.resolution.decidedAt,
-        proof,
+        fingerprint,
       });
       return;
     }
@@ -683,7 +688,7 @@ export function CheckoutModal({
    */
   const startNewPurchaseAfterResolution = () => {
     if (!resolution || resolution.status !== "RECEIVED") return;
-    if (!liveProof || resolution.proof !== liveProof) return;
+    if (!liveFingerprint || resolution.fingerprint !== liveFingerprint) return;
     if (!persistedReference || resolution.reference !== persistedReference) return;
     if (!attemptProofIntact) {
       setResolutionError("La sesión de este pedido cambió desde la consulta: no se puede cerrar el pedido anterior con seguridad.");
@@ -729,14 +734,14 @@ export function CheckoutModal({
    */
   const continueAfterNotReceived = () => {
     if (!resolution || resolution.status !== "NOT_RECEIVED") return;
-    if (!liveProof || resolution.proof !== liveProof) return;
+    if (!liveFingerprint || resolution.fingerprint !== liveFingerprint) return;
     if (!persistedReference || resolution.reference !== persistedReference) return;
     if (!attemptProofIntact) {
       setResolutionError("La sesión de este pedido cambió desde la consulta: no se puede continuar con seguridad. Volvé a consultar la resolución.");
       return;
     }
-    const status = getStoredAttemptStatus();
-    const session = getAttemptSession();
+    const status = getStoredAttemptStatus({ channel });
+    const session = getAttemptSession({ channel });
     const snapshot = status.kind === "valid" ? status.snapshot : null;
     /* El reenvío con la MISMA referencia sólo existe si el intento sigue
        siendo reenviable: los estados terminales que el servidor conservó
@@ -750,7 +755,7 @@ export function CheckoutModal({
         idempotencyKey: snapshot.idempotencyKey,
         persistedChannel: snapshot.channel,
         channel,
-        distributorProof: liveProof,
+        distributorProof: liveFingerprint,
       });
 
     if (sameReferenceRetry) {
@@ -791,17 +796,10 @@ export function CheckoutModal({
 
   /* ── Computed state ──────────────────────────────────────────────── */
   // Read persisted ownership/reference, never infer it from the current login.
-  const persistedAttempt = getStoredAttemptStatus();
-  const persistedSession = getAttemptSession();
-  const sessionPresence = getStoredSessionPresence();
+  const persistedAttempt = getStoredAttemptStatus({ channel });
+  const persistedSession = getAttemptSession({ channel });
+  const sessionPresence = getStoredSessionPresence({ channel });
   const localResolutionAllowed = canResolveAttemptLocally(persistedAttempt, persistedSession);
-  /* El registro persistido puede pertenecer al canal DISTRIBUIDOR aunque el
-     checkout se abra en el canal público: sus protecciones lo acompañan
-     (nadie lo libera desde el catálogo público). */
-  const attemptOwnedByDistributor =
-    (persistedAttempt.kind === "valid" || persistedAttempt.kind === "expired"
-      ? persistedAttempt.snapshot.channel
-      : persistedSession?.channel) === "distributor";
   /* El canal PÚBLICO conserva la visibilidad de origin/main: el checkbox de
      confirmación y el botón de liberación aparecen en los mismos estados que
      antes. El canal DISTRIBUIDOR sólo los habilita cuando el intento es
@@ -813,15 +811,15 @@ export function CheckoutModal({
   const persistedStatus = persistedAttempt.kind === "valid" || persistedAttempt.kind === "expired"
     ? persistedAttempt.snapshot.status : undefined;
   /* ── Conciliación administrativa (canal distribuidor) ───────────── */
-  /* Prueba viva del intento: si el contexto en memoria no existe o su prueba
+  /* Huella viva del intento: si el contexto en memoria no existe o su huella
      ya no es la vigente, la sesión cambió y el intento NO se libera. */
   const attemptContext = persistedReference ? getAttemptContext(persistedReference) : null;
   const attemptProofIntact =
-    liveProof !== null &&
+    liveFingerprint !== null &&
     attemptContext !== null &&
     attemptContext.channel === "distributor" &&
-    attemptContext.distributorProof === liveProof;
-  const canConsultResolution = distributorMode && liveProof !== null && persistedReference !== null;
+    attemptContext.distributorProof === liveFingerprint;
+  const canConsultResolution = distributorMode && liveFingerprint !== null && persistedReference !== null;
   const showReconciliation =
     distributorMode &&
     !["submitting", "completed"].includes(mode.kind) &&
@@ -836,8 +834,8 @@ export function CheckoutModal({
      vigente. */
   const resolutionIsAuthentic =
     resolution !== null &&
-    liveProof !== null &&
-    resolution.proof === liveProof &&
+    liveFingerprint !== null &&
+    resolution.fingerprint === liveFingerprint &&
     persistedReference !== null &&
     resolution.reference === persistedReference &&
     attemptProofIntact;
@@ -1107,7 +1105,8 @@ export function CheckoutModal({
                 <p className="checkout-distributor-note" role="status">
                   Pedido de distribuidor: el importe final lo calcula y valida el
                   servidor al procesarlo. Si tu sesión vence, volvé a ingresar
-                  desde Distribuidores y reintentá con el mismo pedido.
+                  desde Distribuidores: el pedido anterior conserva su referencia
+                  y podés consultarla con RealStep.
                 </p>
               </>
             ) : null}
@@ -1342,7 +1341,7 @@ export function CheckoutModal({
             {uncertainNotice}
             {reconciliationPanel}
             {releaseUiAllowed && mode.kind === "blocked" && observedAttempt.kind !== "unavailable" &&
-              getStoredSessionPresence() !== "unavailable" ? (
+              getStoredSessionPresence({ channel }) !== "unavailable" ? (
               <label className="future-note">
                 <input
                   type="checkbox"
@@ -1352,7 +1351,7 @@ export function CheckoutModal({
                 Confirmo que consulté con StarVie el estado del pedido anterior y quiero iniciar una compra nueva.
               </label>
             ) : null}
-            {releaseUiAllowed && getStoredSessionPresence() !== "unavailable" &&
+            {releaseUiAllowed && getStoredSessionPresence({ channel }) !== "unavailable" &&
               (mode.kind === "terminal" || (mode.kind === "blocked" && resolutionConfirmed &&
                 observedAttempt.kind !== "unavailable")) ? (
               <button className="cart-retry" type="button" onClick={startNewPurchase}>

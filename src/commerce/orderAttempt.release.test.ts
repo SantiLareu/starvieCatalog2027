@@ -9,6 +9,9 @@ import {
 
 const localKey = "starvie-order-attempt-v2";
 const sessionKey = "starvie-order-attempt-v2-session";
+/* Compartmento del canal distribuidor: cada canal tiene el suyo. */
+const distLocalKey = "starvie-order-attempt-v2-distributor";
+const distSessionKey = "starvie-order-attempt-v2-distributor-session";
 const contact = { name: "Test User", legalName: "Test Shop", email: "test@example.com" };
 const lines = [{ productId: "raptor+", qty: 2 }];
 /* Reloj inyectado: el paso del tiempo se simula, nunca se espera. */
@@ -16,6 +19,9 @@ const T0 = Date.parse("2026-03-01T12:00:00.000Z");
 beforeEach(() => { localStorage.clear(); sessionStorage.clear(); });
 afterEach(() => { localStorage.clear(); sessionStorage.clear(); });
 function bytes() { return [localStorage.getItem(localKey), sessionStorage.getItem(sessionKey)]; }
+function distBytes() {
+  return [localStorage.getItem(distLocalKey), sessionStorage.getItem(distSessionKey)];
+}
 
 /**
  * Pedido público que el servidor recibió y cuya respuesta se perdió:
@@ -31,19 +37,23 @@ function uncertainPublicAttempt(): string {
 it.each(["distributor", "legacy", "expired-distributor", "orphan-distributor", "invalid-marker"])(
   "S4 refuses unverified release of %s even with confirmedUncertain=true", (scenario) => {
     expect(prepareAttempt(contact, lines, { channel: "distributor" })).not.toBe(false);
-    if (scenario === "orphan-distributor") localStorage.removeItem(localKey);
-    else if (scenario === "invalid-marker") localStorage.setItem(localKey, "broken-json");
+    if (scenario === "orphan-distributor") localStorage.removeItem(distLocalKey);
+    else if (scenario === "invalid-marker") localStorage.setItem(distLocalKey, "broken-json");
     else if (scenario !== "distributor") {
-      for (const [storage, key] of [[localStorage, localKey], [sessionStorage, sessionKey]] as const) {
+      for (const [storage, key] of [[localStorage, distLocalKey], [sessionStorage, distSessionKey]] as const) {
         const value = JSON.parse(storage.getItem(key)!);
         if (scenario === "legacy") delete value.channel;
         else value.createdAt = new Date(Date.now() - 24 * 3600_000).toISOString();
         storage.setItem(key, JSON.stringify(value));
       }
     }
-    const before = bytes();
-    expect(resolveAttemptForNewPurchase(getStoredAttemptStatus(), true)).toBe(false);
-    expect(bytes()).toEqual(before);
+    const before = distBytes();
+    expect(resolveAttemptForNewPurchase(
+      getStoredAttemptStatus({ channel: "distributor" }),
+      true,
+      { channel: "distributor" },
+    )).toBe(false);
+    expect(distBytes()).toEqual(before);
   },
 );
 
@@ -156,8 +166,14 @@ it("S7 un rechazo definitivo (validation) sigue resoluble tras la ventana de ret
  */
 it("S1/S5 un pedido de distribuidor rechazado sin pedido creado (validation) se resuelve", () => {
   prepareAttempt(contact, lines, { channel: "distributor" });
-  updateAttempt(lines, { status: "validation", orderId: null });
-  expect(resolveAttemptForNewPurchase(getStoredAttemptStatus(), false)).toBe(true);
+  updateAttempt(lines, { channel: "distributor", status: "validation", orderId: null });
+  expect(resolveAttemptForNewPurchase(
+    getStoredAttemptStatus({ channel: "distributor" }),
+    false,
+    { channel: "distributor" },
+  )).toBe(true);
+  expect(distBytes()).toEqual([null, null]);
+  /* El compartmento público nunca se toca. */
   expect(bytes()).toEqual([null, null]);
 });
 
