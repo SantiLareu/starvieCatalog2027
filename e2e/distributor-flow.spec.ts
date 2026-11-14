@@ -244,14 +244,15 @@ async function seedCart(page: Page, productId: string, qty: number): Promise<voi
  * La integración de distribuidores sólo existe en el navegador si
  * `VITE_DISTRIBUTOR_API_BASE_URL` está definido: sin ella el frontend no
  * consulta la sesión (cero peticiones) y estos escenarios no tienen sentido.
+ *
+ * Si la integración SÍ está configurada (CI la define), la ausencia de la
+ * petición de sesión es un FALLO, no un skip: si no, un canal roto
+ * convertiría los escenarios en omitidos y el CI pasaría en verde.
  */
 async function distributorIntegrationEnabled(calls: Network): Promise<boolean> {
-  try {
-    await expect.poll(() => calls.sessionCalls, { timeout: 5_000 }).toBeGreaterThan(0);
-    return true;
-  } catch {
-    return false;
-  }
+  if (!process.env.VITE_DISTRIBUTOR_API_BASE_URL) return false;
+  await expect.poll(() => calls.sessionCalls, { timeout: 5_000 }).toBeGreaterThan(0);
+  return true;
 }
 
 /** Login simulado con credenciales ficticias: distintivo «Distribuidor». */

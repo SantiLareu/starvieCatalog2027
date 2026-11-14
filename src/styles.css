@@ -1615,3 +1615,19 @@ button { -webkit-tap-highlight-color: transparent; }
 @media (max-width: 379px) {
   .checkout-turnstile { min-height: 125px; }
 }
+
+/* Cierre editorial del checkout: «SIN RIESGO NO HAY HISTORIA» es una sola
+   línea (white-space: nowrap) y su caja es el ancho del panel, así que el
+   cuerpo tiene que caber en él. El 6.8cqi original la dejaba ~8% más
+   ancha que su contenedor (604.7px sobre 570px en escritorio) y desbordaba
+   también en móvil (345.1/319), móvil angosto (266/246) y móvil apaisado
+   (589.5/545). Se ajusta SOLO la escala tipográfica: la caja del panel se
+   mide en consultas de contenedor, el tope baja a 33px y el mínimo
+   conserva la legibilidad en pantallas muy angostas. El diseño editorial
+   se mantiene: misma frase, misma caja, misma jerarquía y una sola línea.
+   La especificidad (0,2,0) deja esta regla por encima de la del archivo
+   propio del componente (.checkout-confirmation-motto), así que el orden
+   de carga de las hojas no altera el resultado. */
+.checkout-confirmation .checkout-confirmation-motto {
+  font-size: clamp(12px, 5.85cqi, 33px);
+}

@@ -334,6 +334,22 @@ function uncertainNotice(dialog: Locator) {
   return dialog.locator('aside[aria-label="Pedido sin confirmar"]');
 }
 
+/**
+ * El panel de conciliación: es donde vive el mensaje de estado de la
+ * resolución. Cuando la resolución es RECEIVED o NOT_RECEIVED el aviso
+ * «Pedido sin confirmar» muestra EL MISMO texto, así que una búsqueda suelta
+ * dentro del diálogo coincide con DOS elementos. La aserción se acota al
+ * panel para comprobar exactamente el mensaje de la conciliación.
+ */
+function reconciliationPanel(dialog: Locator) {
+  return dialog.getByTestId("checkout-reconciliation");
+}
+
+/** El mensaje de estado de la conciliación, dentro de su panel. */
+function resolutionStatus(dialog: Locator, status: keyof typeof RESOLUTION_MESSAGES) {
+  return reconciliationPanel(dialog).getByText(RESOLUTION_MESSAGES[status], { exact: true });
+}
+
 function expectNoOrders(calls: Network): void {
   expect(calls.publicOrderPayloads).toEqual([]);
   expect(calls.distributorOrderCalls).toEqual([]);
@@ -441,7 +457,7 @@ test.describe("conciliación del canal distribuidor", () => {
     ).toBeVisible();
 
     await dialog.getByRole("button", { name: "Consultar estado del pedido" }).click();
-    await expect(dialog.getByText(RESOLUTION_MESSAGES.UNRESOLVED)).toBeVisible();
+    await expect(resolutionStatus(dialog, "UNRESOLVED")).toBeVisible();
 
     /* Exactamente UNA lectura de la conciliación, con la referencia
        consultada… */
@@ -473,7 +489,7 @@ test.describe("conciliación del canal distribuidor", () => {
     const dialog = await openDistributorCheckout(page);
 
     await dialog.getByRole("button", { name: "Consultar estado del pedido" }).click();
-    await expect(dialog.getByText(RESOLUTION_MESSAGES.RECEIVED)).toBeVisible();
+    await expect(resolutionStatus(dialog, "RECEIVED")).toBeVisible();
 
     /* El pedido recibido no se reenvía: no hay botón de reintento ni de envío. */
     await expect(dialog.getByRole("button", { name: "Reintentar envío", exact: true })).toHaveCount(0);
@@ -540,7 +556,7 @@ test.describe("conciliación del canal distribuidor", () => {
 
     /* La conciliación auténtica con RECEIVED habilita el cierre. */
     await dialog.getByRole("button", { name: "Consultar estado del pedido" }).click();
-    await expect(dialog.getByText(RESOLUTION_MESSAGES.RECEIVED)).toBeVisible();
+    await expect(resolutionStatus(dialog, "RECEIVED")).toBeVisible();
     const newPurchase = dialog.getByRole("button", { name: "Iniciar una nueva compra", exact: true });
     await expect(newPurchase).toBeEnabled();
 
@@ -591,7 +607,7 @@ test.describe("conciliación del canal distribuidor", () => {
     const dialog = await openDistributorCheckout(page);
 
     await dialog.getByRole("button", { name: "Consultar estado del pedido" }).click();
-    await expect(dialog.getByText(RESOLUTION_MESSAGES.NOT_RECEIVED)).toBeVisible();
+    await expect(resolutionStatus(dialog, "NOT_RECEIVED")).toBeVisible();
 
     const continueButton = dialog.getByRole("button", { name: "Continuar con el envío", exact: true });
     await expect(continueButton).toBeVisible();
@@ -633,7 +649,7 @@ test.describe("conciliación del canal distribuidor", () => {
       const dialog = await openDistributorCheckout(page);
 
       await dialog.getByRole("button", { name: "Consultar estado del pedido" }).click();
-      await expect(dialog.getByText(RESOLUTION_MESSAGES[status])).toBeVisible();
+      await expect(resolutionStatus(dialog, status)).toBeVisible();
 
       /* La referencia se conserva… */
       await expect(
@@ -675,7 +691,7 @@ test.describe("conciliación del canal distribuidor", () => {
     }), attemptKeys("distributor"));
 
     await dialog.getByRole("button", { name: "Consultar estado del pedido" }).click();
-    await expect(dialog.getByText(RESOLUTION_MESSAGES.UNKNOWN)).toBeVisible();
+    await expect(resolutionStatus(dialog, "UNKNOWN")).toBeVisible();
 
     /* Sólo lectura: ni pedidos, ni correos, ni una referencia nueva. */
     expect(calls.resolutionCalls).toHaveLength(1);

@@ -576,9 +576,9 @@ export function prepareAttempt(
          atribuido al DISTRIBUIDOR: esa clave y ese pedido pertenecen al otro
          canal y reenviarlos aquí los duplicaría. */
       (channel === "distributor"
-        ? status.snapshot.channel !== channel || existingSession.channel !== channel
+        ? status.snapshot.channel !== channel || existingSession?.channel !== channel
         : status.snapshot.channel === "distributor" ||
-          existingSession.channel === "distributor")
+          existingSession?.channel === "distributor")
     ) {
       return false;
     }

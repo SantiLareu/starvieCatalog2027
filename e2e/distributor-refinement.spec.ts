@@ -178,6 +178,12 @@ test.describe("Refinamiento de distribuidores", () => {
     await expect(priceLine).toContainText("20% de descuento");
     /* El precio de lista no puede aparecer como precio distribuidor. */
     await expect(priceLine).not.toContainText("$ 372.000");
+    /* La ficha es un modal con su propio fondo (modal-backdrop): el carrito
+       queda debajo y no se puede pulsar. Se cierra con su control real
+       («Cerrar ficha»), como haría la persona usuaria, y recién después se
+       abre el carrito. */
+    await page.getByRole("button", { name: "Cerrar ficha" }).click();
+    await expect(page.locator(".product-modal")).toHaveCount(0);
     /* El carrito muestra el mismo importe cotizado, por línea. */
     await page.getByRole("button", { name: /Abrir pedido/ }).first().click();
     const drawer = page.getByRole("dialog", { name: "Pedido" });
