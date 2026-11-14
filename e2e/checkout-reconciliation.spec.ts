@@ -6,7 +6,9 @@ import { expect, test, type Locator, type Page, type Route } from "@playwright/t
  *
  * Qué se comprueba:
  *  · el checkout público sigue confirmando el pedido;
- *  · el checkout público incierto NO ofrece la consulta de conciliación;
+ *  · el checkout público incierto NO ofrece la consulta de conciliación y
+ *    NO expone la referencia (paridad con origin/main: la referencia, la
+ *    copia y el contacto de RealStep son del canal distribuidor);
  *  · el canal distribuidor SÍ ofrece «Consultar estado del pedido»;
  *  · la consulta es UNA lectura (GET) y NO genera ningún pedido;
  *  · RECEIVED informa y no habilita reenvíos;
@@ -49,6 +51,14 @@ const ORDER_ID = "RS-8dc011f4-40a3-4ca6-9ce9-2e9d11a9277b";
 const LINES = [{ productId: "raptor+", qty: 2 }];
 const LIST_PRICE = 372000;
 const NET_UNIT_PRICE = 297600;
+/**
+ * Identificador opaco de sesión que devuelve el backend. Es la PRUEBA DE
+ * CONTINUIDAD que el checkout del canal distribuidor exige: sin él la
+ * prueba es `null` y el checkout bloquea (no hay conciliación, no hay
+ * reenvío). Valor fijo y FICTICIO: no es una credencial ni existe ninguna
+ * cuenta real detrás.
+ */
+const SESSION_ID = "test-session-id-0001";
 
 /** Mensajes de la conciliación, uno por estado del servidor. */
 const RESOLUTION_MESSAGES: Record<string, string> = {
@@ -153,7 +163,10 @@ async function mockNetwork(
     await route.abort();
   });
 
-  /* 3) Sesión del distribuidor (cookie HttpOnly: el frontend nunca la ve). */
+  /* 3) Sesión del distribuidor (cookie HttpOnly: el frontend nunca la ve).
+        El `sessionId` es lo que el backend devuelve como prueba de
+        continuidad: sin él el checkout del canal distribuidor bloquea y no
+        ofrece la conciliación. */
   await page.route("**/api/distributor/session", async route => {
     calls.sessionCalls += 1;
     const authenticated = (options.session ?? "authenticated") === "authenticated";
@@ -165,7 +178,11 @@ async function mockNetwork(
         ok: true,
         authenticated,
         ...(authenticated
-          ? { discountPercent: 20, expiresAt: new Date(Date.now() + 3_600_000).toISOString() }
+          ? {
+              discountPercent: 20,
+              expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+              sessionId: SESSION_ID,
+            }
           : {}),
       }),
     });
@@ -373,13 +390,16 @@ test.describe("checkout público (sin regresiones)", () => {
     await expect(dialog.getByRole("alert").first()).toContainText(
       "No está disponible el pedido original completo",
     );
-    /* …pero conserva la referencia para poder consultar a RealStep… */
-    await expect(
-      uncertainNotice(dialog).getByText(PUBLIC_REFERENCE, { exact: true }),
-    ).toBeVisible();
+    /* …y el canal PÚBLICO conserva la paridad con origin/main: ni la
+       referencia, ni el aviso de «Pedido sin confirmar», ni el contacto de
+       RealStep (todo eso es del canal distribuidor). */
+    await expect(uncertainNotice(dialog)).toHaveCount(0);
+    await expect(dialog.getByText(PUBLIC_REFERENCE, { exact: true })).toHaveCount(0);
+    await expect(dialog.getByRole("button", { name: "Copiar referencia" })).toHaveCount(0);
+    await expect(dialog.getByRole("link", { name: "WhatsApp comercial de RealStep" })).toHaveCount(0);
     /* …y el canal público no tiene mecanismo de conciliación. */
     await expect(dialog.getByRole("button", { name: "Consultar estado del pedido" })).toHaveCount(0);
-    await expect(dialog.getByText(/no tiene un mecanismo verificable/)).toBeVisible();
+    await expect(dialog.locator(".checkout-reconciliation")).toHaveCount(0);
 
     expect(calls.resolutionCalls).toEqual([]);
     expectNoOrders(calls);

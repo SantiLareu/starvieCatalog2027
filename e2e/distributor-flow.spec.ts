@@ -260,7 +260,10 @@ async function loginAsDistributor(page: Page): Promise<void> {
   const modal = page.getByRole("dialog", { name: "Acceso distribuidores" });
   await expect(modal).toBeVisible();
   await modal.getByLabel("CUIT / CUIL").fill(FICTIONAL_CUIT);
-  await modal.getByLabel("Contraseña").fill(FICTIONAL_PASSWORD);
+  /* Coincidencia EXACTA: el botón «Mostrar contraseña» también contiene la
+     palabra y hace ambiguo el locator (dos elementos). El formulario de
+     producción no se toca. */
+  await modal.getByLabel("Contraseña", { exact: true }).fill(FICTIONAL_PASSWORD);
   await modal.getByRole("button", { name: "Ingresar", exact: true }).click();
   await expect(page.locator(".distributor-account__badge")).toHaveText("Distribuidor");
 }

@@ -15,6 +15,12 @@ import { expect, test, type Page, type Route } from "@playwright/test";
 const LIST_PRICE = 372000;
 const NET_UNIT_PRICE = 297600;
 const DISCOUNT_PERCENT = 20;
+/**
+ * Identificador opaco de sesión que devuelve el backend: es la prueba de
+ * continuidad que el checkout del canal distribuidor exige. Valor fijo y
+ * FICTICIO (no es una credencial ni existe ninguna cuenta real detrás).
+ */
+const SESSION_ID = "test-session-id-0001";
 
 /**
  * Cabeceras CORS de la respuesta simulada: el cliente consulta con
@@ -72,6 +78,7 @@ async function mockDistributor(page: Page) {
         authenticated: true,
         discountPercent: DISCOUNT_PERCENT,
         expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+        sessionId: SESSION_ID,
       }),
     });
   });

@@ -69,7 +69,16 @@ test("el checkout usa el WebP precargado desde el carrito solo en desktop", asyn
     const loadedFrame = await page.locator(".checkout-modal").evaluate(el => [el.clientWidth, el.clientHeight]);
     expect(loadedFrame).toEqual(initialFrame);
   }
-  await expect(page.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
+  /* El botón de envío depende de la verificación de seguridad: sin
+     Turnstile (VITE_TURNSTILE_ENABLED=false) no hay widget y el botón queda
+     habilitado desde el inicio —igual que en origin/main—; con Turnstile
+     configurado espera el token. La expectativa sigue al DOM, no a una
+     variable de entorno (Vite y el runner leen entornos distintos). */
+  const submit = page.getByRole("button", { name: "Enviar pedido" });
+  const verification = page.getByRole("group", { name: "Verificación de seguridad" });
+  if ((await verification.count()) === 0) {
+    await expect(submit).toBeEnabled();
+  }
 });
 
 test("el drawer conserva scroll y los cierres claros funcionan en carrito y checkout", async ({ page }, testInfo) => {
