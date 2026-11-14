@@ -93,7 +93,7 @@ describe("finalizeCompletedAttempt", () => {
   const fixture = () => {
     const local = fakeStorage();
     const session = fakeStorage();
-    const options = { storage: local as unknown as Storage, sessionStorage: session as unknown as Storage };
+    const options = { channel: "public" as const, storage: local as unknown as Storage, sessionStorage: session as unknown as Storage };
     const prepared = prepareAttempt(fakeContact(), fakeCartLines(), options);
     if (!prepared) throw new Error("fixture preparation failed");
     return { local, session, options, key: prepared.idempotencyKey };
@@ -181,7 +181,7 @@ describe("finalizeCompletedAttempt", () => {
  * ══════════════════════════════════════════════════════════════════════ */
 describe("prepareAttempt", () => {
   it("genera key y anchor, escribe session + marker atomicamente", () => {
-    const result = prepareAttempt(fakeContact(), fakeCartLines());
+    const result = prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
 
     expect(result).not.toBe(false);
     const payload = result as PreparedAttemptPayload;
@@ -201,13 +201,13 @@ describe("prepareAttempt", () => {
   });
 
   it("session no contiene token Turnstile", () => {
-    prepareAttempt(fakeContact(), fakeCartLines());
+    prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     const session = JSON.parse(sessionStorageStore.getItem(SESSION_KEY)!);
     expect(session).not.toHaveProperty("turnstileToken");
   });
 
   it("marker no contiene PII", () => {
-    prepareAttempt(fakeContact(), fakeCartLines());
+    prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     const marker = JSON.parse(localStorageStore.getItem(LOCAL_KEY)!);
     const piiFields = [
       "contact",
@@ -228,12 +228,13 @@ describe("prepareAttempt", () => {
   });
 
   it("devuelve false con líneas vacías", () => {
-    expect(prepareAttempt(fakeContact(), [])).toBe(false);
+    expect(prepareAttempt(fakeContact(), [], { channel: "public" })).toBe(false);
   });
 
   /* ── Valid existing marker: exact match (lines + required contact) ── */
   it("reusa key y anchor cuando existe marcador válido + sesión exacta", () => {
-    /* Simulate prior attempt: write marker + session directly. */
+    /* Simulate prior attempt: write marker + session directly.
+       Atribución de canal explícita: un intento público ya creado. */
     const priorKey = "11111111-1111-4111-8111-111111111111";
     const priorTime = new Date(Date.now() - 1000).toISOString();
     localStorageStore.setItem(
@@ -244,6 +245,7 @@ describe("prepareAttempt", () => {
         orderId: null,
         lines: fakeCartLines(),
         createdAt: priorTime,
+        channel: "public",
       }),
     );
     sessionStorageStore.setItem(
@@ -255,10 +257,11 @@ describe("prepareAttempt", () => {
         contact: { ...fakeContact() },
         lines: fakeCartLines(),
         createdAt: priorTime,
+        channel: "public",
       }),
     );
 
-    const result = prepareAttempt(fakeContact(), fakeCartLines());
+    const result = prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     expect(result).not.toBe(false);
     const payload = result as PreparedAttemptPayload;
     /* Same key, same anchor — no regeneration. */
@@ -293,7 +296,7 @@ describe("prepareAttempt", () => {
 
     /* Different line — reject. */
     expect(
-      prepareAttempt(fakeContact(), [{ productId: "other", qty: 5 }]),
+      prepareAttempt(fakeContact(), [{ productId: "other", qty: 5 }], { channel: "public" }),
     ).toBe(false);
   });
 
@@ -324,7 +327,7 @@ describe("prepareAttempt", () => {
 
     /* Different email — reject. */
     const diffContact = { ...fakeContact(), email: "other@example.com" };
-    expect(prepareAttempt(diffContact, fakeCartLines())).toBe(false);
+    expect(prepareAttempt(diffContact, fakeCartLines(), { channel: "public" })).toBe(false);
   });
 
   /* ── No session, valid marker: compare against marker ── */
@@ -343,7 +346,7 @@ describe("prepareAttempt", () => {
     );
 
     expect(
-      prepareAttempt(fakeContact(), [{ productId: "other", qty: 5 }]),
+      prepareAttempt(fakeContact(), [{ productId: "other", qty: 5 }], { channel: "public" }),
     ).toBe(false);
   });
 
@@ -367,7 +370,7 @@ describe("prepareAttempt", () => {
      * Even exact same payload is blocked because the session
      * (which carries the contact + key anchor) is missing.
      * The user must clear the marker first to create a new attempt. */
-    const result = prepareAttempt(fakeContact(), fakeCartLines());
+    const result = prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     expect(result).toBe(false);
     /* No new session created. */
     expect(sessionStorageStore.getItem(SESSION_KEY)).toBeNull();
@@ -394,7 +397,7 @@ describe("prepareAttempt", () => {
     );
     sessionStorageStore.clear();
 
-    const result = prepareAttempt(fakeContact(), fakeCartLines());
+    const result = prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     expect(result).toBe(false);
     /* No new key — session not created. */
     expect(sessionStorageStore.getItem(SESSION_KEY)).toBeNull();
@@ -403,7 +406,7 @@ describe("prepareAttempt", () => {
   /* ── Invalid / expired / unavailable marker: fail closed ── */
   it("fall closed si marcador es inválido (JSON corrupto)", () => {
     localStorageStore.setItem(LOCAL_KEY, "garbage");
-    expect(prepareAttempt(fakeContact(), fakeCartLines())).toBe(false);
+    expect(prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" })).toBe(false);
   });
 
   it("fall closed si marcador expiró — no se recrea", () => {
@@ -418,7 +421,7 @@ describe("prepareAttempt", () => {
         createdAt: oldTime,
       }),
     );
-    expect(prepareAttempt(fakeContact(), fakeCartLines())).toBe(false);
+    expect(prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" })).toBe(false);
     /* Marker still present */
     expect(localStorageStore.getItem(LOCAL_KEY)).toBeTruthy();
     /* Session not created */
@@ -436,7 +439,7 @@ describe("prepareAttempt", () => {
         createdAt: new Date().toISOString(),
       }),
     );
-    expect(prepareAttempt(fakeContact(), fakeCartLines())).toBe(false);
+    expect(prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" })).toBe(false);
   });
 });
 
@@ -619,10 +622,10 @@ describe("updateAttempt — immutable contract", () => {
   });
 
   it.each(["conflict", "validation"] as const)("no reutiliza un intento terminal %s", (status) => {
-    const prepared = prepareAttempt(fakeContact(), fakeCartLines());
+    const prepared = prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     expect(prepared).not.toBe(false);
     expect(updateAttempt(fakeCartLines(), { status })).toBe(true);
-    expect(prepareAttempt(fakeContact(), fakeCartLines())).toBe(false);
+    expect(prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" })).toBe(false);
     expect(hasPendingAttempt()).toBe(false);
   });
 
@@ -706,7 +709,7 @@ describe("storage permission denied — fail-closed", () => {
     } as unknown as Storage;
     expect(
       prepareAttempt(fakeContact(), fakeCartLines(), {
-        storage: brokenStorage,
+        channel: "public",storage: brokenStorage,
       }),
     ).toBe(false);
   });
@@ -797,7 +800,7 @@ describe("double-tab: marker + no session", () => {
     /* No sessionStorage — simulates different tab (session is per-tab). */
     sessionStorageStore.clear();
 
-    const result = prepareAttempt(fakeContact(), fakeCartLines());
+    const result = prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     expect(result).toBe(false);
     /* No new session created — double-tab blocked. */
     expect(sessionStorageStore.getItem(SESSION_KEY)).toBeNull();
@@ -830,7 +833,7 @@ describe("double-tab: marker + no session", () => {
 
     /* Tab B changes cart — block. */
     expect(
-      prepareAttempt(fakeContact(), [{ productId: "other", qty: 5 }]),
+      prepareAttempt(fakeContact(), [{ productId: "other", qty: 5 }], { channel: "public" }),
     ).toBe(false);
   });
 });
@@ -840,7 +843,7 @@ describe("double-tab: marker + no session", () => {
  * ══════════════════════════════════════════════════════════════════════ */
 describe("loss after POST — clearAttempt", () => {
   it("clearAttempt elimina localStorage y sessionStorage", () => {
-    prepareAttempt(fakeContact(), fakeCartLines());
+    prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     expect(localStorageStore.getItem(LOCAL_KEY)).toBeTruthy();
     expect(sessionStorageStore.getItem(SESSION_KEY)).toBeTruthy();
 
@@ -869,12 +872,12 @@ describe("same payload reuse", () => {
     const contact = fakeContact();
     const lines = fakeCartLines();
 
-    const first = prepareAttempt(contact, lines);
+    const first = prepareAttempt(contact, lines, { channel: "public" });
     expect(first).not.toBe(false);
     const key1 = (first as PreparedAttemptPayload).idempotencyKey;
 
     /* Call again with same payload — should reuse. */
-    const second = prepareAttempt(contact, lines);
+    const second = prepareAttempt(contact, lines, { channel: "public" });
     expect(second).not.toBe(false);
     const key2 = (second as PreparedAttemptPayload).idempotencyKey;
 
@@ -885,11 +888,11 @@ describe("same payload reuse", () => {
     const contact = fakeContact();
     const lines = fakeCartLines();
 
-    const first = prepareAttempt(contact, lines);
+    const first = prepareAttempt(contact, lines, { channel: "public" });
     expect(first).not.toBe(false);
     const anchor1 = (first as PreparedAttemptPayload).createdAt;
 
-    const second = prepareAttempt(contact, lines);
+    const second = prepareAttempt(contact, lines, { channel: "public" });
     expect(second).not.toBe(false);
     const anchor2 = (second as PreparedAttemptPayload).createdAt;
 
@@ -904,30 +907,30 @@ describe("changed optional fields — refused", () => {
   it("note cambiada con sesión: se rechaza (contacto completo, immutable)", () => {
     const contact = fakeContact();
     const lines = fakeCartLines();
-    prepareAttempt(contact, lines);
+    prepareAttempt(contact, lines, { channel: "public" });
 
     /* Even optional fields are immutable once session exists.
      * The full SHA-256 fingerprint includes all optional fields. */
     const diffContact = { ...contact, notes: "Different note" };
-    expect(prepareAttempt(diffContact, lines)).toBe(false);
+    expect(prepareAttempt(diffContact, lines, { channel: "public" })).toBe(false);
   });
 
   it("email diferente con sesión: se rechaza (required field)", () => {
     const contact = fakeContact();
     const lines = fakeCartLines();
-    prepareAttempt(contact, lines);
+    prepareAttempt(contact, lines, { channel: "public" });
 
     const diffContact = { ...contact, email: "other@example.com" };
-    expect(prepareAttempt(diffContact, lines)).toBe(false);
+    expect(prepareAttempt(diffContact, lines, { channel: "public" })).toBe(false);
   });
 
   it("name diferente con sesión: se rechaza (required field)", () => {
     const contact = fakeContact();
     const lines = fakeCartLines();
-    prepareAttempt(contact, lines);
+    prepareAttempt(contact, lines, { channel: "public" });
 
     const diffContact = { ...contact, name: "Other Name" };
-    expect(prepareAttempt(diffContact, lines)).toBe(false);
+    expect(prepareAttempt(diffContact, lines, { channel: "public" })).toBe(false);
   });
 });
 
@@ -980,7 +983,7 @@ describe("expired marker: never deleted, no new key", () => {
         createdAt: oldTime,
       }),
     );
-    const result = prepareAttempt(fakeContact(), fakeCartLines());
+    const result = prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     expect(result).toBe(false);
     /* No new key — marker untouched. */
     const marker = JSON.parse(localStorageStore.getItem(LOCAL_KEY)!);
@@ -1065,7 +1068,7 @@ describe("marker write fail: rollback session", () => {
     const ssGood = fakeStorage() as unknown as Storage;
 
     const result = prepareAttempt(fakeContact(), fakeCartLines(), {
-      storage: lsBroken,
+      channel: "public",storage: lsBroken,
       sessionStorage: ssGood,
     });
     expect(result).toBe(false);
@@ -1090,7 +1093,7 @@ describe("session storage write fail: returns false", () => {
 
     expect(
       prepareAttempt(fakeContact(), fakeCartLines(), {
-        storage: lsGood,
+        channel: "public",storage: lsGood,
         sessionStorage: ssBroken,
       }),
     ).toBe(false);
@@ -1465,7 +1468,7 @@ describe("resolución explícita y guardados heredados", () => {
   });
 
   it("saveAttemptSession no crea una sesión ajena a un marcador activo", () => {
-    prepareAttempt(fakeContact(), fakeCartLines());
+    prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     sessionStorageStore.clear();
     expect(saveAttemptSession(fakeContact(), fakeCartLines(), "33333333-3333-4333-8333-333333333333")).toBe(false);
     expect(getStoredSessionPresence()).toBe("missing");
@@ -1479,22 +1482,24 @@ describe("resolución explícita y guardados heredados", () => {
     expect(storage.getItem(LOCAL_KEY)).toBeTruthy();
   });
 
-  it("no limpia un intento activo sin confirmación y luego genera otra clave", () => {
-    const first = prepareAttempt(fakeContact(), fakeCartLines());
+  it("no libera un intento activo incierto ni permite generar otra clave", () => {
+    const first = prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     expect(first).not.toBe(false);
     const status = getStoredAttemptStatus();
     expect(resolveAttemptForNewPurchase(status, false)).toBe(false);
     expect(getStoredAttemptStatus().kind).toBe("valid");
-    expect(resolveAttemptForNewPurchase(status, true)).toBe(true);
-    expect(getStoredAttemptStatus().kind).toBe("missing");
-    expect(getStoredSessionPresence()).toBe("missing");
-    const second = prepareAttempt(fakeContact(), fakeCartLines());
+    /* El resultado sigue siendo incierto: ni siquiera la afirmación del
+       usuario lo libera, porque no existe conciliación verificable. */
+    expect(resolveAttemptForNewPurchase(status, true)).toBe(false);
+    expect(getStoredAttemptStatus().kind).toBe("valid");
+    expect(getStoredSessionPresence()).toBe("present");
+    const second = prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     expect(second).not.toBe(false);
-    if (first && second) expect(second.idempotencyKey).not.toBe(first.idempotencyKey);
+    if (first && second) expect((second as { idempotencyKey: string }).idempotencyKey).toBe((first as { idempotencyKey: string }).idempotencyKey);
   });
 
   it("no limpia una referencia que cambió en otra pestaña", () => {
-    prepareAttempt(fakeContact(), fakeCartLines());
+    prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     const observed = getStoredAttemptStatus();
     updateAttempt(fakeCartLines(), { orderId: fakeOrderId, status: "processing" });
     expect(resolveAttemptForNewPurchase(observed, true)).toBe(false);
@@ -1502,14 +1507,14 @@ describe("resolución explícita y guardados heredados", () => {
   });
 
   it("libera completed sin confirmación adicional", () => {
-    prepareAttempt(fakeContact(), fakeCartLines());
+    prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     updateAttempt(fakeCartLines(), { orderId: fakeOrderId, status: "completed", completed: true });
     expect(resolveAttemptForNewPurchase(getStoredAttemptStatus(), false)).toBe(true);
     expect(getStoredAttemptStatus().kind).toBe("missing");
   });
 
-  it("un marcador vencido conserva orderId y exige confirmación", () => {
-    const first = prepareAttempt(fakeContact(), fakeCartLines());
+  it("un marcador vencido conserva orderId y no se libera sin resultado definitivo", () => {
+    const first = prepareAttempt(fakeContact(), fakeCartLines(), { channel: "public" });
     expect(first).not.toBe(false);
     updateAttempt(fakeCartLines(), { orderId: fakeOrderId, status: "processing" });
     const raw = JSON.parse(localStorageStore.getItem(LOCAL_KEY)!);
@@ -1519,33 +1524,45 @@ describe("resolución explícita y guardados heredados", () => {
     expect(status.kind).toBe("expired");
     if (status.kind === "expired") expect(status.snapshot.orderId).toBe(fakeOrderId);
     expect(resolveAttemptForNewPurchase(status, false)).toBe(false);
-    expect(resolveAttemptForNewPurchase(status, true)).toBe(true);
+    /* Vencido NO significa liberado: el resultado sigue siendo incierto y
+       el registro se conserva (con su referencia). */
+    expect(resolveAttemptForNewPurchase(status, true)).toBe(false);
+    expect(getStoredAttemptStatus().kind).toBe("expired");
+    expect(localStorageStore.getItem(LOCAL_KEY)).toBeTruthy();
   });
 
-  it("un marcador corrupto no se elimina sin confirmación", () => {
+  it("un marcador corrupto no se elimina por una afirmación sin conciliación verificable", () => {
     localStorageStore.setItem(LOCAL_KEY, "bad-json");
     const status = getStoredAttemptStatus();
     expect(status.kind).toBe("invalid");
     expect(resolveAttemptForNewPurchase(status, false)).toBe(false);
     expect(localStorageStore.getItem(LOCAL_KEY)).toBe("bad-json");
-    expect(resolveAttemptForNewPurchase(status, true)).toBe(true);
-    expect(localStorageStore.getItem(LOCAL_KEY)).toBeNull();
+    expect(resolveAttemptForNewPurchase(status, true)).toBe(false);
+    expect(localStorageStore.getItem(LOCAL_KEY)).toBe("bad-json");
   });
 
-  it("una sesión huérfana se reconoce y se resuelve expresamente", () => {
+  it("una sesión heredada huérfana se conserva sin adivinar su canal", () => {
     saveAttemptSession(fakeContact(), fakeCartLines(), "11111111-1111-4111-8111-111111111111");
     expect(getStoredSessionPresence()).toBe("present");
     expect(resolveAttemptForNewPurchase({ kind: "missing" }, false)).toBe(false);
-    expect(resolveAttemptForNewPurchase({ kind: "missing" }, true)).toBe(true);
-    expect(getStoredSessionPresence()).toBe("missing");
+    expect(resolveAttemptForNewPurchase({ kind: "missing" }, true)).toBe(false);
+    expect(getStoredSessionPresence()).toBe("present");
   });
 
   it("si falla la limpieza de sessionStorage conserva el marcador y bloquea compra nueva", () => {
     const local = fakeStorage();
     const session = fakeStorage();
     prepareAttempt(fakeContact(), fakeCartLines(), {
-      storage: local as unknown as Storage,
+      channel: "public",storage: local as unknown as Storage,
       sessionStorage: session as unknown as Storage,
+    });
+    /* Resultado DEFINITIVO sin pedido creado en el servidor: la liberación
+       local está concedida y lo que se pone a prueba es el rollback cuando
+       la limpieza de la sesión falla. */
+    updateAttempt(fakeCartLines(), {
+      orderId: null,
+      status: "validation",
+      storage: local as unknown as Storage,
     });
     const expected = getStoredAttemptStatus({ storage: local });
     session.removeItem.mockImplementation(() => { throw new Error("denied"); });

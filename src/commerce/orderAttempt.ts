@@ -23,6 +23,10 @@
  * marker is the coordination point for the UI (blocking duplicate submits).
  */
 import { newIdempotencyKey, type CheckoutContact } from "./orders";
+import {
+  forgetAttemptContext,
+  type OrderAttemptChannel,
+} from "./orderAttemptContext";
 
 /* ── version / retention ─────────────────────────────────────────── */
 const ATTEMPT_STORAGE_VERSION = "v2";
@@ -46,6 +50,12 @@ export type OrderAttemptSnapshot = {
   createdAt: string; // ISO
   completedAt?: string; // ISO — set when backend returns 201 with completed status
   status?: "accepted" | "processing" | "completed" | "failed" | "conflict" | "validation";
+  /**
+   * Canal original del intento (público o distribuidor). Inmutable.
+   * Ausente en los registros heredados creados antes de esta atributación:
+   * se conservan y se leen, pero NO se reenvían por ningún canal.
+   */
+  channel?: OrderAttemptChannel;
 };
 
 /**
@@ -59,6 +69,11 @@ export type OrderAttemptSession = {
   contact: CheckoutContact;
   lines: { productId: string; qty: number }[];
   createdAt: string; // ISO — immutable anchor, never refreshed
+  /**
+   * Canal original del intento (público o distribuidor). Inmutable: debe
+   * coincidir con el del marcador; nunca se reescribe.
+   */
+  channel?: OrderAttemptChannel;
 };
 
 /**
@@ -217,10 +232,19 @@ function removeJsonSession(storage: Storage): void {
 const UUID_V4_PATTERN =
   /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
+/**
+ * Canal válido: presente y conocido, o ausente (registro heredado). Un canal
+ * desconocido invalida el registro (fail closed) en vez de adivinarse.
+ */
+function isValidChannel(value: unknown): boolean {
+  return value === undefined || value === "public" || value === "distributor";
+}
+
 function isValidAttempt(
   obj: Record<string, unknown>,
 ): obj is OrderAttemptSnapshot {
   if (obj.version !== ATTEMPT_STORAGE_VERSION) return false;
+  if (!isValidChannel(obj.channel)) return false;
   if (
     typeof obj.idempotencyKey !== "string" ||
     obj.idempotencyKey.trim() === "" ||
@@ -263,6 +287,7 @@ function isValidSession(
   obj: Record<string, unknown>,
 ): obj is OrderAttemptSession {
   if (obj.version !== ATTEMPT_STORAGE_VERSION) return false;
+  if (!isValidChannel(obj.channel)) return false;
   if (
     typeof obj.idempotencyKey !== "string" ||
     obj.idempotencyKey.trim() === "" ||
@@ -395,6 +420,16 @@ export function getStoredAttemptStatus(options?: {
 /**
  * Atomic two-step preparation of a purchase attempt.
  *
+ * The channel (public / distributor) is part of the attempt: it is written in
+ * BOTH records (session + marker) and it is immutable. A reuse is only
+ * allowed when the stored channel matches the requested one exactly, so an
+ * idempotency key never travels from one channel to another.
+ *
+ * El canal es la atribución del canal DISTRIBUIDOR: la regla de reutilizar
+ * un registro exige el MISMO canal sólo en ese canal. El canal público
+ * conserva las reglas de origin/main (sin atribución, un registro heredado
+ * se reenvía como antes).
+ *
  * When NO existing valid marker exists:
  *  1. Saves full payload to sessionStorage (contact snapshot).
  *  2. Saves minimal marker to localStorage (no PII).
@@ -422,7 +457,9 @@ export function getStoredAttemptStatus(options?: {
 export function prepareAttempt(
   contact: CheckoutContact,
   cartLines: { productId: string; qty: number }[],
-  options?: {
+  options: {
+    /** Canal del intento. Explícito: nunca se deduce del contexto. */
+    channel: OrderAttemptChannel;
     storage?: Storage;
     sessionStorage?: Storage;
   },
@@ -469,7 +506,18 @@ export function prepareAttempt(
         existingSession.orderId !== status.snapshot.orderId) ||
       !linesEqual(status.snapshot.lines, existingSession.lines) ||
       !linesEqual(existingSession.lines, newLines) ||
-      !contactEqual(existingSession.contact, contact)
+      !contactEqual(existingSession.contact, contact) ||
+      /* Canal inmutable: la clave nunca viaja de un canal a otro. La regla
+         del canal DISTRIBUIDOR exige el MISMO canal (un registro heredado
+         o de otro canal no se reenvía). El canal público conserva el
+         comportamiento de origin/main salvo en un caso: un registro que
+         pertenece al DISTRIBUIDOR no se reenvía como pedido público, para
+         que ese pedido no pueda duplicarse en otra vía. */
+      (options.channel === "distributor"
+        ? (status.snapshot.channel !== options.channel ||
+          existingSession.channel !== options.channel)
+        : (status.snapshot.channel === "distributor" ||
+          existingSession.channel === "distributor"))
     ) {
       return false;
     }
@@ -513,6 +561,7 @@ export function prepareAttempt(
     contact: { ...contact },
     lines: newLines,
     createdAt: now,
+    channel: options.channel,
   };
 
   if (!writeJsonSession(sessionStorageItem, session)) return false;
@@ -523,6 +572,7 @@ export function prepareAttempt(
     orderId: null,
     lines: newLines,
     createdAt: now,
+    channel: options.channel,
   };
 
   if (!writeJsonLocal(localStorageItem, marker)) {
@@ -553,6 +603,12 @@ export function saveAttempt(
     status?: "accepted" | "processing" | "completed" | "failed" | "conflict" | "validation";
     completed?: boolean;
     storage?: Pick<Storage, "getItem" | "setItem">;
+    /**
+     * Canal del intento. Si se omite, el registro queda SIN atribución
+     * (equivalente a un registro heredado): se conserva pero no se reenvía
+     * por ningún canal.
+     */
+    channel?: OrderAttemptChannel;
   },
 ): boolean {
   if (cartLines.length === 0) return false;
@@ -570,6 +626,7 @@ export function saveAttempt(
     createdAt: now,
     completedAt: options?.completed ? now : undefined,
     status: options?.status,
+    channel: options?.channel,
   };
 
   const storageItem = resolveStorage(
@@ -598,7 +655,11 @@ export function saveAttemptSession(
   cartLines: { productId: string; qty: number }[],
   idempotencyKey: string,
   orderId?: string | null,
-  options?: { storage?: Pick<Storage, "getItem" | "setItem"> },
+  options?: {
+    storage?: Pick<Storage, "getItem" | "setItem">;
+    /** Canal del intento (inmutable). Sin canal ⇒ registro no reenviable. */
+    channel?: OrderAttemptChannel;
+  },
 ): boolean {
   if (cartLines.length === 0) return false;
   const now = new Date().toISOString();
@@ -614,6 +675,7 @@ export function saveAttemptSession(
     contact: { ...contact },
     lines,
     createdAt: now,
+    channel: options?.channel,
   };
 
   const storageItem = resolveStorage(
@@ -800,9 +862,22 @@ export function clearAttempt(options?: {
     options?.storage as Storage | undefined,
     safeGetGlobalStorage("localStorage"),
   );
+  /* El contexto vivo en memoria se olvida con el registro: nunca queda una
+     prueba huérfana que autorice un reenvío posterior. */
+  let clearedKey: string | null = null;
   if (localStorageItem) {
+    try {
+      const raw = localStorageItem.getItem(LOCAL_KEY);
+      if (raw) {
+        const parsed = JSON.parse(raw) as Record<string, unknown>;
+        if (typeof parsed.idempotencyKey === "string") clearedKey = parsed.idempotencyKey;
+      }
+    } catch {
+      clearedKey = null;
+    }
     removeJsonLocal(localStorageItem);
   }
+  if (clearedKey) forgetAttemptContext(clearedKey);
   const sessionStorageItem = resolveStorage(
     options?.sessionStorage as Storage | undefined,
     safeGetGlobalStorage("sessionStorage"),
@@ -843,6 +918,7 @@ export function finalizeCompletedAttempt(
       if (!stored || typeof stored !== "object" || !isValidSession(stored) ||
           stored.idempotencyKey !== idempotencyKey || stored.createdAt !== snapshot.createdAt ||
           !linesEqual(stored.lines, snapshot.lines) ||
+          stored.channel !== snapshot.channel ||
           (stored.orderId !== null && stored.orderId !== orderId)) return false;
     }
     if (local.getItem(LOCAL_KEY) !== originalRaw) return false;
@@ -861,21 +937,81 @@ export function finalizeCompletedAttempt(
     session.removeItem(SESSION_KEY);
     if (session.getItem(SESSION_KEY) !== null || local.getItem(LOCAL_KEY) !== completedRaw) return false;
     local.removeItem(LOCAL_KEY);
+    /* Pedido confirmado: la prueba viva de ese intento deja de existir. */
+    forgetAttemptContext(idempotencyKey);
     return local.getItem(LOCAL_KEY) === null && session.getItem(SESSION_KEY) === null;
   } catch {
     return false;
   }
 }
 
+/** Estados LIBERABLES localmente: existe evidencia de que NO queda un pedido
+ *  pendiente en el servidor.
+ *
+ *  - `completed`: el pedido está confirmado y se resuelve solo.
+ *  - `validation` (400/403): el servidor rechaza ANTES de crear el pedido, así
+ *    que no hay nada que reconciliar.
+ *
+ *  `failed` (502 con orderId) y `conflict` (409) NO son liberables en ningún
+ *  canal: el servidor conserva el pedido (o la respuesta no permite probar
+ *  que no exista) y, en el caso de `failed`, el cliente puede haber recibido
+ *  ya el correo de aviso. Liberarlos borraría la única traza local de un
+ *  pedido que puede existir.
+ *
+ *  Anything else (accepted/processing/undefined) is an UNCERTAIN outcome. */
+const RELEASABLE_ATTEMPT_STATUSES = ["completed", "validation"];
+
+/** La liberación local exige un resultado DEFINITIVO *y* que el servidor no
+ *  conserve un pedido pendiente.
+ *
+ * Sólo se concede cuando el registro persistido prueba que no hay pedido en
+ * el servidor: un pedido ya confirmado (completed) o un rechazo anterior a
+ * cualquier creación (validation). NO se concede para un pedido que el
+ * servidor conservó (failed) ni para un 409 cuyo resultado no se puede
+ * verificar desde el catálogo (conflict), ni para un resultado incierto
+ * (accepted/processing), ni para un registro inválido o una sesión huérfana,
+ * en NINGÚN canal (público o distribuidor). El vencimiento por sí solo no
+ * libera nada: un registro vencido sólo se libera si su resultado ya era
+ * liberable.
+ *
+ * Razón: la expiración de un marcador local NO demuestra que el servidor no
+ * recibiera el pedido, y la idempotencia vencida del backend NO autoriza un
+ * envío nuevo. Sin una conciliación verificable desde el frontend, el
+ * registro se conserva: se muestra la referencia original y el contacto de
+ * RealStep, pero no se genera una clave nueva.
+ *
+ * Es una compuerta de seguridad local, nunca autorización de cuenta ni de
+ * precio.
+ */
+export function canResolveAttemptLocally(
+  status: OrderAttemptStatus,
+  session: OrderAttemptSession | null = null,
+): boolean {
+  if (status.kind !== "valid" && status.kind !== "expired") return false;
+  if (session &&
+      (session.idempotencyKey !== status.snapshot.idempotencyKey || session.channel !== status.snapshot.channel)) return false;
+  return RELEASABLE_ATTEMPT_STATUSES.includes(status.snapshot.status ?? "");
+}
+
 /**
- * Explicit local resolution before a separate purchase. The UI must first
- * show the previous result and obtain confirmation for uncertain attempts.
+ * Explicit local resolution before a separate purchase. An uncertain dealer
+ * or unattributable record requires proof this frontend cannot supply yet.
  * A changed marker is never cleared: another tab may have updated it.
  */
 export function resolveAttemptForNewPurchase(
   expected: OrderAttemptStatus,
   confirmedUncertain: boolean,
-  options?: { storage?: Storage; sessionStorage?: Storage },
+  options?: {
+    storage?: Storage;
+    sessionStorage?: Storage;
+    /**
+     * Canal del intento. `public` conserva exactamente las reglas de
+     * origin/main. Cualquier otro valor (o su ausencia) aplica la compuerta
+     * de liberación local (`canResolveAttemptLocally`): por omisión, el
+     * comportamiento es estricto (fail closed).
+     */
+    channel?: OrderAttemptChannel;
+  },
 ): boolean {
   if (expected.kind === "unavailable") return false;
   const local = resolveStorage(options?.storage, safeGetGlobalStorage("localStorage"));
@@ -883,14 +1019,31 @@ export function resolveAttemptForNewPurchase(
   if (!local || !session) return false;
 
   let originalRaw: string | null;
+  let originalSessionRaw: string | null;
   try {
     originalRaw = local.getItem(LOCAL_KEY);
+    originalSessionRaw = session.getItem(SESSION_KEY);
   } catch {
     return false;
   }
 
   const current = getStoredAttemptStatus({ storage: local });
   if (current.kind !== expected.kind) return false;
+  /* La compuerta de liberación local es una protección del canal
+     DISTRIBUIDOR: sólo se exige que el resultado sea definitivo y que el
+     servidor no conserve un pedido pendiente. El default es estricto
+     (fail closed). El canal público la desactiva explícitamente y conserva
+     las reglas de origin/main (resultado terminal, o incierto con la
+     confirmación del cliente) — salvo que el REGISTRO pertenezca al
+     distribuidor: la protección acompaña al pedido, no a la pantalla desde
+     la que se lo toca. */
+  const storedSession = getAttemptSession({ storage: session });
+  const ownedByDistributor =
+    (current.kind === "valid" || current.kind === "expired"
+      ? current.snapshot.channel
+      : storedSession?.channel) === "distributor";
+  if ((options?.channel !== "public" || ownedByDistributor) &&
+      !canResolveAttemptLocally(current, storedSession)) return false;
   if (current.kind === "missing") {
     if (!confirmedUncertain || getStoredSessionPresence({ storage: session }) !== "present") return false;
   } else if (current.kind === "valid" || current.kind === "expired") {
@@ -899,6 +1052,7 @@ export function resolveAttemptForNewPurchase(
     const b = expected.snapshot;
     if (a.idempotencyKey !== b.idempotencyKey || a.createdAt !== b.createdAt ||
         a.orderId !== b.orderId || a.status !== b.status ||
+        a.channel !== b.channel ||
         !linesEqual(a.lines, b.lines)) return false;
     const terminal = current.kind === "valid" &&
       ["completed", "failed", "conflict", "validation"].includes(a.status ?? "");
@@ -910,10 +1064,135 @@ export function resolveAttemptForNewPurchase(
   try {
     // Leave the marker in place if the session cannot be removed. If removing
     // the marker then fails, the remaining marker still blocks a new POST.
+    if (local.getItem(LOCAL_KEY) !== originalRaw || session.getItem(SESSION_KEY) !== originalSessionRaw) return false;
     session.removeItem(SESSION_KEY);
     if (session.getItem(SESSION_KEY) !== null) return false;
     if (local.getItem(LOCAL_KEY) !== originalRaw) return false;
     local.removeItem(LOCAL_KEY);
+    /* Resolución explícita: la prueba viva de ese intento deja de existir. */
+    if (current.kind === "valid" || current.kind === "expired") {
+      forgetAttemptContext(current.snapshot.idempotencyKey);
+    }
+    return local.getItem(LOCAL_KEY) === null;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Decisión administrativa del backend que puede cerrar un intento.
+ *
+ * - `RECEIVED`: RealStep confirmó que el pedido FUE RECIBIDO. El resultado
+ *   del intento está cerrado: no queda nada pendiente en el servidor que
+ *   pueda duplicarse. Es la única decisión que habilita cerrar también los
+ *   estados que el servidor conservó (`failed`) o que no se podían verificar
+ *   (`conflict`), porque el frontend no los libera por confianza propia
+ *   sino por una decisión del servidor, obtenida con la sesión del
+ *   distribuidor y atada a la referencia exacta.
+ * - `NOT_RECEIVED`: RealStep registró que el pedido no fue recibido. No
+ *   amplía ningún permiso: los bloqueos de `failed`, `conflict`,
+ *   `validation` y `completed` siguen vigentes.
+ */
+export type ReconciliationDecision = "RECEIVED" | "NOT_RECEIVED";
+
+/**
+ * ¿Puede cerrarse este intento con ESTA decisión?
+ *
+ * Reglas (fail closed):
+ *  - la referencia debe ser EXACTAMENTE la del marcador persistido;
+ *  - el canal persistido debe ser `distributor` (el checkout público nunca
+ *    se cierra por esta vía y un registro heredado tampoco);
+ *  - con `RECEIVED` cualquier estado cerrable (el pedido fue recibido: no
+ *    queda nada pendiente por duplicar);
+ *  - con `NOT_RECEIVED` sólo los estados INCIERTOS: `failed`, `conflict`,
+ *    `validation` y `completed` siguen bloqueados.
+ */
+export function canCloseAttemptByReconciliation(
+  reference: string,
+  decision: ReconciliationDecision,
+  options?: { storage?: Pick<Storage, "getItem"> },
+): boolean {
+  const key = typeof reference === "string" ? reference.trim() : "";
+  if (!key) return false;
+  const local = resolveStorage(
+    options?.storage as Storage | undefined,
+    safeGetGlobalStorage("localStorage"),
+  );
+  if (!local) return false;
+  const current = getStoredAttemptStatus({ storage: local });
+  if (current.kind !== "valid" && current.kind !== "expired") return false;
+  const snapshot = current.snapshot;
+  if (snapshot.idempotencyKey !== key) return false;
+  if (snapshot.channel !== "distributor") return false;
+  if (decision === "RECEIVED") return true;
+  /* NOT_RECEIVED no amplía permisos: los estados que el servidor conservó o
+     que no se pueden verificar siguen bloqueados. */
+  return !["failed", "conflict", "validation", "completed"].includes(snapshot.status ?? "");
+}
+
+/**
+ * Cierre explícito de un intento DISTRIBUIDOR cuando el servidor confirma su
+ * estado administrativo.
+ *
+ * Es la única vía por la que la conciliación del backend (RECEIVED /
+ * NOT_RECEIVED) puede liberar un intento. No es una liberación "local": la
+ * decisión la tomó el servidor, autenticado con la sesión del distribuidor.
+ *
+ * Reglas (todas fail closed):
+ *  - el registro persistido debe ser EXACTAMENTE el de la referencia
+ *    consultada (misma clave): un marcador distinto no se toca;
+ *  - el canal persistido debe ser `distributor`: el checkout público no se
+ *    toca nunca por esta vía, y un registro heredado (sin canal) tampoco;
+ *  - la decisión habilita el cierre según `canCloseAttemptByReconciliation`:
+ *    `RECEIVED` cierra cualquier estado (el pedido fue recibido: no queda
+ *    nada pendiente por duplicar) y `NOT_RECEIVED` sólo cierra intentos
+ *    inciertos;
+ *  - no se borra nada si el registro cambió entre la consulta y el clic
+ *    (otra pestaña): la comparación es byte a byte sobre el contenido vivo;
+ *  - la prueba viva de ese intento se olvida: no queda habilitando un
+ *    reenvío posterior.
+ *
+ * No genera claves, no reescribe el historial y no borra el carrito: sólo
+ * cierra el registro del intento ya resuelto.
+ */
+export function closeAttemptByReconciliation(
+  reference: string,
+  decision: ReconciliationDecision,
+  options?: { storage?: Storage; sessionStorage?: Storage },
+): boolean {
+  const key = typeof reference === "string" ? reference.trim() : "";
+  if (!key) return false;
+  const local = resolveStorage(options?.storage, safeGetGlobalStorage("localStorage"));
+  const session = resolveStorage(options?.sessionStorage, safeGetGlobalStorage("sessionStorage"));
+  if (!local || !session) return false;
+
+  let originalRaw: string | null;
+  let originalSessionRaw: string | null;
+  try {
+    originalRaw = local.getItem(LOCAL_KEY);
+    originalSessionRaw = session.getItem(SESSION_KEY);
+  } catch {
+    return false;
+  }
+  if (originalRaw === null) return false;
+
+  if (!canCloseAttemptByReconciliation(key, decision, { storage: local })) return false;
+  const current = getStoredAttemptStatus({ storage: local });
+  if (current.kind !== "valid" && current.kind !== "expired") return false;
+  const snapshot = current.snapshot;
+
+  try {
+    /* El marcador no cambió desde la consulta: si otra pestaña lo movió, no
+       se borra nada. */
+    if (local.getItem(LOCAL_KEY) !== originalRaw) return false;
+    if (session.getItem(SESSION_KEY) !== originalSessionRaw) return false;
+    session.removeItem(SESSION_KEY);
+    if (session.getItem(SESSION_KEY) !== null) return false;
+    if (local.getItem(LOCAL_KEY) !== originalRaw) return false;
+    local.removeItem(LOCAL_KEY);
+    /* La resolución es explícita: la prueba viva de ese intento deja de
+       existir y no habilita ningún reenvío posterior. */
+    forgetAttemptContext(snapshot.idempotencyKey);
     return local.getItem(LOCAL_KEY) === null;
   } catch {
     return false;
