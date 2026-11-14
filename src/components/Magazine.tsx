@@ -1,6 +1,8 @@
 import { FormEvent, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
 import type { CatalogMetadata } from "../types/catalog";
 import { CartDrawer } from "../commerce/CartDrawer";
+import { useOptionalDistributor } from "../commerce/distributor/DistributorContext";
+import { DistributorAccountButton } from "./distributor/DistributorAccountButton";
 import { useCommerce } from "../commerce/CommerceContext";
 import { PageFlipEngine, type PageFlipHandle } from "./PageFlipEngine";
 import { ProductModal } from "./ProductModal";
@@ -172,6 +174,9 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
     toast,
     showToast,
   } = useCommerce();
+
+  // Sesión de distribuidores (opcional): sólo habilita el acceso en la toolbar.
+  const distributor = useOptionalDistributor();
 
   // P39 no pertenece al flujo normal: es sólo la superficie visual del
   // overlay de contratapa dura y nunca recibe índice de book.
@@ -841,6 +846,7 @@ export function Magazine({ catalog, initialOriginalPage = 1 }: MagazineProps) {
           >
             Contacto
           </button>
+          {distributor ? <DistributorAccountButton /> : null}
           <button
             className="cart-button"
             type="button"

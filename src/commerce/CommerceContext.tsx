@@ -56,6 +56,14 @@ type CommerceContextValue = {
   /** Avisos de la última reconciliación con cambios (banner del carrito). */
   cartNotices: CartNotice[];
   dismissNotices: () => void;
+  /**
+   * Reconcilia el carrito contra el catálogo YA CARGADO (sin volver a
+   * pedirlo): retira las líneas que ya no tienen stock o que desaparecieron
+   * y avisa con el mecanismo vigente (banner + toast). Si el catálogo todavía
+   * no está cargado no hace nada: el carrito nunca se vacía por falta de
+   * datos.
+   */
+  reconcileAvailability: () => void;
   cartOpen: boolean;
   setCartOpen: (open: boolean) => void;
   setUiBusy: (busy: boolean) => void;
@@ -98,6 +106,20 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     saveCart(window.localStorage, lines);
   }, [lines]);
 
+  const publishNotices = useCallback(
+    (notices: CartNotice[]) => {
+      if (notices.length === 0) return;
+      // Banner persistente en el carrito + toast resumido y no invasivo.
+      setCartNotices(notices);
+      showToast(
+        notices.length === 1
+          ? formatNotice(notices[0])
+          : "Se actualizaron algunos productos de tu pedido.",
+      );
+    },
+    [showToast],
+  );
+
   const applyCatalog = useCallback(
     (next: CommerceCatalog, nextVersion: string) => {
       const map = byId(next);
@@ -105,20 +127,12 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
       // reales de disponibilidad. Los cambios de precio son silenciosos.
       const { lines: reconciled, notices } = reconcileLines(linesRef.current, map);
       setLines(reconciled);
-      if (notices.length > 0) {
-        // Banner persistente en el carrito + toast resumido y no invasivo.
-        setCartNotices(notices);
-        showToast(
-          notices.length === 1
-            ? formatNotice(notices[0])
-            : "Se actualizaron algunos productos de tu pedido.",
-        );
-      }
+      publishNotices(notices);
       setCatalog(next);
       setVersion(nextVersion);
       setCatalogError(null);
     },
-    [showToast],
+    [publishNotices],
   );
 
   // Carga inicial.
@@ -200,6 +214,23 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
 
   const dismissNotices = useCallback(() => setCartNotices([]), []);
 
+  /**
+   * Reconciliación de disponibilidad bajo demanda (p. ej. al iniciar sesión
+   * de distribuidor): usa el catálogo YA cargado, sin ninguna consulta
+   * extra, y el mismo mecanismo de avisos que la carga del catálogo.
+   */
+  const reconcileAvailability = useCallback(() => {
+    const current = catalogRef.current;
+    // Sin catálogo cargado no se toca el carrito: nunca se vacía por falta
+    // de datos (el catálogo llega después y reconcilia solo).
+    if (!current) return;
+    const { lines: reconciled, notices } = reconcileLines(linesRef.current, byId(current));
+    // Sin cambios reales el carrito y los avisos quedan como están.
+    if (notices.length === 0) return;
+    setLines(reconciled);
+    publishNotices(notices);
+  }, [publishNotices]);
+
   const removeFromCart = useCallback((productId: string) => {
     setLines((current) => removeLine(current, productId));
     // El aviso de un producto que ya salió del pedido deja de ser relevante.
@@ -234,6 +265,7 @@ export function CommerceProvider({ children }: { children: ReactNode }) {
     clearCart,
     cartNotices,
     dismissNotices,
+    reconcileAvailability,
     cartOpen,
     setCartOpen,
     setUiBusy: useCallback((busy: boolean) => {
