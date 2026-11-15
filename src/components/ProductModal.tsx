@@ -14,6 +14,7 @@ import type { CommerceProduct } from "../commerce/types";
 import { formatPrice } from "../commerce/money";
 import { hasPrice, isPurchasable } from "../commerce/productEligibility";
 import { ProductImage, assetUrl } from "./ProductImage";
+import { DistributorPriceLine } from "./distributor/DistributorPriceLine";
 import { ProductGalleryImage } from "./ProductGalleryImage";
 import { MOBILE_PILOT_QUERY } from "./mobile/mobilePilot";
 import "./product-modal-mobile.css";
@@ -499,6 +500,7 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
           </dl> : null}
           <div className="product-prices">
             {hasPrice(product) ? <span><small>Precio</small>{formatPrice(product.precio)}</span> : null}
+            <DistributorPriceLine productId={product.id} />
             <span className="stock-line">
               <small>Disponibilidad</small>
               {product.disponible ? (

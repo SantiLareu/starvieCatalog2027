@@ -147,7 +147,7 @@ describe("CheckoutModal", () => {
 
   it("un intento previo puede consultarse aunque el precio haya sido retirado", async () => {
     vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
-    orderAttempt.prepareAttempt({ name: "Cliente", legalName: "Empresa", email: "test@example.com" }, [presented[0].line]);
+    orderAttempt.prepareAttempt({ name: "Cliente", legalName: "Empresa", email: "test@example.com" }, [presented[0].line], { channel: "public" });
     const original = orderAttempt.getAttemptSession();
     const submitFn = vi.fn(async (_payload: OrderPayload) => ({ kind: "unknown" as const, message: "Sin confirmar" }));
     const props = renderModal({ presented: [{ ...presented[0], product: { ...product, precio: null }, subtotal: null }], total: null, submitFn });
@@ -196,7 +196,7 @@ describe("CheckoutModal", () => {
       cuit: "20-12345678-9",
       notes: "Llamar antes",
     };
-    const result = orderAttempt.prepareAttempt(contact, lines);
+    const result = orderAttempt.prepareAttempt(contact, lines, { channel: "public" });
     expect(result).not.toBe(false);
     if (result !== false) {
       expect(typeof (result as { idempotencyKey: string }).idempotencyKey).toBe(
@@ -892,8 +892,7 @@ describe("CheckoutModal", () => {
   it.each([0, 24 * 3600_000])("resuelve completed histórico con edad %i sin borrar el carrito actual", (age) => {
     orderAttempt.prepareAttempt(
       { name: "Santiago", legalName: "StarVie", email: "santi@example.com" },
-      [{ productId: "raptor+", qty: 2 }],
-    );
+      [{ productId: "raptor+", qty: 2 }], { channel: "public" });
     orderAttempt.updateAttempt([{ productId: "raptor+", qty: 2 }], {
       orderId: "done-reopen", status: "completed", completed: true,
     });
@@ -1001,18 +1000,18 @@ describe("CheckoutModal", () => {
     expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
   });
 
-  it("failed terminal conserva referencia y solo crea otra compra tras resolverlo", async () => {
+  it("un rechazo definitivo sin pedido creado (validation) conserva la referencia y solo crea otra compra tras resolverlo", async () => {
     const calls: OrderPayload[] = [];
     const submitFn = vi.fn(async (payload: OrderPayload) => {
       calls.push(payload);
       return calls.length === 1
-        ? { kind: "failed" as const, orderId: "fail-old" }
+        ? { kind: "validation" as const, error: "Producto no disponible" }
         : { kind: "completed" as const, orderId: "done-new" };
     });
     renderModal({ submitFn });
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await expectFailedWithoutReference("fail-old");
+    await screen.findByText("Producto no disponible");
     expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Resolver intento e iniciar nueva compra" }));
     expect(calls).toHaveLength(1);
@@ -1022,68 +1021,129 @@ describe("CheckoutModal", () => {
     expect(calls[1].idempotencyKey).not.toBe(calls[0].idempotencyKey);
   });
 
-  it("sin sessionStorage conserva orderId, bloquea POST y exige confirmación", async () => {
-    const prepared = orderAttempt.prepareAttempt({ name: "Santiago", legalName: "StarVie", email: "santi@example.com" }, [{ productId: "raptor+", qty: 2 }]);
+  it("sin sessionStorage conserva orderId, bloquea POST y libera el intento con la confirmación explícita", async () => {
+    const prepared = orderAttempt.prepareAttempt({ name: "Santiago", legalName: "StarVie", email: "santi@example.com" }, [{ productId: "raptor+", qty: 2 }], { channel: "public" });
     expect(prepared).not.toBe(false);
     orderAttempt.updateAttempt([{ productId: "raptor+", qty: 2 }], { orderId: "proc-lost", status: "processing" });
     sessionStorage.clear();
+    const markerBefore = localStorage.getItem("starvie-order-attempt-v2");
+    const cartBefore = localStorage.getItem("starvie-cart-v1");
+    const uuid = vi.spyOn(crypto, "randomUUID");
     const props = renderModal();
     expectInternalReference("proc-lost");
     expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).orderId).toBe("proc-lost");
     expect(screen.queryByRole("button", { name: "Enviar pedido" })).toBeNull();
+    /* La casilla de origin/main está visible en el canal público. */
+    const checkbox = screen.getByRole("checkbox", { name: /Confirmo que consulté con StarVie/ });
+    expect(checkbox).toBeVisible();
+    /* El botón de liberación sólo aparece al confirmar la casilla. */
     expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
-    expect(props.submitFn).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Confirmo que consulté con StarVie/ }));
+    /* La confirmación explícita libera el intento, como en origin/main. */
+    fireEvent.click(checkbox);
     fireEvent.click(screen.getByRole("button", { name: "Resolver intento e iniciar nueva compra" }));
+    /* El marcador se borra y el checkout vuelve al formulario. */
+    expect(markerBefore).not.toBeNull();
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
+    /* La liberación no manda ningún pedido, no genera clave ni toca el carrito. */
+    expect(localStorage.getItem("starvie-cart-v1")).toBe(cartBefore);
+    expect(uuid).not.toHaveBeenCalled();
     expect(props.submitFn).not.toHaveBeenCalled();
+    expect(props.clearCart).not.toHaveBeenCalled();
   });
 
-  it.each(["expired", "corrupt"] as const)("marcador %s requiere resolución explícita", (kind) => {
+  it.each(["expired", "corrupt"] as const)("marcador %s se libera con la confirmación explícita", (kind) => {
+    let markerBefore: string | null = null;
     if (kind === "expired") {
-      const prepared = orderAttempt.prepareAttempt({ name: "Santiago", legalName: "StarVie", email: "santi@example.com" }, [{ productId: "raptor+", qty: 2 }]);
+      const prepared = orderAttempt.prepareAttempt({ name: "Santiago", legalName: "StarVie", email: "santi@example.com" }, [{ productId: "raptor+", qty: 2 }], { channel: "public" });
       expect(prepared).not.toBe(false);
       const marker = JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!);
       marker.createdAt = new Date(Date.now() - 24 * 3600_000).toISOString();
       localStorage.setItem("starvie-order-attempt-v2", JSON.stringify(marker));
+      markerBefore = localStorage.getItem("starvie-order-attempt-v2");
     } else {
       localStorage.setItem("starvie-order-attempt-v2", "bad-json");
+      markerBefore = "bad-json";
     }
     const props = renderModal();
     expect(screen.queryByRole("button", { name: "Enviar pedido" })).toBeNull();
     expect(props.submitFn).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Confirmo que consulté con StarVie/ }));
+    /* El canal público conserva el aviso propio de origin/main: sólo el
+       párrafo de error, sin el aviso de "pedido sin confirmar". */
+    if (kind === "corrupt") {
+      expect(screen.getByRole("alert")).toHaveTextContent(/La referencia local del pedido está dañada/);
+      expect(screen.queryByText(/No pudimos recuperar una referencia válida/)).toBeNull();
+    } else {
+      expect(screen.getByRole("alert")).toHaveTextContent(/Venció la ventana de seguridad/);
+    }
+    /* La casilla de origin/main está visible; el botón de liberación sólo
+       aparece al confirmarla. */
+    const checkbox = screen.getByRole("checkbox", { name: /Confirmo que consulté con StarVie/ });
+    expect(checkbox).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
+    /* La confirmación explícita libera el registro, como en origin/main. */
+    fireEvent.click(checkbox);
     fireEvent.click(screen.getByRole("button", { name: "Resolver intento e iniciar nueva compra" }));
+    expect(markerBefore).not.toBeNull();
     expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
     expect(props.submitFn).not.toHaveBeenCalled();
   });
 
-  it("una sesión huérfana no genera key nueva al abrir", () => {
+  it("una sesión heredada huérfana no genera key y se libera con la confirmación explícita", () => {
     orderAttempt.saveAttemptSession(
       { name: "Santiago", legalName: "StarVie", email: "santi@example.com" },
       [{ productId: "raptor+", qty: 2 }],
       "11111111-1111-4111-8111-111111111111",
     );
+    const originalSession = sessionStorage.getItem("starvie-order-attempt-v2-session");
+    const uuid = vi.spyOn(crypto, "randomUUID");
     const props = renderModal();
     expect(screen.queryByRole("button", { name: "Enviar pedido" })).toBeNull();
     expect(props.submitFn).not.toHaveBeenCalled();
-    fireEvent.click(screen.getByRole("checkbox", { name: /Confirmo que consulté con StarVie/ }));
+    /* La casilla de origin/main está visible en el canal público… */
+    const checkbox = screen.getByRole("checkbox", { name: /Confirmo que consulté con StarVie/ });
+    expect(checkbox).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
+    /* …y la confirmación explícita libera la sesión huérfana, como en
+       origin/main. */
+    fireEvent.click(checkbox);
     fireEvent.click(screen.getByRole("button", { name: "Resolver intento e iniciar nueva compra" }));
+    expect(originalSession).not.toBeNull();
     expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    /* No se crea ningún marcador nuevo ni ninguna clave nueva. */
+    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
+    expect(uuid).not.toHaveBeenCalled();
+    /* El canal público no muestra la referencia (origin/main). */
+    expect(screen.queryByText("11111111-1111-4111-8111-111111111111")).toBeNull();
+    expect(props.submitFn).not.toHaveBeenCalled();
   });
 
-  it("una sesión inconsistente bloquea la consulta hasta resolución explícita", () => {
+  it("una sesión inconsistente bloquea la consulta y se libera con la confirmación explícita", () => {
     orderAttempt.prepareAttempt(
       { name: "Santiago", legalName: "StarVie", email: "santi@example.com" },
-      [{ productId: "raptor+", qty: 2 }],
-    );
+      [{ productId: "raptor+", qty: 2 }], { channel: "public" });
     const session = JSON.parse(sessionStorage.getItem("starvie-order-attempt-v2-session")!);
     session.lines[0].qty = 3;
     sessionStorage.setItem("starvie-order-attempt-v2-session", JSON.stringify(session));
+    const markerBefore = localStorage.getItem("starvie-order-attempt-v2");
     const props = renderModal();
     expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
     expect(props.submitFn).not.toHaveBeenCalled();
-    expect(screen.getByRole("checkbox", { name: /Confirmo que consulté con StarVie/ })).toBeVisible();
+    /* El resultado sigue siendo incierto: la casilla de origin/main está
+       visible y el botón aparece al confirmarla. */
+    const checkbox = screen.getByRole("checkbox", { name: /Confirmo que consulté con StarVie/ });
+    expect(checkbox).toBeVisible();
+    expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
+    fireEvent.click(checkbox);
+    fireEvent.click(screen.getByRole("button", { name: "Resolver intento e iniciar nueva compra" }));
+    /* La confirmación explícita libera el registro, como en origin/main. */
+    expect(markerBefore).not.toBeNull();
+    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    expect(props.submitFn).not.toHaveBeenCalled();
   });
 });
 
@@ -1198,8 +1258,7 @@ describe("CheckoutModal Turnstile", () => {
     const widget = enableMockTurnstile();
     const prepared = orderAttempt.prepareAttempt(
       { name: "Santiago", legalName: "StarVie", email: "santi@example.com" },
-      [{ productId: "raptor+", qty: 2 }],
-    );
+      [{ productId: "raptor+", qty: 2 }], { channel: "public" });
     expect(prepared).not.toBe(false);
     orderAttempt.updateAttempt([{ productId: "raptor+", qty: 2 }], { orderId: "proc-persisted", status: "processing" });
     const props = renderModal({ submitFn: vi.fn(async () => ({ kind: "processing" as const, orderId: "proc-persisted" })) });
@@ -1212,12 +1271,12 @@ describe("CheckoutModal Turnstile", () => {
     expect((props.submitFn as ReturnType<typeof vi.fn>).mock.calls[0][1].turnstileToken).toBeUndefined();
   });
 
-  it("failed no permite retry; compra nueva usa nueva key y nuevo token", async () => {
+  it("failed no permite retry y el intento terminal se libera con la confirmación explícita", async () => {
     const widget = enableMockTurnstile();
     const calls: OrderPayload[] = [];
     const submitFn = vi.fn(async (payload: OrderPayload): Promise<SubmitResult> => {
       calls.push(payload);
-      return calls.length === 1 ? { kind: "failed", orderId: "failed-ts" } : { kind: "completed", orderId: "new-ts" };
+      return { kind: "failed", orderId: "failed-ts" };
     });
     renderModal({ submitFn });
     fillValidForm();
@@ -1225,6 +1284,46 @@ describe("CheckoutModal Turnstile", () => {
     act(() => widget.callbacks().callback("first-token"));
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     await expectFailedWithoutReference("failed-ts");
+    expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
+    /* Un pedido que el servidor conservó se libera como en origin/main: el
+       botón aparece sin casilla (el resultado ya es terminal). */
+    const release = screen.getByRole("button", { name: "Resolver intento e iniciar nueva compra" });
+    expect(release).toBeVisible();
+    expect(screen.queryByRole("checkbox", { name: /Confirmo que consulté con StarVie/ })).toBeNull();
+    const markerBefore = localStorage.getItem("starvie-order-attempt-v2");
+    const cartBefore = localStorage.getItem("starvie-cart-v1");
+    const uuid = vi.spyOn(crypto, "randomUUID");
+    expect(JSON.parse(markerBefore!).status).toBe("failed");
+    fireEvent.click(release);
+    /* La liberación borra el marcador y la sesión: el checkout vuelve al
+       formulario. */
+    expect(localStorage.getItem("starvie-order-attempt-v2")).toBeNull();
+    expect(sessionStorage.getItem("starvie-order-attempt-v2-session")).toBeNull();
+    /* El checkout vuelve al formulario; con Turnstile hace falta un token
+       nuevo para la compra siguiente. */
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
+    /* Ni el carrito, ni una segunda compra con otra clave: la liberación no
+       manda ningún pedido. */
+    expect(localStorage.getItem("starvie-cart-v1")).toBe(cartBefore);
+    expect(uuid).not.toHaveBeenCalled();
+    expect(calls).toHaveLength(1);
+  });
+
+  it("un rechazo definitivo (validation) permite otra compra con nueva key y nuevo token", async () => {
+    const widget = enableMockTurnstile();
+    const calls: OrderPayload[] = [];
+    const submitFn = vi.fn(async (payload: OrderPayload): Promise<SubmitResult> => {
+      calls.push(payload);
+      return calls.length === 1
+        ? { kind: "validation", error: "Producto no disponible" }
+        : { kind: "completed", orderId: "new-ts" };
+    });
+    renderModal({ submitFn });
+    fillValidForm();
+    await waitFor(() => expect(widget.api.render).toHaveBeenCalledOnce());
+    act(() => widget.callbacks().callback("first-token"));
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await screen.findByText("Producto no disponible");
     expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Resolver intento e iniciar nueva compra" }));
     fillValidForm();
@@ -1260,5 +1359,445 @@ describe("CheckoutModal Turnstile", () => {
       expect(next).not.toBe(first);
     });
     fireEvent.error(document.querySelector("script[data-starvie-turnstile]")!);
+  });
+
+  it("el checkout público NO cambia: un 503 sigue siendo un resultado incierto y no pide verificación nueva", async () => {
+    const widget = enableMockTurnstile();
+    const fetchImpl = vi.fn(async () => new Response(
+      JSON.stringify({ ok: false, error: "Turnstile verification unavailable" }),
+      { status: 503, headers: { "Content-Type": "application/json" } },
+    ));
+    const props = renderModal({
+      submitFn: (payload: OrderPayload) => submitOrder(payload, { fetchImpl }),
+    });
+    fillValidForm();
+    await waitFor(() => expect(widget.api.render).toHaveBeenCalledOnce());
+    act(() => widget.callbacks().callback("public-token"));
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+
+    await screen.findByText("Servicio no disponible. Reintentá.");
+    /* La ruta pública conserva su clasificación: resultado incierto y
+       reintento con la misma referencia, sin pedir un token nuevo. */
+    expect(screen.queryByText("Se necesita una verificación nueva para continuar.")).toBeNull();
+    expect(screen.getByRole("button", { name: "Reintentar envío" })).toBeEnabled();
+    expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2")!).status).toBe("accepted");
+    expect(widget.api.render).toHaveBeenCalledOnce();
+    expect(props.clearCart).not.toHaveBeenCalled();
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+ * El intento incierto del checkout público (S1–S11).
+ *
+ * Un pedido público cuyo resultado es INCIERTO (el servidor lo recibió y
+ * la respuesta se perdió) se libera con la confirmación explícita de
+ * origin/main: el marcador y la sesión se borran, el checkout vuelve al
+ * formulario y la liberación no manda ningún pedido ni genera una clave.
+ *
+ * El paso del tiempo se simula con un reloj inyectado: nunca se espera.
+ * ══════════════════════════════════════════════════════════════════════ */
+describe("checkout público · el intento incierto y su resolución explícita", () => {
+  const CART_KEY = "starvie-cart-v1";
+  const LOCAL_KEY = "starvie-order-attempt-v2";
+  const SESSION_KEY = "starvie-order-attempt-v2-session";
+  const CONTACT = {
+    name: "Santiago Lareu",
+    legalName: "StarVie Padel SAS",
+    email: "santi@example.com",
+  };
+  const LINES = [{ productId: "raptor+", qty: 2 }];
+  const T0 = Date.parse("2026-03-01T12:00:00.000Z");
+  const REALSTEP_CONTACT = "https://wa.me/5492235440976";
+  const RELEASE_CHECKBOX = /Confirmo que consulté/;
+  const RELEASE_BUTTON = "Resolver intento e iniciar nueva compra";
+
+  beforeEach(() => {
+    vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
+    vi.useFakeTimers({ toFake: ["Date"] });
+    vi.setSystemTime(T0);
+    localStorage.setItem(CART_KEY, JSON.stringify(LINES));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  /**
+   * Pedido público que el servidor recibió y cuya respuesta se perdió:
+   * el marcador queda "accepted" (resultado incierto), no confirmado.
+   */
+  function uncertainPublicAttempt(): string {
+    const prepared = orderAttempt.prepareAttempt(CONTACT, LINES, { channel: "public" });
+    expect(prepared).not.toBe(false);
+    orderAttempt.updateAttempt(LINES, { orderId: "ord-perdido", status: "accepted" });
+    return (prepared as { idempotencyKey: string }).idempotencyKey;
+  }
+
+  it.each([23, 24, 48, 72])("S4 · a las %i h el intento incierto público se libera con la confirmación explícita", (hours) => {
+    const key = uncertainPublicAttempt();
+    const uuid = vi.spyOn(crypto, "randomUUID");
+    vi.setSystemTime(T0 + hours * 3600_000);
+    const markerBefore = localStorage.getItem(LOCAL_KEY);
+    const cartBefore = localStorage.getItem(CART_KEY);
+    const props = renderModal();
+
+    /* El aviso de expiración se muestra (el párrafo de error de origin/main). */
+    expect(screen.getByRole("alert")).toHaveTextContent(/Venció la ventana de seguridad/);
+    /* El canal público no muestra el aviso de "pedido sin confirmar". */
+    expect(screen.queryByText(/No pudimos confirmar si RealStep recibió tu pedido/)).toBeNull();
+
+    /* La casilla de origin/main está visible; el botón de liberación sólo
+       aparece al confirmarla. */
+    const checkbox = screen.getByRole("checkbox", { name: RELEASE_CHECKBOX });
+    expect(checkbox).toBeVisible();
+    expect(screen.queryByRole("button", { name: RELEASE_BUTTON })).toBeNull();
+
+    /* La confirmación explícita libera el intento, como en origin/main. */
+    fireEvent.click(checkbox);
+    fireEvent.click(screen.getByRole("button", { name: RELEASE_BUTTON }));
+    expect(markerBefore).not.toBeNull();
+    expect(localStorage.getItem(LOCAL_KEY)).toBeNull();
+    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
+
+    /* El canal público no expone la referencia, la copia ni el contacto. */
+    expect(screen.queryByText(key)).toBeNull();
+    expect(screen.queryByRole("button", { name: "Copiar referencia" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "WhatsApp comercial de RealStep" })).toBeNull();
+    expect(screen.queryByText(/no tiene un mecanismo verificable para resolverlo/i)).toBeNull();
+    expect(document.body.innerHTML).not.toContain(REALSTEP_CONTACT);
+
+    /* El carrito queda byte-idéntico y no se envía nada. */
+    expect(localStorage.getItem(CART_KEY)).toBe(cartBefore);
+    expect(props.clearCart).not.toHaveBeenCalled();
+    expect(props.submitFn).not.toHaveBeenCalled();
+    expect(uuid).not.toHaveBeenCalled();
+  });
+
+  it("S4 · la casilla de consulta libera el intento incierto: ni marcador, ni clave, ni segundo POST", () => {
+    const releasedKey = uncertainPublicAttempt();
+    vi.setSystemTime(T0 + 24 * 3600_000);
+    const markerBefore = localStorage.getItem(LOCAL_KEY);
+    const sessionBefore = sessionStorage.getItem(SESSION_KEY);
+    const cartBefore = localStorage.getItem(CART_KEY);
+    const uuid = vi.spyOn(crypto, "randomUUID");
+    const calls: OrderPayload[] = [];
+    const submitFn = vi.fn(async (payload: OrderPayload) => {
+      calls.push(payload);
+      return { kind: "completed" as const, orderId: "ord-nuevo" };
+    });
+    renderModal({ submitFn });
+
+    /* La casilla de origin/main libera el intento, como antes del piloto. */
+    const checkbox = screen.getByRole("checkbox", { name: RELEASE_CHECKBOX });
+    fireEvent.click(checkbox);
+    const release = screen.getByRole("button", { name: RELEASE_BUTTON });
+    fireEvent.click(release);
+
+    /* El marcador y la sesión se borran: el checkout vuelve al formulario. */
+    expect(markerBefore).not.toBeNull();
+    expect(sessionBefore).not.toBeNull();
+    expect(localStorage.getItem(LOCAL_KEY)).toBeNull();
+    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
+
+    /* La liberación no manda ningún pedido ni genera una clave nueva. */
+    expect(calls).toHaveLength(0);
+    expect(uuid).not.toHaveBeenCalled();
+    /* El carrito queda byte-idéntico. */
+    expect(localStorage.getItem(CART_KEY)).toBe(cartBefore);
+
+    /* El usuario intenta enviar el mismo carrito otra vez: la compra nueva
+       es independiente (clave nueva) y es el único pedido que sale. */
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    expect(calls).toHaveLength(1);
+    expect(calls[0].idempotencyKey).not.toBe(releasedKey);
+  });
+
+  it("S8 · dentro de la ventana segura el reintento legítimo usa la misma clave y el mismo payload", async () => {
+    const key = uncertainPublicAttempt();
+    vi.setSystemTime(T0 + 3600_000);
+    const calls: OrderPayload[] = [];
+    const submitFn = vi.fn(async (payload: OrderPayload) => {
+      calls.push(payload);
+      return { kind: "unknown" as const, error: "Sin conexión." };
+    });
+    renderModal({ submitFn });
+
+    const retry = screen.getByRole("button", { name: "Reintentar envío" });
+    expect(retry).toBeEnabled();
+    fireEvent.click(retry);
+    await waitFor(() => expect(calls).toHaveLength(1));
+    expect(calls[0].idempotencyKey).toBe(key);
+    expect(calls[0].lines).toEqual(LINES);
+    expect(calls[0].contact.email).toBe("santi@example.com");
+  });
+
+  it("S3 · una recarga (misma pestaña) conserva el bloqueo, la referencia en el marcador y el carrito", () => {
+    const key = uncertainPublicAttempt();
+    vi.setSystemTime(T0 + 24 * 3600_000);
+    const markerBefore = localStorage.getItem(LOCAL_KEY);
+    const cartBefore = localStorage.getItem(CART_KEY);
+    renderModal();
+    cleanup();
+
+    renderModal();
+    expect(screen.getByRole("alert")).toHaveTextContent(/Venció la ventana de seguridad/);
+    /* La casilla de origin/main está visible; la liberación sigue bloqueada. */
+    expect(screen.getByRole("checkbox", { name: RELEASE_CHECKBOX })).toBeVisible();
+    expect(screen.queryByRole("button", { name: RELEASE_BUTTON })).toBeNull();
+    /* El canal público no muestra la referencia, pero el marcador la conserva. */
+    expect(screen.queryByText(key)).toBeNull();
+    expect(localStorage.getItem(LOCAL_KEY)).toBe(markerBefore);
+    expect(localStorage.getItem(CART_KEY)).toBe(cartBefore);
+  });
+
+  it("S3 · tras cerrar y reabrir el navegador el marcador sigue bloqueando", () => {
+    const key = uncertainPublicAttempt();
+    vi.setSystemTime(T0 + 24 * 3600_000);
+    const markerBefore = localStorage.getItem(LOCAL_KEY);
+    const cartBefore = localStorage.getItem(CART_KEY);
+    cleanup();
+    /* El navegador se cerró: el sessionStorage se pierde, el marcador no. */
+    sessionStorage.clear();
+
+    renderModal();
+    expect(screen.getByRole("alert")).toHaveTextContent(/Venció la ventana de seguridad/);
+    expect(screen.queryByRole("button", { name: /^(Enviar pedido|Reintentar envío)$/ })).toBeNull();
+    /* La casilla de origin/main está visible; la liberación sigue bloqueada. */
+    expect(screen.getByRole("checkbox", { name: RELEASE_CHECKBOX })).toBeVisible();
+    expect(screen.queryByRole("button", { name: RELEASE_BUTTON })).toBeNull();
+    /* El canal público no muestra la referencia, pero el marcador la conserva. */
+    expect(screen.queryByText(key)).toBeNull();
+    expect(localStorage.getItem(LOCAL_KEY)).toBe(markerBefore);
+    expect(localStorage.getItem(CART_KEY)).toBe(cartBefore);
+  });
+
+  it("S3 · dos pestañas sobre el mismo localStorage no generan una clave nueva entre ellas", () => {
+    uncertainPublicAttempt();
+    vi.setSystemTime(T0 + 24 * 3600_000);
+    const markerBefore = localStorage.getItem(LOCAL_KEY);
+    const uuid = vi.spyOn(crypto, "randomUUID");
+
+    renderModal(); /* pestaña A */
+    renderModal(); /* pestaña B */
+
+    expect(screen.getAllByRole("dialog").length).toBeGreaterThanOrEqual(2);
+    /* La casilla de origin/main está visible en cada pestaña, pero ninguna
+       libera el intento: no hay botón de liberación sin confirmar. */
+    expect(screen.queryAllByRole("checkbox", { name: RELEASE_CHECKBOX })).toHaveLength(2);
+    expect(screen.queryAllByRole("button", { name: RELEASE_BUTTON })).toHaveLength(0);
+    expect(uuid).not.toHaveBeenCalled();
+    expect(localStorage.getItem(LOCAL_KEY)).toBe(markerBefore);
+  });
+
+  it("S7 · un carrito que nunca envió un pedido no está bloqueado", async () => {
+    const props = renderModal();
+    fillValidForm();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await waitFor(() => expect(props.submitFn).toHaveBeenCalledOnce());
+  });
+
+  it("S7 · un pedido definitivamente rechazado sin pedido creado (validation) se resuelve y permite iniciar otra compra", async () => {
+    const calls: OrderPayload[] = [];
+    const submitFn = vi.fn(async (payload: OrderPayload) => {
+      calls.push(payload);
+      return calls.length === 1
+        ? { kind: "validation" as const, error: "Producto no disponible" }
+        : { kind: "completed" as const, orderId: "done-2" };
+    });
+    const props = renderModal({ submitFn });
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await screen.findByText("Producto no disponible");
+
+    expect(screen.getByRole("button", { name: RELEASE_BUTTON })).toBeVisible();
+    fireEvent.click(screen.getByRole("button", { name: RELEASE_BUTTON }));
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await waitFor(() => expect(calls).toHaveLength(2));
+    expect(calls[1].idempotencyKey).not.toBe(calls[0].idempotencyKey);
+    expect(props.clearCart).toHaveBeenCalledOnce();
+  });
+
+  it("S7 · un pedido confirmado limpia el intento y el carrito como hoy", async () => {
+    const props = renderModal({
+      submitFn: vi.fn(async () => ({ kind: "completed" as const, orderId: "ord-ok" })),
+    });
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await screen.findByText("¡Pedido enviado con éxito!");
+    expect(localStorage.getItem(LOCAL_KEY)).toBeNull();
+    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    expect(props.clearCart).toHaveBeenCalledOnce();
+  });
+});
+
+/* ══════════════════════════════════════════════════════════════════════
+ * Verificación de estados definitivos (canal público).
+ *
+ * El canal público conserva las reglas de origin/main:
+ *
+ *   validation (400/403) → el servidor rechaza ANTES de crear el pedido:
+ *                          el cliente no queda atrapado.
+ *   completed             → el pedido está confirmado y se resuelve solo.
+ *   failed (502 + orderId)→ el pedido EXISTE y persiste: el terminal se
+ *                          libera con el botón, como en origin/main.
+ *   conflict (409)        → el terminal se libera con el botón, como en
+ *                          origin/main.
+ *
+ * Todo el HTTP pasa por un doble estricto de fetch: nunca hay red real.
+ * ══════════════════════════════════════════════════════════════════════ */
+describe("checkout público · estados definitivos y resolución del intento", () => {
+  const LOCAL_KEY = "starvie-order-attempt-v2";
+  const SESSION_KEY = "starvie-order-attempt-v2-session";
+  const RELEASE_CHECKBOX = /Confirmo que consulté/;
+  const RELEASE_BUTTON = "Resolver intento e iniciar nueva compra";
+  const REALSTEP_CONTACT = "https://wa.me/5492235440976";
+
+  beforeEach(() => {
+    vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
+    localStorage.clear();
+    sessionStorage.clear();
+    document.body.innerHTML = "";
+  });
+
+  function httpResponse(data: unknown, status: number): Response {
+    return new Response(JSON.stringify(data), {
+      status,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
+
+  /** Doble estricto de fetch: registra cada POST y nunca toca la red. */
+  function strictFetch(handler: () => Response) {
+    return vi.fn(async () => handler());
+  }
+
+  it("502 failed: el terminal conserva su referencia hasta la liberación y se libera como en origin/main", async () => {
+    const fetchImpl = strictFetch(() =>
+      httpResponse({ ok: false, status: "failed", orderId: "RS-failed-1" }, 502));
+    const props = renderModal({
+      submitFn: (payload: OrderPayload) => submitOrder(payload, { fetchImpl }),
+    });
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledOnce());
+    await screen.findByText(/El pedido falló definitivamente/);
+
+    const key = JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey;
+    const markerBefore = localStorage.getItem(LOCAL_KEY);
+    const sessionBefore = sessionStorage.getItem(SESSION_KEY);
+    const uuid = vi.spyOn(crypto, "randomUUID");
+    expect(markerBefore).not.toBeNull();
+    expect(sessionBefore).not.toBeNull();
+
+    /* El botón de liberación de origin/main sigue visible en el terminal… */
+    expect.soft(screen.getByRole("button", { name: RELEASE_BUTTON })).toBeVisible();
+    expect.soft(screen.queryByRole("checkbox", { name: RELEASE_CHECKBOX })).toBeNull();
+    /* …pero el canal público no expone la referencia, su copia ni el
+       contacto de RealStep: sólo el párrafo de error del servidor. */
+    expect.soft(screen.queryByText(key)).toBeNull();
+    expect.soft(screen.queryByRole("button", { name: "Copiar referencia" })).toBeNull();
+    expect.soft(screen.queryByRole("link", { name: "WhatsApp comercial de RealStep" })).toBeNull();
+    expect.soft(screen.queryByText(/no tiene un mecanismo verificable para resolverlo/i)).toBeNull();
+    /* El aviso de "pedido sin confirmar" sería FALSO: el servidor sí recibió
+       el pedido. En su lugar, el mensaje propio de este estado. */
+    expect.soft(screen.queryByText(/No pudimos confirmar si RealStep recibió tu pedido/)).toBeNull();
+    expect.soft(screen.queryByText(/El pedido llegó al servidor/)).toBeNull();
+    expect.soft(screen.getByText(/El pedido falló definitivamente/)).toBeInTheDocument();
+
+    /* La liberación de origin/main: el terminal se libera con el botón. */
+    const release = screen.getByRole("button", { name: RELEASE_BUTTON });
+    fireEvent.click(release);
+    expect.soft(localStorage.getItem(LOCAL_KEY)).toBeNull();
+    expect.soft(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    expect.soft(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
+    /* La liberación no manda ningún pedido ni genera una clave. */
+    expect.soft(uuid).not.toHaveBeenCalled();
+    expect.soft(props.clearCart).not.toHaveBeenCalled();
+    expect.soft(fetchImpl).toHaveBeenCalledOnce();
+
+    /* La compra siguiente es nueva: otra clave y otro pedido. */
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    expect.soft(JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey).not.toBe(key);
+  });
+
+  it("409 conflict: el terminal conserva su referencia hasta la liberación y se libera como en origin/main", async () => {
+    const fetchImpl = strictFetch(() =>
+      httpResponse({ ok: false, error: "Idempotency key already used with a different request" }, 409));
+    const props = renderModal({
+      submitFn: (payload: OrderPayload) => submitOrder(payload, { fetchImpl }),
+    });
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledOnce());
+    await screen.findByText(/Idempotency key already used with a different request/);
+
+    const key = JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey;
+    const markerBefore = localStorage.getItem(LOCAL_KEY);
+    const sessionBefore = sessionStorage.getItem(SESSION_KEY);
+    const uuid = vi.spyOn(crypto, "randomUUID");
+    expect(markerBefore).not.toBeNull();
+    expect(sessionBefore).not.toBeNull();
+
+    expect.soft(screen.getByRole("button", { name: RELEASE_BUTTON })).toBeVisible();
+    expect.soft(screen.queryByRole("checkbox", { name: RELEASE_CHECKBOX })).toBeNull();
+    /* El canal público no expone la referencia, su copia ni el contacto de
+       RealStep: sólo el párrafo de error del servidor. */
+    expect.soft(screen.queryByText(key)).toBeNull();
+    expect.soft(screen.queryByRole("button", { name: "Copiar referencia" })).toBeNull();
+    expect.soft(screen.queryByRole("link", { name: "WhatsApp comercial de RealStep" })).toBeNull();
+    expect.soft(screen.queryByText(/no tiene un mecanismo verificable para resolverlo/i)).toBeNull();
+    expect.soft(screen.queryByText(/No pudimos confirmar si RealStep recibió tu pedido/)).toBeNull();
+    expect.soft(screen.queryByText(/no se puede verificar desde el catálogo/)).toBeNull();
+    expect.soft(screen.getByText(/Idempotency key already used with a different request/)).toBeInTheDocument();
+
+    /* La liberación de origin/main: el terminal se libera con el botón. */
+    const release = screen.getByRole("button", { name: RELEASE_BUTTON });
+    fireEvent.click(release);
+    expect.soft(localStorage.getItem(LOCAL_KEY)).toBeNull();
+    expect.soft(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+    expect.soft(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
+    /* La liberación no manda ningún pedido ni genera una clave. */
+    expect.soft(uuid).not.toHaveBeenCalled();
+    expect.soft(props.clearCart).not.toHaveBeenCalled();
+    expect.soft(fetchImpl).toHaveBeenCalledOnce();
+
+    /* La compra siguiente es nueva: otra clave y otro pedido. */
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    expect.soft(JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey).not.toBe(key);
+  });
+
+  it("400 validation: el rechazo definitivo NO atrapa al cliente y la liberación sigue disponible", async () => {
+    const fetchImpl = strictFetch(() =>
+      httpResponse({ ok: false, error: "Producto no disponible" }, 400));
+    renderModal({
+      submitFn: (payload: OrderPayload) => submitOrder(payload, { fetchImpl }),
+    });
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledOnce());
+    await screen.findByText("Producto no disponible");
+
+    const firstKey = JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey;
+    /* Nada se creó en el servidor: la liberación local sigue disponible. */
+    const release = screen.getByRole("button", { name: RELEASE_BUTTON });
+    expect(release).toBeVisible();
+    fireEvent.click(release);
+    expect(localStorage.getItem(LOCAL_KEY)).toBeNull();
+    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
+
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(2));
+    const secondKey = JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey;
+    expect(secondKey).not.toBe(firstKey);
   });
 });

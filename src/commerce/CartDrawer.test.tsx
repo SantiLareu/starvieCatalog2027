@@ -132,8 +132,7 @@ describe("CartDrawer: banner de avisos", () => {
   it("con carrito vacío resuelve el marcador completed al abrir checkout", () => {
     prepareAttempt(
       { name: "Santiago", legalName: "StarVie", email: "santi@example.com" },
-      [{ productId: "raptor-plus", qty: 1 }],
-    );
+      [{ productId: "raptor-plus", qty: 1 }], { channel: "public" });
     updateAttempt([{ productId: "raptor-plus", qty: 1 }], {
       orderId: "done-drawer", status: "completed", completed: true,
     });

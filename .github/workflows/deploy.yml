@@ -41,11 +41,22 @@ jobs:
             exit 1
           fi
 
+      - name: Validate distributor configuration
+        env:
+          VITE_DISTRIBUTOR_API_BASE_URL: ${{ vars.VITE_DISTRIBUTOR_API_BASE_URL }}
+        run: |
+          if [ -z "$VITE_DISTRIBUTOR_API_BASE_URL" ]; then
+            echo "::error::VITE_DISTRIBUTOR_API_BASE_URL is required: the build cannot publish the distributor access without it. Set it as a REPOSITORY variable (Settings > Secrets and variables > Actions > Repository variables); a variable defined only in the github-pages Environment is NOT visible to this job."
+            exit 1
+          fi
+          echo "Distributor API base URL configured: $VITE_DISTRIBUTOR_API_BASE_URL"
+
       - name: Build
         run: npm run build
         env:
           VITE_TURNSTILE_ENABLED: ${{ vars.VITE_TURNSTILE_ENABLED || 'true' }}
           VITE_TURNSTILE_SITE_KEY: ${{ vars.VITE_TURNSTILE_SITE_KEY || '' }}
+          VITE_DISTRIBUTOR_API_BASE_URL: ${{ vars.VITE_DISTRIBUTOR_API_BASE_URL }}
 
       - name: Configure GitHub Pages
         uses: actions/configure-pages@v5

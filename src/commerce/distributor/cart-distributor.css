@@ -1,0 +1,146 @@
+/* Importes distribuidor en carrito y checkout: acento de marca (rojo
+   StarVie), nunca dorado. Estos estilos sólo aplican con sesión.
+
+   El carrito se dibuja sobre la superficie clara (#f8f8f7) y el checkout
+   sobre la oscura (#141518): por eso el texto del carrito usa el rojo de
+   marca profundo (#b3261e, 6.1:1 sobre blanco) y el del checkout el acento
+   de marca (var(--accent), 4.7:1 sobre la superficie oscura). El dorado
+   editorial móvil (#e8b957) queda intacto: no es de distribuidores. */
+
+.cart-line-distributor {
+  color: #b3261e;
+  font-size: 0.84rem;
+  font-weight: 750;
+}
+
+/* Jerarquía de la línea: nombre, SKU, precio lista, precio distribuidor,
+   cantidad y subtotal. El subtotal lleva su rótulo para que el importe no
+   se confunda con el precio unitario.
+
+   El nombre, el SKU y el precio lista del carrito PÚBLICO los sigue
+  _styles.css_ (`.cart-line-info strong`, `.cart-line-info small`,
+   `.cart-line-price`): aquí no se redefinen, para no alterar un solo pixel
+   del catálogo público. */
+.cart-line-controls--distributor {
+  /* El importe y el botón pueden bajar de línea: sin solaparse a 320 px. */
+  flex-wrap: wrap;
+  row-gap: 8px;
+}
+.cart-line-subtotal--distributor {
+  display: grid;
+  justify-items: end;
+  gap: 1px;
+  text-align: right;
+}
+.cart-line-subtotal--distributor .cart-line-subtotal-label {
+  color: #777a80;
+  font-size: 0.6rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+.cart-line-subtotal--distributor strong {
+  color: #b3261e;
+  font-size: clamp(0.92rem, 4vw, 1rem);
+  font-weight: 780;
+  letter-spacing: -0.01em;
+  white-space: nowrap;
+}
+.cart-line-subtotal--distributor .cart-line-subtotal-pending {
+  color: #777a80;
+  font-size: 0.8rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.cart-total--distributor {
+  border-top: 1px solid rgba(179, 38, 30, 0.24);
+  /* Rótulo (con distintivo) e importe se reacomodan: nada se pisa a 320 px. */
+  flex-wrap: wrap;
+  row-gap: 6px;
+}
+.cart-total--distributor > span {
+  display: grid;
+  gap: 4px;
+  justify-items: start;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+.cart-total--distributor strong {
+  color: #b3261e;
+  flex: 0 0 auto;
+  margin-left: auto;
+  font-size: clamp(0.95rem, 4.4vw, 1.12rem);
+  white-space: nowrap;
+}
+.cart-total--distributor .cart-distributor-badge {
+  margin-left: 0;
+}
+.cart-total--distributor .cart-distributor-pending {
+  color: #777a80;
+  font-size: 0.9rem;
+}
+.cart-distributor-badge {
+  margin-left: 8px;
+  padding: 2px 7px;
+  border: 1px solid rgba(179, 38, 30, 0.45);
+  border-radius: 999px;
+  color: #b3261e;
+  font-size: 0.62rem;
+  font-style: normal;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+
+/* Checkout (superficie oscura): el acento de marca se lee directamente. */
+.checkout-line-distributor {
+  display: block;
+  color: var(--accent);
+  font-size: 0.8rem;
+  font-weight: 700;
+}
+.checkout-total--distributor strong {
+  color: var(--accent);
+}
+.checkout-distributor-note {
+  margin: 8px 0 0;
+  padding: 10px 12px;
+  border-radius: 10px;
+  color: #ffb9b1;
+  background: rgba(230, 70, 55, 0.14);
+  font-size: 0.8rem;
+  line-height: 1.45;
+}
+
+/* Panel de conciliación del canal DISTRIBUIDOR. Vive en la superficie
+   oscura del checkout y usa el mismo acento de marca y el mismo lenguaje
+   visual que el resto del modal. Encapsulado en su propia clase: no toca
+   el checkout público. */
+.checkout-reconciliation {
+  display: grid;
+  gap: 8px;
+  margin: 10px 0 0;
+  padding: 12px;
+  border: 1px solid rgba(230, 70, 55, 0.28);
+  border-radius: 12px;
+  background: rgba(230, 70, 55, 0.08);
+}
+.checkout-reconciliation p {
+  margin: 0;
+  color: #e7e8ea;
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+.checkout-reconciliation code {
+  font-size: 0.78rem;
+  word-break: break-all;
+}
+.checkout-reconciliation .cart-retry {
+  justify-self: start;
+}
+.checkout-reconciliation .checkout-error {
+  background: rgba(230, 70, 55, 0.16);
+}

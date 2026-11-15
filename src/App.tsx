@@ -1,5 +1,7 @@
 import { useEffect, useState } from "react";
 import { CommerceProvider } from "./commerce/CommerceContext";
+import { DistributorAvailabilityBridge } from "./commerce/DistributorAvailabilityBridge";
+import { DistributorProvider } from "./commerce/distributor/DistributorContext";
 import { Magazine } from "./components/Magazine";
 import { PadelViewerLab } from "./components/PadelViewerLab";
 import type { CatalogMetadata } from "./types/catalog";
@@ -45,7 +47,12 @@ function CatalogApp() {
 
   return (
     <CommerceProvider>
-      <Magazine catalog={catalog} initialOriginalPage={pilotPage ?? 1} mobilePremiumPilot={pilotPage != null} />
+      <DistributorProvider>
+        {/* Reconcilia la disponibilidad del carrito al iniciar sesión de
+            distribuidor, contra el catálogo ya cargado. */}
+        <DistributorAvailabilityBridge />
+        <Magazine catalog={catalog} initialOriginalPage={pilotPage ?? 1} mobilePremiumPilot={pilotPage != null} />
+      </DistributorProvider>
     </CommerceProvider>
   );
 }

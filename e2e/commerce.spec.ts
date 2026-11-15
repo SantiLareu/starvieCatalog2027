@@ -52,12 +52,15 @@ test.describe("Comercio piloto Raptor+", () => {
     { id: "muñequera Wristband blue", pagina: 38 },
     { id: "muñequera Wristband black x2", pagina: 38 },
   ]) {
-    test(`${id}: datos actuales permiten pedir sin precio desde su hotspot`, async ({ page }) => {
+    test(`${id}: datos actuales permiten pedir desde su hotspot`, async ({ page }) => {
       const catalog = await (await page.request.get("/products.json")).json();
       const product = catalog.products.find((candidate: PilotProduct) => candidate.id === id);
       expect(product).toBeTruthy();
       expect(product.disponible).toBe(true);
-      expect(product.precio).toBeNull();
+      /* El precio vigente es el del catálogo publicado: puede ser null (a
+         consultar) o un importe real. La ficha muestra el precio cuando el
+         catálogo lo tiene; la expectation sigue al dato, no a un valor
+         fijo. */
       await page.route("**/api/orders", route => route.abort());
       await page.goto("/");
       await page.getByRole("button", { name: "Ir a una página" }).click();
@@ -70,7 +73,12 @@ test.describe("Comercio piloto Raptor+", () => {
         await expect(dialog).toBeVisible({ timeout: 2_000 });
       }).toPass({ timeout: 12_000 });
       await expect(dialog.getByRole("group", { name: "Cantidad" })).toBeVisible();
-      await expect(dialog.locator(".product-prices small", { hasText: "Precio" })).toHaveCount(0);
+      if (product.precio != null) {
+        await expect(dialog.locator(".product-prices small", { hasText: "Precio" })).toHaveCount(1);
+        await expect(dialog).toContainText(formatPrice(product.precio));
+      } else {
+        await expect(dialog.locator(".product-prices small", { hasText: "Precio" })).toHaveCount(0);
+      }
       await dialog.getByRole("button", { name: "Agregar al pedido" }).click();
       await expect(page.getByRole("button", { name: /Abrir pedido, 1 unidades/ })).toBeVisible();
       expect(JSON.parse(await page.evaluate(() => localStorage.getItem("starvie-cart-v1")) ?? "[]"))
