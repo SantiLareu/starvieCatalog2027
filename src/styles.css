@@ -980,14 +980,111 @@ button { -webkit-tap-highlight-color: transparent; }
 
 @media (max-width: 760px) {
   :root { --toolbar-height: 48px; }
-  .catalog-toolbar { grid-template-columns: 1fr auto auto; padding: 0 8px; }
-  .toolbar-left { gap: 6px; }
-  .menu-button { width: 32px; height: 32px; }
+  /* Presupuesto de la barra móvil.
+     La barra se reparte en tres tramos con límites explícitos para que
+     ningún control invada a su vecino:
+       · secciones (COLECCIÓN / STARLAB): cede ancho y recorta su rótulo
+         con puntos suspensivos. STARLAB conserva el rótulo entero y su
+         área táctil porque es el acceso que el usuario vio interceptado
+         por el indicador de página.
+       · indicador de página: ancho acotado. Antes crecía con su rótulo
+         (min-width sin cota superior) y era él quien empujaba al resto de
+         la barra sobre sus vecinos.
+       · grupo derecho (distribuidores + carrito): puede encogerse y
+         recorta sus rótulos, pero el texto sigue en el DOM: los nombres
+         accesibles no cambian, no se introducen iconos ambiguos y no se
+         usan pointer-events para disimular solapamientos.
+     Lo que cede ancho se dimensiona con min-width + text-overflow, así la
+     barra degrada recortando texto en vez de superponer controles. */
+  .catalog-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+  }
+  .toolbar-left {
+    /* min-width:auto conserva el mínimo automático del grupo (menu +
+       STARLAB): es lo que impide que el nav invada el tramo del
+       indicador. */
+    flex: 1 1 auto;
+    min-width: auto;
+    gap: 6px;
+  }
+  .menu-button { width: 32px; height: 32px; flex: 0 0 auto; }
   .brand-lockup strong { font-size: 0.82rem; letter-spacing: 0.13em; }
   .brand-lockup span, .toolbar-hint { display: none; }
-  .experience-nav { gap: 2px; padding: 2px; }
-  .experience-nav button { height: 26px; padding: 0 6px; font-size: 0.53rem; letter-spacing: 0.045em; }
-  .page-indicator { min-width: 75px; padding: 0 6px; font-size: 0.67rem; letter-spacing: 0.06em; }
+  /* min-width:92px es el piso del nav: por debajo el rótulo de STARLAB
+     (que no se recorta) quedaría fuera de su caja. */
+  .experience-nav {
+    gap: 2px;
+    padding: 2px;
+    min-width: 92px;
+    overflow: hidden;
+  }
+  .experience-nav button {
+    height: 26px;
+    padding: 0 6px;
+    font-size: 0.53rem;
+    letter-spacing: 0.045em;
+    white-space: nowrap;
+  }
+  /* COLECCIÓN cede el ancho que falte; STARLAB no se encoge ni se recorta. */
+  .experience-nav button:first-child {
+    flex: 0 1 auto;
+    min-width: 26px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .experience-nav button:last-child { flex: 0 0 auto; }
+  .page-picker-wrap {
+    flex: 0 1 auto;
+    width: clamp(52px, 17vw, 100px);
+    min-width: 34px;
+  }
+  .page-indicator {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    padding: 0 4px;
+    font-size: 0.6rem;
+    letter-spacing: 0.04em;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .toolbar-right { gap: 6px; min-width: 0; }
+  .cart-button { flex: 0 0 auto; }
+  /* Acceso a distribuidores: mismo rótulo, menos aire. El texto sigue en
+     el DOM (nombre accesible intacto), el control conserva su área táctil
+     y nunca queda oculto ni reducido a un icono sin significado. */
+  .catalog-toolbar .distributor-entry {
+    flex: 0 1 auto;
+    min-width: 44px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .catalog-toolbar .distributor-account {
+    flex: 0 1 auto;
+    min-width: 0;
+    gap: 6px;
+    padding-right: 8px;
+  }
+  .catalog-toolbar .distributor-account__badge {
+    flex: 0 1 auto;
+    min-width: 30px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .catalog-toolbar .distributor-account__logout {
+    flex: 0 0 auto;
+    min-height: 28px;
+  }
+  .catalog-toolbar .distributor-expired {
+    flex: 0 1 auto;
+    min-width: 28px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .page-picker { left: auto; right: -42px; transform: none; }
   .magazine-stage { align-items: center; }
   .page-flip-host {
