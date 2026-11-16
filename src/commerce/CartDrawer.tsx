@@ -200,8 +200,8 @@ export function CartDrawer() {
         ) : null}
 
         {presented.length === 0 ? (
-          getStoredAttemptStatus({ channel: attemptChannel }).kind !== "missing" ||
-          getStoredSessionPresence({ channel: attemptChannel }) !== "missing" ? (
+          !isDistributor && (getStoredAttemptStatus({ channel: attemptChannel }).kind !== "missing" ||
+          getStoredSessionPresence({ channel: attemptChannel }) !== "missing") ? (
             <p className="cart-empty">
               Hay un pedido anterior para revisar.{" "}
               <button

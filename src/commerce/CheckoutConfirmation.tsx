@@ -7,7 +7,9 @@ const INSTAGRAMS = [
 ] as const;
 
 /** Presentation only: technical order references stay in checkout state/storage. */
-export function CheckoutConfirmation({ error, onClose, onReturn, closeRef }: {
+export function CheckoutConfirmation({ error, onClose, onReturn, closeRef, title = "¡Pedido enviado con éxito!", onNewPurchase }: {
+  title?: string;
+  onNewPurchase?: () => void;
   error: string | null;
   onClose: () => void;
   onReturn: () => void;
@@ -45,13 +47,14 @@ export function CheckoutConfirmation({ error, onClose, onReturn, closeRef }: {
             <circle cx="32" cy="32" r="27" stroke="currentColor" strokeWidth="1.2" />
             <path d="m20 32 8 8 17-17" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
           </svg>
-          <h2 id="checkout-title">¡Pedido enviado con éxito!</h2>
+          <h2 id="checkout-title">{title}</h2>
         </div>
         <div className="checkout-confirmation-message">
           <p className="checkout-confirmation-motto"><span>SIN RIESGO</span>{" "}<span>NO HAY HISTORIA</span></p>
           <p className="checkout-confirmation-thanks">Gracias por elegir StarVie.</p>
         </div>
         {error ? <p className="checkout-error" role="alert">{error}</p> : null}
+        {onNewPurchase ? <button className="cart-retry" type="button" onClick={onNewPurchase}>Iniciar pedido nuevo</button> : null}
         <button className="checkout-confirmation-return" type="button" onClick={onReturn}>VOLVER AL CATÁLOGO</button>
         <div className="checkout-confirmation-social">
           <p>SEGUINOS EN NUESTRAS REDES</p>

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type ChangeEvent } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent } from "react";
 import { createPortal } from "react-dom";
 import { formatPrice } from "./money";
 import {
@@ -10,38 +10,20 @@ import {
   type OrderPayload,
 } from "./orders";
 import {
-  getAttemptSession,
-  getStoredAttemptStatus,
-  getStoredSessionPresence,
-  canCloseAttemptByReconciliation,
-  closeAttemptByReconciliation,
-  finalizeCompletedAttempt,
-  prepareAttempt,
-  resolveAttemptForNewPurchase,
-  canResolveAttemptLocally,
-  updateAttempt,
-  updateAttemptSession,
   type OrderAttemptSession,
   type OrderAttemptStatus,
 } from "./orderAttempt";
 import {
   attemptContextAllowsRetry,
-  getAttemptContext,
   rememberAttemptContext,
   type OrderAttemptChannel,
 } from "./orderAttemptContext";
-import { fetchDistributorOrderResolution } from "./distributor/client";
-import type { DistributorResolutionStatus } from "./distributor/types";
+import * as orderAttempts from "./orderAttempt";
+import { independentDistributorPurchase } from "./distributor/independentPurchase";
 import type { PresentedLine } from "./types";
 import { hasPrice } from "./productEligibility";
 import { TurnstileWidget, turnstileEnabled, turnstileSiteKey } from "./TurnstileWidget";
 import { CheckoutConfirmation } from "./CheckoutConfirmation";
-import {
-  CheckoutUncertainNotice,
-  CONFLICT_ORDER_MESSAGE,
-  FAILED_ORDER_MESSAGE,
-  UNCERTAIN_ORDER_MESSAGE,
-} from "./CheckoutUncertainNotice";
 import "./distributor/cart-distributor.css";
 
 export const CHECKOUT_HERO_SRC = "/checkout/checkout-hero-raptor.webp";
@@ -53,40 +35,8 @@ export const CHECKOUT_HERO_SRC = "/checkout/checkout-hero-raptor.webp";
 const CONTEXT_MISMATCH_MESSAGE =
   "Este pedido pertenece a otro canal o a otra sesión. No se puede reenviar con la referencia anterior; conservamos su registro y consultá a StarVie antes de iniciar otro.";
 
-/**
- * La liberación local se rechaza cuando no se puede probar que el servidor
- * no conserve un pedido pendiente. Se informa en vez de dejar el botón sin
- * efecto: el registro se conserva y no se genera una referencia nueva, que
- * podría duplicar un pedido que el servidor todavía conserva.
- */
-const RELEASE_NOT_ALLOWED_MESSAGE =
-  "No liberamos el registro del pedido anterior: no pudimos verificar su resultado y una compra nueva con una referencia nueva podría duplicarlo. Conservamos el registro bloqueado; consultá con StarVie antes de iniciar otra compra.";
-
-/**
- * Mensajes de la conciliación administrativa, uno por estado del servidor.
- * Sólo RECEIVED y NOT_RECEIVED concluyen algo: los demás mantienen el
- * bloqueo y el aviso de incertidumbre.
- */
-const RESOLUTION_MESSAGES: Record<DistributorResolutionStatus, string> = {
-  RECEIVED: "RealStep confirmó la recepción de este pedido.",
-  NOT_RECEIVED: "RealStep registró una resolución administrativa de no recepción: este pedido no fue recibido.",
-  UNRESOLVED: "RealStep todavía no pudo determinar el resultado de este pedido.",
-  UNKNOWN: "No hay información suficiente para determinar el resultado de este pedido.",
-  EXPIRED: "El registro original de este pedido expiró y no se puede determinar su resultado.",
-};
-
-/**
- * Resolución consultada y aplicada en memoria. NUNCA se persiste: un estado
- * guardado en el navegador no es una prueba de resolución.
- */
-type ResolutionView = {
-  /** Referencia consultada (la del intento persistido). */
-  reference: string;
-  status: DistributorResolutionStatus;
-  decidedAt: string | null;
-  /** Huella de sesión vigente en el momento de la consulta. */
-  fingerprint: string;
-};
+const DISTRIBUTOR_UNCONFIRMED_MESSAGE =
+  "No pudimos confirmar el resultado del envío. No se reintentará automáticamente.";
 
 type CheckoutSubmitFn = (
   payload: OrderPayload,
@@ -149,7 +99,9 @@ const EMPTY_CONTACT: CheckoutContact = {
 /**
  * CheckoutModal — full SubmitResult state machine.
  *
- * Lifecycle:
+ * Distributors start an independent purchase on each opening. Historical
+ * records are retained and never loaded into this flow.
+ * Public lifecycle:
  * 1. On open: detect existing marker/session (localStorage + sessionStorage).
  *    - Valid marker + matching session → prefill contact from session.
  *    - Valid marker + no session → block (keep orderId internal).
@@ -195,12 +147,6 @@ export function CheckoutModal({
   const [verificationNeeded, setVerificationNeeded] = useState(false);
   const [verificationError, setVerificationError] = useState<string | null>(null);
   const [verificationReset, setVerificationReset] = useState(0);
-  /* ── Conciliación administrativa (canal distribuidor) ───────────── */
-  const [resolution, setResolution] = useState<ResolutionView | null>(null);
-  const [resolutionError, setResolutionError] = useState<string | null>(null);
-  const [resolutionNote, setResolutionNote] = useState<string | null>(null);
-  const [resolutionLoading, setResolutionLoading] = useState(false);
-  const resolutionRequestRef = useRef(0);
   const tokenRef = useRef<string | null>(null);
   const [tokenReady, setTokenReady] = useState(false);
   const siteKey = turnstileSiteKey();
@@ -221,6 +167,10 @@ export function CheckoutModal({
      continuidad NO está demostrada. */
   const channel: OrderAttemptChannel = distributorMode ? "distributor" : "public";
   const liveFingerprint = distributorSessionFingerprint ?? null;
+  // The server's stable session identifier remains the only continuity proof.
+  const purchase = useMemo(() => independentDistributorPurchase(), [liveFingerprint]);
+  const attemptStore = distributorMode ? purchase : orderAttempts;
+  const { getAttemptSession, getStoredAttemptStatus, getStoredSessionPresence, finalizeCompletedAttempt, prepareAttempt, resolveAttemptForNewPurchase, updateAttempt, updateAttemptSession } = attemptStore;
   /* Última prueba conocida: permite descartar una respuesta que llega
      después de que la sesión cambió. */
   const liveFingerprintRef = useRef(liveFingerprint);
@@ -242,15 +192,18 @@ export function CheckoutModal({
     setTokenReady(false);
     setVerificationNeeded(false);
     setVerificationError(null);
-    /* La conciliación no sobrevive a la apertura: cada consulta arranca de
-       cero y las respuestas en vuelo quedan invalidadas. */
-    setResolution(null);
-    setResolutionError(null);
-    setResolutionNote(null);
-    setResolutionLoading(false);
-    resolutionRequestRef.current += 1;
     closeRef.current?.focus();
 
+    if (distributorMode) {
+      purchase.reset();
+      setContact(EMPTY_CONTACT);
+      setObservedAttempt({ kind: "missing" });
+      if (!liveFingerprint) {
+        setMode({ kind: "blocked" });
+        setServerError("Ingresá como distribuidor para enviar tu pedido.");
+      }
+      return;
+    }
     const markerStatus: OrderAttemptStatus = getStoredAttemptStatus({ channel });
     setObservedAttempt(markerStatus);
     if ((markerStatus.kind === "valid" || markerStatus.kind === "expired") &&
@@ -263,7 +216,7 @@ export function CheckoutModal({
         setOrderId(marker.orderId);
         setMode({ kind: "completed" });
         setCompletedCleanupFailed(true);
-        setServerError("El pedido está confirmado, pero su referencia local cambió o no se pudo limpiar. Volvé a abrir el checkout o contactá a StarVie antes de iniciar otra compra.");
+        setServerError(distributorMode ? "El servidor confirmó el pedido, pero no pudimos actualizar el registro local." : "El pedido está confirmado, pero su referencia local cambió o no se pudo limpiar. Volvé a abrir el checkout o contactá a StarVie antes de iniciar otra compra.");
       }
       return;
     }
@@ -350,7 +303,7 @@ export function CheckoutModal({
       setMode({ kind: "retryable" });
       setServerError("El resultado anterior no está confirmado. Podés consultar con la misma referencia.");
     }
-  }, [open]);
+  }, [open, channel, liveFingerprint]);
 
   /* ── Escape handler ──────────────────────────────────────────────── */
   useEffect(() => {
@@ -455,8 +408,8 @@ export function CheckoutModal({
     } catch {
       setServerError(
         contextMismatch
-          ? CONTEXT_MISMATCH_MESSAGE
-          : "No se puede continuar este pedido con seguridad. Contactá soporte.",
+          ? distributorMode ? "Tu sesión cambió. Ingresá como distribuidor para iniciar un pedido nuevo." : CONTEXT_MISMATCH_MESSAGE
+          : distributorMode ? "No pudimos preparar este envío con seguridad. Podés iniciar un pedido nuevo." : "No se puede continuar este pedido con seguridad. Contactá soporte.",
       );
       setMode({ kind: "blocked" });
       return;
@@ -476,6 +429,7 @@ export function CheckoutModal({
         turnstileToken: tokenForRequest,
       });
       submittingRef.current = false;
+      if (liveFingerprint !== liveFingerprintRef.current) return;
 
       switch (result.kind) {
         case "completed": {
@@ -484,7 +438,7 @@ export function CheckoutModal({
           const cleaned = finalizeCompletedAttempt(payload.idempotencyKey, result.orderId, { channel });
           setCompletedCleanupFailed(!cleaned);
           if (!cleaned) {
-            setServerError("El pedido está confirmado, pero su referencia local cambió o no se pudo limpiar. Volvé a abrir el checkout o contactá a StarVie antes de iniciar otra compra.");
+            setServerError(distributorMode ? "El servidor confirmó el pedido, pero no pudimos actualizar el registro local." : "El pedido está confirmado, pero su referencia local cambió o no se pudo limpiar. Volvé a abrir el checkout o contactá a StarVie antes de iniciar otra compra.");
           }
           setObservedAttempt(getStoredAttemptStatus({ channel }));
           /* Clear cart after user sees the result. */
@@ -494,7 +448,7 @@ export function CheckoutModal({
         case "processing": {
           setOrderId(result.orderId);
           setMode({ kind: "processing" });
-          setRetryUntil(Number.isFinite(result.nextRetryAt) ? Math.max(0, result.nextRetryAt ?? 0) : 0);
+          setRetryUntil(distributorMode ? 0 : Number.isFinite(result.nextRetryAt) ? Math.max(0, result.nextRetryAt ?? 0) : 0);
           /* Update marker with orderId and session with orderId (immutable). */
           try {
             updateAttempt(lines, {
@@ -507,13 +461,14 @@ export function CheckoutModal({
             /* Storage unavailable — proceed anyway. */
           }
           setObservedAttempt(getStoredAttemptStatus({ channel }));
+          if (distributorMode) clearCart();
           break;
         }
         case "failed": {
           const resolvedOrderId = result.orderId ?? orderId;
           setOrderId(resolvedOrderId);
           setMode({ kind: "terminal" });
-          setServerError("El pedido falló definitivamente. Contactá a StarVie antes de iniciar otro; no lo reintentes.");
+          setServerError(distributorMode ? "El servidor informó que el pedido no se completó." : "El pedido falló definitivamente. Contactá a StarVie antes de iniciar otro; no lo reintentes.");
           /* Update marker with failed orderId (preserves createdAt, lines). */
           try {
             updateAttempt(lines, {
@@ -540,12 +495,12 @@ export function CheckoutModal({
           setRateLimitRemaining(result.retryAfter);
           /* Set actual disable timer. */
           setRetryUntil(Date.now() + result.retryAfter * 1000);
-          setMode({ kind: wasProcessing ? "processing" : "retryable" });
+          setMode({ kind: distributorMode ? "terminal" : wasProcessing ? "processing" : "retryable" });
           break;
         }
         case "unknown": {
-          setServerError(channel === "distributor" ? UNCERTAIN_ORDER_MESSAGE : result.error);
-          setMode({ kind: wasProcessing ? "processing" : "retryable" });
+          setServerError(channel === "distributor" ? DISTRIBUTOR_UNCONFIRMED_MESSAGE : result.error);
+          setMode({ kind: distributorMode ? "terminal" : wasProcessing ? "processing" : "retryable" });
           if (!wasProcessing) {
             updateAttempt(lines, { channel, status: "accepted" });
           }
@@ -579,39 +534,39 @@ export function CheckoutModal({
           // la misma clave y NUNCA se reenvía como pedido público.
           onDistributorSessionExpired?.();
           setServerError(result.error);
-          setMode({ kind: "retryable" });
+          setMode({ kind: distributorMode ? "terminal" : "retryable" });
           break;
         }
       }
     } catch {
       submittingRef.current = false;
-      setServerError(channel === "distributor" ? UNCERTAIN_ORDER_MESSAGE : "Error de conexión.");
+      if (liveFingerprint !== liveFingerprintRef.current) return;
+      setServerError(channel === "distributor" ? DISTRIBUTOR_UNCONFIRMED_MESSAGE : "Error de conexión.");
       if (channel === "distributor") setObservedAttempt(getStoredAttemptStatus({ channel }));
-      setMode({ kind: wasProcessing ? "processing" : "retryable" });
+      setMode({ kind: distributorMode ? "terminal" : wasProcessing ? "processing" : "retryable" });
     }
   };
 
   const startNewPurchase = () => {
+    if (distributorMode) {
+      if (submittingRef.current || !liveFingerprint) return;
+      purchase.reset();
+      setObservedAttempt({ kind: "missing" });
+      setContact(EMPTY_CONTACT);
+      setFieldErrors({});
+      setOrderId(null);
+      setServerError(null);
+      setMode({ kind: "idle" });
+      tokenRef.current = null;
+      setTokenReady(false);
+      setVerificationNeeded(false);
+      setVerificationError(null);
+      setVerificationReset((value) => value + 1);
+      return;
+    }
     if (submittingRef.current || !["completed", "terminal", "blocked"].includes(mode.kind)) return;
     if (mode.kind === "completed" && completedCleanupFailed) return;
     if (mode.kind === "blocked" && !resolutionConfirmed) return;
-    /* La compuerta de liberación local protege el pedido del DISTRIBUIDOR:
-       se aplica en su propio canal. El canal público libera su propio
-       registro como lo liberaba origin/main: cada canal tiene su propio
-       compartmento de almacenamiento, así que un registro de otro canal
-       nunca se toca desde acá. */
-    if (channel === "distributor" && mode.kind !== "completed") {
-      /* Sin prueba de continuidad viva no se puede atribuir el registro a
-         ninguna cuenta: no se libera nada (el registro se conserva). */
-      if (!liveFingerprint) {
-        setServerError(CONTEXT_MISMATCH_MESSAGE);
-        return;
-      }
-      if (!canResolveAttemptLocally(getStoredAttemptStatus({ channel }), getAttemptSession({ channel }))) {
-        setServerError(RELEASE_NOT_ALLOWED_MESSAGE);
-        return;
-      }
-    }
     const resolved = mode.kind === "completed"
       ? getStoredAttemptStatus({ channel }).kind === "missing" && getStoredSessionPresence({ channel }) === "missing"
       : resolveAttemptForNewPurchase(
@@ -638,310 +593,20 @@ export function CheckoutModal({
     if (presented.length === 0) onClose();
   };
 
-  /* ── Conciliación: consulta explícita al backend autenticado ────── */
-  /**
-   * Consulta de SOLO LECTURA del estado de la resolución de la referencia
-   * persistida del intento. Nunca es automática, nunca sondea y nunca envía
-   * un pedido: sólo informa.
-   *
-   * Blindajes:
-   *  - sin sesión viva o sin referencia no hay consulta;
-   *  - una respuesta vieja (consulta posterior ya emitida) se descarta;
-   *  - una respuesta que llega tras un cambio de sesión se descarta;
-   *  - la respuesta se aplica sólo si su eco es la referencia consultada.
-   */
-  const consultResolution = async () => {
-    if (!distributorMode || !liveFingerprint || !persistedReference) return;
-    const reference = persistedReference;
-    const fingerprint = liveFingerprint;
-    const requestId = resolutionRequestRef.current + 1;
-    resolutionRequestRef.current = requestId;
-    setResolutionLoading(true);
-    setResolutionError(null);
-    setResolutionNote(null);
-
-    const result = await fetchDistributorOrderResolution(reference);
-
-    /* Respuesta vieja: la consulta más reciente manda. */
-    if (resolutionRequestRef.current !== requestId) return;
-    setResolutionLoading(false);
-
-    if (result.kind === "ok") {
-      if (result.resolution.reference !== reference) {
-        setResolutionError("La respuesta no corresponde a la referencia consultada. El pedido sigue bloqueado.");
-        return;
-      }
-      /* La sesión cambió mientras consultábamos: la respuesta no se aplica. */
-      if (fingerprint !== liveFingerprintRef.current) {
-        setResolutionError("La sesión cambió durante la consulta: la respuesta no se aplica. Volvé a consultar la resolución.");
-        return;
-      }
-      setResolution({
-        reference,
-        status: result.resolution.status,
-        decidedAt: result.resolution.decidedAt,
-        fingerprint,
-      });
-      return;
-    }
-    if (result.kind === "session-expired") {
-      setResolutionError("Tu sesión de distribuidor venció. Volvé a ingresar para consultar la resolución del pedido.");
-      return;
-    }
-    if (result.kind === "unavailable") {
-      setResolutionError("La consulta de resolución no está disponible en este entorno. El pedido sigue bloqueado.");
-      return;
-    }
-    setResolutionError("No pudimos consultar la resolución del pedido. El pedido sigue bloqueado; podés volver a consultar.");
-  };
-
-  /**
-   * RECEIVED: RealStep confirmó la recepción. El pedido NO se reenvía ni se
-   * genera otra clave para repetirlo. Se permite iniciar una compra nueva,
-   * independiente y explícita: se cierra el intento ya resuelto y la compra
-   * nueva arranca desde cero (formulario vacío, clave nueva).
-   */
-  const startNewPurchaseAfterResolution = () => {
-    if (!resolution || resolution.status !== "RECEIVED") return;
-    if (!liveFingerprint || resolution.fingerprint !== liveFingerprint) return;
-    if (!persistedReference || resolution.reference !== persistedReference) return;
-    if (!attemptProofIntact) {
-      setResolutionError("La sesión de este pedido cambió desde la consulta: no se puede cerrar el pedido anterior con seguridad.");
-      return;
-    }
-    if (!closeAttemptByReconciliation(resolution.reference, "RECEIVED")) {
-      setResolutionError("El estado local cambió y no se pudo cerrar el pedido anterior. Volvé a consultar la resolución.");
-      return;
-    }
-    setObservedAttempt({ kind: "missing" });
-    setResolutionError(null);
-    setResolutionNote("Pedido anterior cerrado: RealStep confirmó su recepción. La compra nueva se arma desde cero y usa una referencia nueva.");
-    setContact(EMPTY_CONTACT);
-    setFieldErrors({});
-    setOrderId(null);
-    setServerError(null);
-    setMode({ kind: "idle" });
-    tokenRef.current = null;
-    setTokenReady(false);
-    setVerificationNeeded(false);
-    setVerificationError(null);
-    /* La compra nueva es independiente: no reutiliza el pedido anterior. */
-    clearCart();
-  };
-
-  /**
-   * NOT_RECEIVED: RealStep registró que el pedido no fue recibido. NO se
-   * envía automáticamente: el distribuidor tiene que actuar.
-   *
-   * - Si el intento vigente puede reenviarse con la MISMA referencia (misma
-   *   ventana, mismo payload, misma sesión), se conserva la referencia y se
-   *   fuerza una verificación de seguridad NUEVA: un token ya consumido no
-   *   se reutiliza. La sesión, los precios y la disponibilidad se revalidan
-   *   en el envío (el servidor sigue siendo la autoridad).
-   * - Si el intento ya no es reenviable con la misma referencia (ventana
-   *   vencida o registro original incompleto), se cierra explícitamente y el
-   *   envío siguiente es un intento NUEVO con clave nueva. La referencia
-   *   anterior no se borra en silencio: sigue visible en el aviso.
-   *
-   * `NOT_RECEIVED` NO amplía permisos: un `failed` o un `conflict` siguen
-   * bloqueados aunque el servidor registre la no recepción, porque esa
-   * decisión no resuelve el resultado que el servidor conservó.
-   */
-  const continueAfterNotReceived = () => {
-    if (!resolution || resolution.status !== "NOT_RECEIVED") return;
-    if (!liveFingerprint || resolution.fingerprint !== liveFingerprint) return;
-    if (!persistedReference || resolution.reference !== persistedReference) return;
-    if (!attemptProofIntact) {
-      setResolutionError("La sesión de este pedido cambió desde la consulta: no se puede continuar con seguridad. Volvé a consultar la resolución.");
-      return;
-    }
-    const status = getStoredAttemptStatus({ channel });
-    const session = getAttemptSession({ channel });
-    const snapshot = status.kind === "valid" ? status.snapshot : null;
-    /* El reenvío con la MISMA referencia sólo existe si el intento sigue
-       siendo reenviable: los estados terminales que el servidor conservó
-       (`failed`) o que no se pueden verificar (`conflict`) no se reenvían. */
-    const sameReferenceRetry =
-      snapshot !== null &&
-      session !== null &&
-      session.idempotencyKey === snapshot.idempotencyKey &&
-      !["completed", "failed", "conflict", "validation"].includes(snapshot.status ?? "") &&
-      attemptContextAllowsRetry({
-        idempotencyKey: snapshot.idempotencyKey,
-        persistedChannel: snapshot.channel,
-        channel,
-        distributorProof: liveFingerprint,
-      });
-
-    if (sameReferenceRetry) {
-      tokenRef.current = null;
-      setTokenReady(false);
-      setVerificationNeeded(true);
-      setVerificationError(null);
-      setVerificationReset((value) => value + 1);
-      setResolutionError(null);
-      setResolutionNote("Podés reenviar este pedido con la misma referencia: completá una verificación de seguridad nueva y el servidor revalida sesión, precios y disponibilidad.");
-      setMode({ kind: "retryable" });
-      setServerError(null);
-      return;
-    }
-
-    if (!canCloseAttemptByReconciliation(resolution.reference, "NOT_RECEIVED")) {
-      setResolutionError("RealStep registró que este pedido no fue recibido, pero este resultado no alcanza para cerrar el intento. Conservamos su referencia; consultá a RealStep.");
-      return;
-    }
-    if (!closeAttemptByReconciliation(resolution.reference, "NOT_RECEIVED")) {
-      setResolutionError("El estado local cambió y no se pudo cerrar el pedido anterior. Volvé a consultar la resolución.");
-      return;
-    }
-    const previousContact = session?.contact ?? null;
-    setObservedAttempt({ kind: "missing" });
-    setResolutionError(null);
-    setResolutionNote("Podés enviar el pedido de nuevo: se validan la sesión, los precios y la disponibilidad antes de enviar, con una referencia nueva.");
-    setContact(previousContact ? { ...EMPTY_CONTACT, ...previousContact } : EMPTY_CONTACT);
-    setFieldErrors({});
-    setOrderId(null);
-    setServerError(null);
-    setMode({ kind: "idle" });
-    tokenRef.current = null;
-    setTokenReady(false);
-    setVerificationNeeded(false);
-    setVerificationError(null);
-  };
-
   /* ── Computed state ──────────────────────────────────────────────── */
   // Read persisted ownership/reference, never infer it from the current login.
   const persistedAttempt = getStoredAttemptStatus({ channel });
   const persistedSession = getAttemptSession({ channel });
   const sessionPresence = getStoredSessionPresence({ channel });
-  const localResolutionAllowed = canResolveAttemptLocally(persistedAttempt, persistedSession);
-  /* El canal PÚBLICO conserva la visibilidad de origin/main: el checkbox de
-     confirmación y el botón de liberación aparecen en los mismos estados que
-     antes. El canal DISTRIBUIDOR sólo los habilita cuando el intento es
-     realmente liberable en local: un registro heredado, de otro canal o de
-     otra sesión no se libera nunca.
-     Además, el canal DISTRIBUIDOR exige una PRUEBA DE CONTINUIDAD viva (el
-     identificador de sesión del backend): sin ella no se puede atribuir el
-     registro a ninguna cuenta, así que no se libera nada. `null` (sesión
-     no autenticada o backend sin `sessionId`) nunca autoriza una liberación. */
-  const releaseUiAllowed = distributorMode
-    ? localResolutionAllowed && liveFingerprint !== null
-    : true;
+  const releaseUiAllowed = !distributorMode;
   const persistedReference = persistedAttempt.kind === "valid" || persistedAttempt.kind === "expired"
     ? persistedAttempt.snapshot.idempotencyKey : persistedSession?.idempotencyKey ?? null;
-  const persistedStatus = persistedAttempt.kind === "valid" || persistedAttempt.kind === "expired"
-    ? persistedAttempt.snapshot.status : undefined;
-  /* ── Conciliación administrativa (canal distribuidor) ───────────── */
-  /* Huella viva del intento: si el contexto en memoria no existe o su huella
-     ya no es la vigente, la sesión cambió y el intento NO se libera. */
-  const attemptContext = persistedReference ? getAttemptContext(persistedReference) : null;
-  const attemptProofIntact =
-    liveFingerprint !== null &&
-    attemptContext !== null &&
-    attemptContext.channel === "distributor" &&
-    attemptContext.distributorProof === liveFingerprint;
-  const canConsultResolution = distributorMode && liveFingerprint !== null && persistedReference !== null;
-  const showReconciliation =
-    distributorMode &&
-    !["submitting", "completed"].includes(mode.kind) &&
-    (persistedReference !== null || resolution !== null);
-  /* RECEIVED: el pedido llegó. No se reenvía ni se genera otra clave. La
-     regla se aplica a la referencia consultada: cuando el intento ya se
-     cerró y la compra nueva arranca, el envío vuelve a estar disponible. */
-  const resolutionBlocksResend =
-    resolution?.status === "RECEIVED" && resolution.reference === persistedReference;
-  /* La resolución es AUTÉNTICA cuando la obtuvo el backend con la sesión
-     viva, para la referencia persistida y con la prueba del intento todavía
-     vigente. */
-  const resolutionIsAuthentic =
-    resolution !== null &&
-    liveFingerprint !== null &&
-    resolution.fingerprint === liveFingerprint &&
-    persistedReference !== null &&
-    resolution.reference === persistedReference &&
-    attemptProofIntact;
-  /* El cierre sólo es posible si la decisión lo habilita: `RECEIVED` cierra
-     también `failed` y `conflict` (el pedido fue recibido: no queda nada
-     pendiente por duplicar y la compra nueva es independiente); con
-     `NOT_RECEIVED` los bloqueos de `failed`/`conflict` siguen vigentes. */
-  const resolutionCanClose =
-    resolutionIsAuthentic &&
-    resolution !== null &&
-    canCloseAttemptByReconciliation(
-      persistedReference as string,
-      resolution.status === "RECEIVED" ? "RECEIVED" : "NOT_RECEIVED",
-    );
-  const resolutionMessage =
-    resolution && (resolution.status === "RECEIVED" || resolution.status === "NOT_RECEIVED")
-      ? RESOLUTION_MESSAGES[resolution.status]
-      : undefined;
-  /* Un pedido que el servidor conservó (`failed`) o un 409 (`conflict`) NO se
-     pueden liberar localmente, pero tampoco son un callejón sin salida: el
-     aviso conserva la referencia, la copia y el contacto de RealStep. El
-     aviso de incertidumbre sería FALSO para `failed` (sabemos que el pedido
-     llegó al servidor) y el resultado no es verificable desde el catálogo
-     para `conflict`. */
-  const unreleasableTerminal = mode.kind === "terminal" &&
-    (persistedStatus === "failed" || persistedStatus === "conflict");
-  /* Mientras se pide una verificación nueva NO hay pedido en duda: el
-     backend rechaza el envío antes de crear el pedido, así que el aviso
-     de "pedido sin confirmar" sería falso y contradiría el reintento con
-     la misma clave. En el canal público el aviso ya no se mostraba en ese
-     estado (el intento público se puede resolver localmente): el cambio
-     sólo afecta al canal distribuidor. */
-  const showUncertainNotice = !verificationNeeded && !localResolutionAllowed && persistedAttempt.kind !== "unavailable" &&
-    (persistedAttempt.kind !== "missing" || sessionPresence === "present") &&
-    !["idle", "submitting", "completed"].includes(mode.kind) &&
-    (mode.kind !== "terminal" || unreleasableTerminal);
-  /* El aviso con referencia, copia y contacto pertenece al canal
-     DISTRIBUIDOR. El canal público conserva el de origin/main: sólo el
-     párrafo de error, sin referencia, sin botón de copia y sin contacto. */
-  const uncertainNotice = distributorMode && showUncertainNotice ? <CheckoutUncertainNotice
-    reference={persistedReference}
-    showWarning={mode.kind !== "processing" && serverError !== UNCERTAIN_ORDER_MESSAGE}
-    message={resolutionMessage ?? (persistedStatus === "failed"
-      ? FAILED_ORDER_MESSAGE
-      : persistedStatus === "conflict"
-        ? CONFLICT_ORDER_MESSAGE
-        : undefined)}
-    resolutionMechanism="reconciliation"
-  /> : null;
-  const reconciliationPanel = showReconciliation ? (
-    <div className="checkout-reconciliation" data-testid="checkout-reconciliation">
-      {resolution ? (
-        <>
-          <p role="status">{RESOLUTION_MESSAGES[resolution.status]}</p>
-          {resolution.decidedAt ? <p>RealStep resolvió esta referencia el {resolution.decidedAt}.</p> : null}
-          <p>Referencia consultada: <code>{resolution.reference}</code></p>
-        </>
-      ) : null}
-      {resolutionNote ? <p role="status">{resolutionNote}</p> : null}
-      {resolutionError ? <p role="alert" className="checkout-error">{resolutionError}</p> : null}
-      {resolutionLoading ? <p role="status">Consultando la resolución…</p> : null}
-      {canConsultResolution ? (
-        <button className="cart-retry" type="button" onClick={() => { void consultResolution(); }}>
-          Consultar estado del pedido
-        </button>
-      ) : null}
-      {resolution?.status === "RECEIVED" ? (
-        <button className="cart-retry" type="button" onClick={startNewPurchaseAfterResolution} disabled={!resolutionCanClose}>
-          Iniciar una nueva compra
-        </button>
-      ) : null}
-      {resolution?.status === "NOT_RECEIVED" ? (
-        <button className="cart-retry" type="button" onClick={continueAfterNotReceived} disabled={!resolutionIsAuthentic}>
-          Continuar con el envío
-        </button>
-      ) : null}
-    </div>
-  ) : null;
   const isSubmitting = mode.kind === "submitting";
   const isSuccess = mode.kind === "completed" || mode.kind === "processing";
   const isError = mode.kind === "retryable";
   const rateLimited = Date.now() < retryUntil;
   const canSubmit =
     (mode.kind === "idle" || mode.kind === "retryable") && !rateLimited &&
-    !resolutionBlocksResend &&
     (mode.kind === "retryable" || presented.length > 0) &&
     (!verificationConfigured || (Boolean(siteKey) && (mode.kind !== "idle" && !verificationNeeded || tokenReady)));
   const showVerification = Boolean(siteKey && (mode.kind === "idle" || verificationNeeded));
@@ -968,8 +633,10 @@ export function CheckoutModal({
 
   /* Success / Processing state */
   if (isSuccess) {
-    if (mode.kind === "completed") {
+    if (mode.kind === "completed" || distributorMode) {
       return createPortal(<CheckoutConfirmation error={serverError}
+        title={mode.kind === "processing" ? "¡Pedido recibido!" : undefined}
+        onNewPurchase={distributorMode ? startNewPurchase : undefined}
         onClose={onClose} onReturn={onReturnToCatalog} closeRef={closeRef} />, document.body);
     }
     return createPortal(
@@ -1010,12 +677,10 @@ export function CheckoutModal({
                 Pedido recibido — en proceso.
               </p>
               {serverError ? <p className="checkout-error" role="alert" style={channel === "distributor" ? { whiteSpace: "pre-line" } : undefined}>{serverError}</p> : null}
-              {uncertainNotice}
-              {reconciliationPanel}
               <p className="future-note">
                 Te contactaremos por email para coordinar.
               </p>
-              {resolutionBlocksResend ? null : (
+              {(
                 <button
                   className="order-button is-active"
                   type="button"
@@ -1320,6 +985,12 @@ export function CheckoutModal({
                 {retryAfterText}
               </p>
             ) : null}
+            {distributorMode && ["terminal", "retryable", "blocked"].includes(mode.kind) && liveFingerprint ? (
+              <div role="status">
+                {persistedReference ? <p>Referencia de este envío: <code>{persistedReference}</code></p> : null}
+                <button className="cart-retry" type="button" onClick={startNewPurchase}>Iniciar pedido nuevo</button>
+              </div>
+            ) : null}
             {showVerification && siteKey ? (
               <div className="checkout-verification">
                 <TurnstileWidget
@@ -1359,8 +1030,6 @@ export function CheckoutModal({
               <p role="alert" className="checkout-error">La verificación de seguridad no está configurada. Contactá a StarVie.</p>
             ) : null}
 
-            {uncertainNotice}
-            {reconciliationPanel}
             {releaseUiAllowed && mode.kind === "blocked" && observedAttempt.kind !== "unavailable" &&
               getStoredSessionPresence({ channel }) !== "unavailable" ? (
               <label className="future-note">
@@ -1380,7 +1049,7 @@ export function CheckoutModal({
               </button>
             ) : null}
 
-            {mode.kind !== "terminal" && mode.kind !== "blocked" && !resolutionBlocksResend ? <button
+            {mode.kind !== "terminal" && mode.kind !== "blocked" ? <button
               className="order-button is-active"
               type="button"
               onClick={send}

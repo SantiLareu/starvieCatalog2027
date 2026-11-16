@@ -21,7 +21,7 @@ import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/re
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CheckoutModal } from "./CheckoutModal";
 import * as orderAttempt from "./orderAttempt";
-import { rememberAttemptContext } from "./orderAttemptContext";
+import { purchaseMarkers } from "../test/distributorCheckout";
 import type { OrderPayload } from "./orders";
 import type { CommerceProduct, PresentedLine } from "./types";
 
@@ -188,6 +188,8 @@ describe("S4 · el checkout público y el de distribuidores son independientes",
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     await waitFor(() => expect(submitFn).toHaveBeenCalledOnce());
     const distKey = submitFn.mock.calls[0][0].idempotencyKey;
+    const firstMarker = purchaseMarkers()[0];
+    const originalMarker = localStorage.getItem(firstMarker.key);
     first.unmount();
 
     /* 2 · Canal público: su propio intento, el del distribuidor intacto. */
@@ -208,7 +210,7 @@ describe("S4 · el checkout público y el de distribuidores son independientes",
     expect(publicKey).not.toBe(distKey);
     second.unmount();
 
-    /* 3 · Vuelta al canal distribuidor: su intento sigue ahí, reenviable. */
+    /* 3 · Vuelta al distribuidor: compra independiente, histórico intacto. */
     render(
       <CheckoutModal
         open
@@ -222,13 +224,12 @@ describe("S4 · el checkout público y el de distribuidores son independientes",
         submitFn={submitFn}
       />,
     );
-    expect(screen.getByRole("button", { name: "Reintentar envío" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
     fillContact();
-    fireEvent.click(screen.getByRole("button", { name: "Reintentar envío" }));
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     await waitFor(() => expect(submitFn).toHaveBeenCalledTimes(3));
-    /* La MISMA clave del distribuidor: el intento no se perdió ni se rotó. */
-    expect(submitFn.mock.calls[2][0].idempotencyKey).toBe(distKey);
-    expect(markerOf(DIST_LOCAL)?.idempotencyKey).toBe(distKey);
+    expect(submitFn.mock.calls[2][0].idempotencyKey).not.toBe(distKey);
+    expect(localStorage.getItem(firstMarker.key)).toBe(originalMarker);
     expect(markerOf(PUBLIC_LOCAL)?.idempotencyKey).toBe(publicKey);
   });
 });
@@ -236,169 +237,51 @@ describe("S4 · el checkout público y el de distribuidores son independientes",
 /* ══════════════════════════════════════════════════════════════════════
  * S3 · La huella de valor de la sesión.
  * ══════════════════════════════════════════════════════════════════════ */
-describe("S3 · la huella de sesión decide si el intento sigue vivo", () => {
-  function seedDistributorAttempt(fingerprint: string): string {
-    const prepared = orderAttempt.prepareAttempt(contact, lines, { channel: "distributor" });
-    expect(prepared).not.toBe(false);
-    const key = (prepared as { idempotencyKey: string }).idempotencyKey;
-    orderAttempt.updateAttempt(lines, { channel: "distributor", orderId: "ord-dist", status: "accepted" });
-    rememberAttemptContext(key, { channel: "distributor", distributorProof: fingerprint });
-    return key;
-  }
-
-  it("una revalidación de la MISMA sesión (misma huella) deja el intento reenviable", async () => {
-    const key = seedDistributorAttempt(FINGERPRINT);
-    const submitFn = vi.fn(async (_payload: OrderPayload) => ({ kind: "unknown" as const, error: "sin red" }));
-    render(
-      <CheckoutModal
-        open
-        onClose={vi.fn()}
-        presented={presented}
-        total={1000}
-        clearCart={vi.fn()}
-        distributorMode
-        distributorSessionFingerprint={FINGERPRINT}
-        distributorDiscountPercent={20}
-        submitFn={submitFn}
-      />,
-    );
-
-    /* La revalidación no bloquea: el intento sigue siendo reenviable. */
-    expect(screen.getByRole("button", { name: "Reintentar envío" })).toBeEnabled();
-    expect(screen.queryByText(/pertenece a otro canal o a otra sesión/)).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Reintentar envío" }));
-    await waitFor(() => expect(submitFn).toHaveBeenCalledOnce());
-    /* Misma referencia: es el mismo pedido, no uno nuevo. */
-    expect(submitFn.mock.calls[0][0].idempotencyKey).toBe(key);
-    expect(markerOf(DIST_LOCAL)?.idempotencyKey).toBe(key);
+describe("S3 · la huella del servidor aísla la compra activa", () => {
+  const props = { open: true, onClose: vi.fn(), presented, total: 1000, clearCart: vi.fn(), distributorMode: true };
+  it("una revalidación con la misma huella conserva la compra activa sin reenviarla", async () => {
+    const submitFn = vi.fn(async (_payload: OrderPayload) => ({ kind: "unknown" as const, error: "lost response" }));
+    const view = render(<CheckoutModal {...props} distributorSessionFingerprint={FINGERPRINT} submitFn={submitFn} />);
+    fillContact(); fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await screen.findByRole("button", { name: "Iniciar pedido nuevo" });
+    const key = submitFn.mock.calls[0][0].idempotencyKey;
+    view.rerender(<CheckoutModal {...props} distributorSessionFingerprint={String(FINGERPRINT)} submitFn={submitFn} />);
+    expect(screen.getByText(key)).toBeVisible();
+    expect(submitFn).toHaveBeenCalledOnce();
   });
-
-  it("otra cuenta (otra huella) bloquea el reenvío y conserva el registro", async () => {
-    const key = seedDistributorAttempt(FINGERPRINT);
-    const markerBefore = localStorage.getItem(DIST_LOCAL);
-    const submitFn = vi.fn(async (_payload: OrderPayload) => ({ kind: "unknown" as const, error: "sin red" }));
-    render(
-      <CheckoutModal
-        open
-        onClose={vi.fn()}
-        presented={presented}
-        total={1000}
-        clearCart={vi.fn()}
-        distributorMode
-        distributorSessionFingerprint={OTHER_FINGERPRINT}
-        distributorDiscountPercent={20}
-        submitFn={submitFn}
-      />,
-    );
-
-    expect(screen.getByRole("alert")).toHaveTextContent(/pertenece a otro canal o a otra sesión/);
-    /* El envío queda bloqueado: ni botón de envío ni pedido. */
+  it("otra huella limpia los datos visibles sin tocar el historial de la cuenta anterior", async () => {
+    const submitFn = vi.fn(async (_payload: OrderPayload) => ({ kind: "unknown" as const, error: "lost response" }));
+    const view = render(<CheckoutModal {...props} distributorSessionFingerprint={FINGERPRINT} submitFn={submitFn} />);
+    fillContact(); fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await screen.findByRole("button", { name: "Iniciar pedido nuevo" });
+    const oldMarker = purchaseMarkers()[0];
+    const raw = localStorage.getItem(oldMarker.key);
+    view.rerender(<CheckoutModal {...props} distributorSessionFingerprint={OTHER_FINGERPRINT} submitFn={submitFn} />);
+    expect(screen.queryByText(oldMarker.value.idempotencyKey)).toBeNull();
+    expect(screen.getByLabelText("Nombre y apellido *")).toHaveValue("");
+    fillContact(); fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
+    await waitFor(() => expect(submitFn).toHaveBeenCalledTimes(2));
+    expect(submitFn.mock.calls[1][0].idempotencyKey).not.toBe(oldMarker.value.idempotencyKey);
+    expect(localStorage.getItem(oldMarker.key)).toBe(raw);
+  });
+  it("la huella nula no autoriza envíos ni asigna referencias", () => {
+    const uuid = vi.spyOn(crypto, "randomUUID");
+    const submitFn = vi.fn(async (_payload: OrderPayload) => ({ kind: "unknown" as const, error: "lost response" }));
+    render(<CheckoutModal {...props} distributorSessionFingerprint={null} submitFn={submitFn} />);
+    expect(screen.getByRole("alert")).toHaveTextContent(/Ingresá como distribuidor/);
     expect(screen.queryByRole("button", { name: "Enviar pedido" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
-    await waitFor(() => expect(submitFn).not.toHaveBeenCalled());
-    /* El registro se conserva byte a byte: ni clave nueva, ni pedido. */
-    expect(localStorage.getItem(DIST_LOCAL)).toBe(markerBefore);
-    expect(markerOf(DIST_LOCAL)?.idempotencyKey).toBe(key);
+    expect(submitFn).not.toHaveBeenCalled();
+    expect(uuid).not.toHaveBeenCalled();
   });
-
-  it("el logout (huella nula) bloquea el reenvío y conserva el registro", async () => {
-    const key = seedDistributorAttempt(FINGERPRINT);
-    const markerBefore = localStorage.getItem(DIST_LOCAL);
-    const submitFn = vi.fn(async (_payload: OrderPayload) => ({ kind: "unknown" as const, error: "sin red" }));
-    render(
-      <CheckoutModal
-        open
-        onClose={vi.fn()}
-        presented={presented}
-        total={1000}
-        clearCart={vi.fn()}
-        distributorMode
-        distributorSessionFingerprint={null}
-        distributorDiscountPercent={20}
-        submitFn={submitFn}
-      />,
-    );
-
-    expect(screen.getByRole("alert")).toHaveTextContent(/pertenece a otro canal o a otra sesión/);
-    expect(screen.queryByRole("button", { name: "Enviar pedido" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
-    await waitFor(() => expect(submitFn).not.toHaveBeenCalled());
-    expect(localStorage.getItem(DIST_LOCAL)).toBe(markerBefore);
-    expect(markerOf(DIST_LOCAL)?.idempotencyKey).toBe(key);
-  });
-
-  it("con la MISMA huella el pedido sigue conciliable: RECEIVED habilita la compra nueva", async () => {
-    const key = seedDistributorAttempt(FINGERPRINT);
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      headers: new Headers(),
-      json: async () => ({
-        ok: true,
-        reference: key,
-        status: "RECEIVED",
-        decidedAt: "2026-11-20T10:00:00.000Z",
-      }),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(
-      <CheckoutModal
-        open
-        onClose={vi.fn()}
-        presented={presented}
-        total={1000}
-        clearCart={vi.fn()}
-        distributorMode
-        distributorSessionFingerprint={FINGERPRINT}
-        distributorDiscountPercent={20}
-        submitFn={vi.fn(async (_payload: OrderPayload) => ({ kind: "unknown" as const, error: "sin red" }))}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Consultar estado del pedido" }));
-    await screen.findAllByText("RealStep confirmó la recepción de este pedido.");
-
-    /* La huella sigue vigente: el cierre por conciliación está habilitado. */
-    const newPurchase = screen.getByRole("button", { name: "Iniciar una nueva compra" }) as HTMLButtonElement;
-    expect(newPurchase.disabled).toBe(false);
-  });
-
-  it("con otra huella la conciliación NO habilita el cierre", async () => {
-    const key = seedDistributorAttempt(FINGERPRINT);
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      headers: new Headers(),
-      json: async () => ({
-        ok: true,
-        reference: key,
-        status: "RECEIVED",
-        decidedAt: "2026-11-20T10:00:00.000Z",
-      }),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(
-      <CheckoutModal
-        open
-        onClose={vi.fn()}
-        presented={presented}
-        total={1000}
-        clearCart={vi.fn()}
-        distributorMode
-        distributorSessionFingerprint={OTHER_FINGERPRINT}
-        distributorDiscountPercent={20}
-        submitFn={vi.fn(async (_payload: OrderPayload) => ({ kind: "unknown" as const, error: "sin red" }))}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Consultar estado del pedido" }));
-    await screen.findAllByText("RealStep confirmó la recepción de este pedido.");
-    const newPurchase = screen.getByRole("button", { name: "Iniciar una nueva compra" }) as HTMLButtonElement;
-    expect(newPurchase.disabled).toBe(true);
-    /* El registro se conserva: otra cuenta no cierra el pedido de nadie. */
-    expect(markerOf(DIST_LOCAL)?.idempotencyKey).toBe(key);
+  it.each(["RECEIVED", "NOT_RECEIVED"])("%s histórico no exige una decisión administrativa ni se consulta", () => {
+    localStorage.setItem(DIST_LOCAL, JSON.stringify({ resolution: "historical" }));
+    const raw = localStorage.getItem(DIST_LOCAL);
+    const fetchMock = vi.fn(); vi.stubGlobal("fetch", fetchMock);
+    render(<CheckoutModal {...props} distributorSessionFingerprint={FINGERPRINT} />);
+    expect(screen.queryByRole("button", { name: /Consultar estado|Continuar con el envío|Resolver intento/ })).toBeNull();
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeEnabled();
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(localStorage.getItem(DIST_LOCAL)).toBe(raw);
   });
 });
 

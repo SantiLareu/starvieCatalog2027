@@ -1,9 +1,9 @@
 import { act, cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { purchaseMarkers, storageBytes } from "../test/distributorCheckout";
 import { CheckoutModal } from "./CheckoutModal";
 import { submitDistributorOrder } from "./distributor/client";
 import * as orderAttempt from "./orderAttempt";
-import { rememberAttemptContext } from "./orderAttemptContext";
 import type { OrderPayload } from "./orders";
 import type { CommerceProduct, PresentedLine } from "./types";
 
@@ -17,15 +17,11 @@ afterEach(() => {
 });
 
 /**
- * Prueba de continuidad de la sesión de distribuidor: el IDENTIFICADOR
- * OPACO DE SESIÓN que devuelve el backend. El canal distribuidor lo exige:
- * sin él el checkout no prepara, no reenvía, no libera ni concilia nada.
- * Es estable durante la vida de la sesión (una revalidación de la MISMA
- * sesión devuelve el mismo identificador).
+ * Prueba viva de sesión (objeto de autenticación exacto). El canal
+ * distribuidor la exige: sin ella el checkout no prepara ni reenvía nada.
+ * Es un objeto estable: representa la misma sesión local durante el test.
  */
-const SESSION_FINGERPRINT = "Zk3vJ8xQ1nT5pR7wY2bA";
-/** Otra sesión del backend (otra cuenta u otro login). */
-const OTHER_SESSION_FINGERPRINT = "Q7wY2bA0Zk3vJ8xQ1nT5pR";
+const SESSION_PROOF = "server-session-a";
 
 const product = {
   id: "raptor+",
@@ -63,7 +59,7 @@ function fillValidForm() {
 }
 
 describe("CheckoutModal · un 401 distribuidor nunca se reintenta como pedido público (D1)", () => {
-  it("conserva carrito y clave, pide reingreso y reintenta por la misma vía", async () => {
+  it("conserva el historial y permite una compra independiente por la misma vía", async () => {
     vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
     const onDistributorSessionExpired = vi.fn();
     const submitFn = vi.fn(async (_payload: OrderPayload) => ({
@@ -79,7 +75,7 @@ describe("CheckoutModal · un 401 distribuidor nunca se reintenta como pedido p�
         total={1000}
         clearCart={clearCart}
         distributorMode
-        distributorSessionFingerprint={SESSION_FINGERPRINT}
+        distributorSessionFingerprint={SESSION_PROOF}
         distributorDiscountPercent={20}
         distributorTotal={800}
         distributorNetByProduct={{ "raptor+": 800 }}
@@ -96,14 +92,14 @@ describe("CheckoutModal · un 401 distribuidor nunca se reintenta como pedido p�
     expect(onDistributorSessionExpired).toHaveBeenCalledOnce();
     await screen.findByText(/Tu sesión de distribuidor venció/);
     expect(clearCart).not.toHaveBeenCalled();
-    expect(screen.getByRole("button", { name: "Reintentar envío" })).toBeEnabled();
-
-    // El reintento usa la misma vía distribuidor y la misma clave: jamás pública.
-    fireEvent.click(screen.getByRole("button", { name: "Reintentar envío" }));
+    expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar pedido nuevo" }));
+    fillValidForm();
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     await waitFor(() => expect(submitFn).toHaveBeenCalledTimes(2));
     const first = vi.mocked(submitFn).mock.calls[0][0];
     const second = vi.mocked(submitFn).mock.calls[1][0];
-    expect(second.idempotencyKey).toBe(first.idempotencyKey);
+    expect(second.idempotencyKey).not.toBe(first.idempotencyKey);
     expect(second.lines).toEqual(first.lines);
     expect(clearCart).not.toHaveBeenCalled();
   });
@@ -119,7 +115,7 @@ describe("CheckoutModal · el descuento sólo se muestra cuando está confirmado
         total={1000}
         clearCart={vi.fn()}
         distributorMode
-        distributorSessionFingerprint={SESSION_FINGERPRINT}
+        distributorSessionFingerprint={SESSION_PROOF}
         distributorDiscountPercent={20}
         distributorDiscountConfirmed={discountConfirmed}
         distributorTotal={800}
@@ -270,7 +266,7 @@ function renderDistributorCheckout(submitFn: ReturnType<typeof distributorSubmit
       total={1000}
       clearCart={vi.fn()}
       distributorMode
-      distributorSessionFingerprint={SESSION_FINGERPRINT}
+      distributorSessionFingerprint={SESSION_PROOF}
       distributorDiscountPercent={20}
       distributorTotal={800}
       distributorNetByProduct={{ "raptor+": 800 }}
@@ -323,8 +319,8 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
     expect(calls[0].storageAtSend.session).not.toContain(TOKEN);
 
     await screen.findByRole("dialog", { name: "¡Pedido enviado con éxito!" });
-    expect(localStorage.getItem("starvie-order-attempt-v2-distributor")).toBeNull();
-    expect(sessionStorage.getItem("starvie-order-attempt-v2-distributor-session")).toBeNull();
+    expect(purchaseMarkers()).toHaveLength(1);
+    expect(purchaseMarkers()[0].value.status).toBe("completed");
   });
 
   it("sin token no hay POST ni intento creado, y el envío sigue bloqueado", async () => {
@@ -450,7 +446,7 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
     /* El backend NO creó ningún pedido: no puede quedar un intento
        marcado como aceptado-pero-no-confirmado, ni un aviso de "pedido
        sin confirmar" que le diga al usuario que no lo vuelva a enviar. */
-    const marker = JSON.parse(localStorage.getItem("starvie-order-attempt-v2-distributor")!);
+    const marker = purchaseMarkers()[0].value;
     expect(marker.status).not.toBe("accepted");
     expect(screen.queryByLabelText("Pedido sin confirmar")).toBeNull();
     expect(screen.queryByText(/No pudimos confirmar si RealStep recibió tu pedido/)).toBeNull();
@@ -477,11 +473,11 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
 
     /* El pedido termina confirmado: no queda un intento que bloquee. */
     await screen.findByRole("dialog", { name: "¡Pedido enviado con éxito!" });
-    expect(localStorage.getItem("starvie-order-attempt-v2-distributor")).toBeNull();
-    expect(sessionStorage.getItem("starvie-order-attempt-v2-distributor-session")).toBeNull();
+    expect(purchaseMarkers()).toHaveLength(1);
+    expect(purchaseMarkers()[0].value.status).toBe("completed");
   });
 
-  it("consultar un pedido ya aceptado NO lleva token y conserva la misma clave", async () => {
+  it("un pedido aceptado se confirma automáticamente y una compra nueva exige clave y token nuevos", async () => {
     vi.stubEnv("VITE_DISTRIBUTOR_API_BASE_URL", "https://distributor.test");
     const widget = enableMockTurnstile();
     const { calls, fetchImpl } = mockDistributorFetch((_call, index) =>
@@ -498,16 +494,23 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
 
     await waitFor(() => expect(calls).toHaveLength(1));
     expect(calls[0].body?.turnstileToken).toBe(TOKEN);
-    await screen.findByText("Pedido recibido — en proceso.");
+    await screen.findByText("¡Pedido recibido!");
     /* En consulta no hay captcha: una sola instancia, nunca dos. */
     expect(document.querySelectorAll(".checkout-turnstile")).toHaveLength(0);
     expect(widget.api.render).toHaveBeenCalledOnce();
 
-    fireEvent.click(screen.getByRole("button", { name: "Consultar estado" }));
+    expect(screen.queryByRole("button", { name: /Consultar estado/ })).toBeNull();
+    const before = storageBytes();
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar pedido nuevo" }));
+    fillValidForm();
+    await waitFor(() => expect(widget.api.render).toHaveBeenCalledTimes(2));
+    expect(screen.getByRole("button", { name: "Enviar pedido" })).toBeDisabled();
+    act(() => widget.callbacks().callback(TOKEN_NUEVO));
+    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     await waitFor(() => expect(calls).toHaveLength(2));
-    expect(calls[1].body).not.toHaveProperty("turnstileToken");
-    expect(calls[1].body?.idempotencyKey).toBe(calls[0].body?.idempotencyKey);
-    expect(calls[1].body?.lines).toEqual(calls[0].body?.lines);
+    expect(calls[1].body?.turnstileToken).toBe(TOKEN_NUEVO);
+    expect(calls[1].body?.idempotencyKey).not.toBe(calls[0].body?.idempotencyKey);
+    for (const [key, value] of Object.entries(before.local)) expect(localStorage.getItem(key)).toBe(value);
     await screen.findByRole("dialog", { name: "¡Pedido enviado con éxito!" });
   });
 
@@ -546,10 +549,10 @@ describe("CheckoutModal distribuidor · Turnstile", () => {
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
 
     await waitFor(() => expect(calls).toHaveLength(1));
-    await screen.findByLabelText("Pedido sin confirmar");
-    expect(screen.getByText(/No pudimos confirmar si RealStep recibió tu pedido/)).toBeVisible();
-    expect(JSON.parse(localStorage.getItem("starvie-order-attempt-v2-distributor")!).status).toBe("accepted");
-    expect(screen.getByRole("button", { name: "Reintentar envío" })).toBeEnabled();
+    await screen.findByText(/No pudimos confirmar el resultado del envío/);
+    expect(purchaseMarkers()[0].value.status).toBe("accepted");
+    expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Iniciar pedido nuevo" })).toBeEnabled();
   });
 });
 
@@ -565,6 +568,7 @@ describe("CheckoutModal distribuidor · un intento incierto no se libera localme
     const key = (prepared as { idempotencyKey: string }).idempotencyKey;
     /* El servidor recibió el pedido y la respuesta se perdió. */
     orderAttempt.updateAttempt([{ productId: "raptor+", qty: 2 }], {
+      channel: "distributor",
       orderId: "ord-dist",
       status: "accepted",
     });
@@ -585,10 +589,10 @@ describe("CheckoutModal distribuidor · un intento incierto no se libera localme
     );
 
     /* Sin prueba viva el canal distribuidor no reenvía ni libera nada. */
-    expect(screen.getByRole("alert")).toHaveTextContent(/pertenece a otro canal o a otra sesión/);
+    expect(screen.getByRole("alert")).toHaveTextContent(/Ingresá como distribuidor/);
     expect(screen.queryByRole("checkbox", { name: /Confirmo que consulté/ })).toBeNull();
     expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
-    expect(screen.getByText(key)).toBeVisible();
+    expect(screen.queryByText(key)).toBeNull();
     expect(localStorage.getItem("starvie-order-attempt-v2-distributor")).toBe(markerBefore);
     expect(uuid).not.toHaveBeenCalled();
     expect(submitFn).not.toHaveBeenCalled();
@@ -604,312 +608,32 @@ describe("CheckoutModal distribuidor · un intento incierto no se libera localme
  *   validation → liberable (el servidor rechaza antes de crear el pedido).
  *   failed / conflict → NO liberables en NINGÚN canal.
  * ══════════════════════════════════════════════════════════════════ */
-describe("CheckoutModal distribuidor · estados definitivos y liberación local", () => {
-  const LOCAL_KEY = "starvie-order-attempt-v2-distributor";
-  const SESSION_KEY = "starvie-order-attempt-v2-distributor-session";
-  const RELEASE_BUTTON = "Resolver intento e iniciar nueva compra";
-
+describe("CheckoutModal distribuidor · errores definitivos no exigen conciliación", () => {
   beforeEach(() => {
     vi.stubEnv("VITE_DISTRIBUTOR_API_BASE_URL", "https://distributor.test");
     vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
   });
-
-  it("502 failed: el terminal se conserva con su referencia y NO se libera", async () => {
-    const { calls, fetchImpl } = mockDistributorFetch(() =>
-      jsonResponse({ ok: false, status: "failed", orderId: "ord-f" }, 502));
+  it.each([
+    [502, { ok: false, status: "failed", orderId: "ord-f" }, "failed"],
+    [409, { ok: false, error: "Idempotency key already used with a different request" }, "conflict"],
+    [400, { ok: false, error: "Producto no disponible" }, "validation"],
+  ] as const)("HTTP %s conserva el resultado y permite una nueva compra", async (status, body, expected) => {
+    const { calls, fetchImpl } = mockDistributorFetch(() => jsonResponse(body, status));
     renderDistributorCheckout(distributorSubmit(fetchImpl));
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await waitFor(() => expect(calls).toHaveLength(1));
-    await screen.findByText(/El pedido falló definitivamente/);
-
-    const key = JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey;
-    const markerBefore = localStorage.getItem(LOCAL_KEY);
-    const sessionBefore = sessionStorage.getItem(SESSION_KEY);
-    const uuid = vi.spyOn(crypto, "randomUUID");
-
-    expect.soft(screen.queryByRole("button", { name: RELEASE_BUTTON })).toBeNull();
-    expect.soft(screen.queryByRole("checkbox", { name: /Confirmo que consulté/ })).toBeNull();
-    expect.soft(screen.queryByText(key)).toBeInTheDocument();
-    expect.soft(screen.queryByRole("button", { name: "Copiar referencia" })).toBeInTheDocument();
-    expect.soft(screen.queryByRole("link", { name: "WhatsApp comercial de RealStep" })).toBeInTheDocument();
-    /* El canal distribuidor dispone de conciliación verificable: el aviso
-       lo declara y aclara que sólo la resolución del servidor habilita. */
-    expect.soft(screen.queryByText(/Sólo una resolución de RealStep habilita continuar/i)).toBeInTheDocument();
-    expect.soft(screen.queryByText(/El pedido llegó al servidor/)).toBeInTheDocument();
-
-    const release = screen.queryByRole("button", { name: RELEASE_BUTTON });
-    if (release) fireEvent.click(release);
-    const send = screen.queryByRole("button", { name: /^(Enviar pedido|Reintentar envío)$/ });
-    if (send) {
-      fillValidForm();
-      fireEvent.click(send);
-    }
-
-    expect.soft(localStorage.getItem(LOCAL_KEY)).toBe(markerBefore);
-    expect.soft(sessionStorage.getItem(SESSION_KEY)).toBe(sessionBefore);
-    expect.soft(uuid).not.toHaveBeenCalled();
-    expect.soft(calls).toHaveLength(1);
-    uuid.mockRestore();
-  });
-
-  it("409 conflict: el terminal se conserva con su referencia y NO se libera", async () => {
-    const { calls, fetchImpl } = mockDistributorFetch(() =>
-      jsonResponse({ ok: false, error: "Idempotency key already used with a different request" }, 409));
-    renderDistributorCheckout(distributorSubmit(fetchImpl));
-    fillValidForm();
-    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await waitFor(() => expect(calls).toHaveLength(1));
-    await screen.findByText(/Idempotency key already used with a different request/);
-
-    const key = JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey;
-    const markerBefore = localStorage.getItem(LOCAL_KEY);
-    const sessionBefore = sessionStorage.getItem(SESSION_KEY);
-    const uuid = vi.spyOn(crypto, "randomUUID");
-
-    expect.soft(screen.queryByRole("button", { name: RELEASE_BUTTON })).toBeNull();
-    expect.soft(screen.queryByRole("checkbox", { name: /Confirmo que consulté/ })).toBeNull();
-    expect.soft(screen.queryByText(key)).toBeInTheDocument();
-    expect.soft(screen.queryByRole("button", { name: "Copiar referencia" })).toBeInTheDocument();
-    expect.soft(screen.queryByRole("link", { name: "WhatsApp comercial de RealStep" })).toBeInTheDocument();
-    expect.soft(screen.queryByText(/no se puede verificar desde el catálogo/)).toBeInTheDocument();
-
-    const release = screen.queryByRole("button", { name: RELEASE_BUTTON });
-    if (release) fireEvent.click(release);
-    const send = screen.queryByRole("button", { name: /^(Enviar pedido|Reintentar envío)$/ });
-    if (send) {
-      fillValidForm();
-      fireEvent.click(send);
-    }
-
-    expect.soft(localStorage.getItem(LOCAL_KEY)).toBe(markerBefore);
-    expect.soft(sessionStorage.getItem(SESSION_KEY)).toBe(sessionBefore);
-    expect.soft(uuid).not.toHaveBeenCalled();
-    expect.soft(calls).toHaveLength(1);
-    uuid.mockRestore();
-  });
-
-  it("400 validation: el rechazo definitivo NO atrapa al cliente y la liberación sigue disponible", async () => {
-    const { calls, fetchImpl } = mockDistributorFetch(() =>
-      jsonResponse({ ok: false, error: "Producto no disponible" }, 400));
-    renderDistributorCheckout(distributorSubmit(fetchImpl));
-    fillValidForm();
-    fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
-    await waitFor(() => expect(calls).toHaveLength(1));
-    await screen.findByText("Producto no disponible");
-
-    const firstKey = JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey;
-    const release = screen.getByRole("button", { name: RELEASE_BUTTON });
-    expect(release).toBeVisible();
-    fireEvent.click(release);
-    expect(localStorage.getItem(LOCAL_KEY)).toBeNull();
-    expect(sessionStorage.getItem(SESSION_KEY)).toBeNull();
-
+    await screen.findByRole("button", { name: "Iniciar pedido nuevo" });
+    expect(calls).toHaveLength(1);
+    const first = purchaseMarkers()[0];
+    expect(first.value.status).toBe(expected);
+    const original = localStorage.getItem(first.key);
+    expect(screen.queryByRole("checkbox")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Resolver intento|Consultar estado/ })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Iniciar pedido nuevo" }));
     fillValidForm();
     fireEvent.click(screen.getByRole("button", { name: "Enviar pedido" }));
     await waitFor(() => expect(calls).toHaveLength(2));
-    const secondKey = JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey;
-    expect(secondKey).not.toBe(firstKey);
-  });
-});
-
-
-/* ═════════════════════════════════════════════════
- * La prueba de continuidad es el identificador de sesión del backend.
- *
- * Sin identificador no hay continuidad: el intento no se reenvía, no se
- * libera ni se concilia, y el registro se conserva byte a byte.
- * ═════════════════════════════════════════════════ */
-describe("CheckoutModal distribuidor · la prueba de continuidad es el identificador del backend", () => {
-  const LOCAL_KEY = "starvie-order-attempt-v2-distributor";
-  const SESSION_KEY = "starvie-order-attempt-v2-distributor-session";
-  const contact = {
-    name: "Santiago Lareu",
-    legalName: "StarVie Padel SAS",
-    email: "santi@example.com",
-  };
-  const lines = [{ productId: "raptor+", qty: 2 }];
-
-  /** Siembra un intento distribuidor INCIERTO atado a una prueba. */
-  function seedAttempt(proof: string | null): string {
-    const prepared = orderAttempt.prepareAttempt(contact, lines, { channel: "distributor" });
-    expect(prepared).not.toBe(false);
-    const key = (prepared as { idempotencyKey: string }).idempotencyKey;
-    orderAttempt.updateAttempt(lines, {
-      channel: "distributor",
-      orderId: "ord-dist",
-      status: "accepted",
-    });
-    rememberAttemptContext(key, { channel: "distributor", distributorProof: proof });
-    return key;
-  }
-
-  function renderCheckout(fingerprint: string | null) {
-    return render(
-      <CheckoutModal
-        open
-        onClose={vi.fn()}
-        presented={presented}
-        total={1000}
-        clearCart={vi.fn()}
-        distributorMode
-        distributorSessionFingerprint={fingerprint}
-        distributorDiscountPercent={20}
-        submitFn={vi.fn(async () => ({ kind: "unknown" as const, error: "sin red" }))}
-      />,
-    );
-  }
-
-  beforeEach(() => {
-    vi.stubEnv("VITE_DISTRIBUTOR_API_BASE_URL", "https://distributor.test");
-    vi.stubEnv("VITE_TURNSTILE_ENABLED", "false");
-  });
-
-  it("la MISMA sesión (mismo identificador) deja el intento reenviable", async () => {
-    const key = seedAttempt(SESSION_FINGERPRINT);
-    const markerBefore = localStorage.getItem(LOCAL_KEY);
-    renderCheckout(SESSION_FINGERPRINT);
-
-    expect(screen.getByRole("button", { name: "Reintentar envío" })).toBeEnabled();
-    expect(screen.queryByText(/pertenece a otro canal o a otra sesión/)).toBeNull();
-    expect(localStorage.getItem(LOCAL_KEY)).toBe(markerBefore);
-    expect(JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey).toBe(key);
-  });
-
-  it("otra sesión (otro identificador) NO reenvía el intento y conserva el registro", async () => {
-    const key = seedAttempt(SESSION_FINGERPRINT);
-    const markerBefore = localStorage.getItem(LOCAL_KEY);
-    const submitFn = vi.fn(async () => ({ kind: "unknown" as const, error: "sin red" }));
-    render(
-      <CheckoutModal
-        open
-        onClose={vi.fn()}
-        presented={presented}
-        total={1000}
-        clearCart={vi.fn()}
-        distributorMode
-        distributorSessionFingerprint={OTHER_SESSION_FINGERPRINT}
-        distributorDiscountPercent={20}
-        submitFn={submitFn}
-      />,
-    );
-
-    expect(screen.getByRole("alert")).toHaveTextContent(/pertenece a otro canal o a otra sesión/);
-    expect(screen.queryByRole("button", { name: "Enviar pedido" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
-    await waitFor(() => expect(submitFn).not.toHaveBeenCalled());
-    /* El registro se conserva byte a byte: ni clave nueva, ni pedido. */
-    expect(localStorage.getItem(LOCAL_KEY)).toBe(markerBefore);
-    expect(JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey).toBe(key);
-  });
-
-  it("sin prueba (logout o backend sin identificador) NO reenvía ni libera y conserva el registro", async () => {
-    const key = seedAttempt(SESSION_FINGERPRINT);
-    const markerBefore = localStorage.getItem(LOCAL_KEY);
-    const submitFn = vi.fn(async () => ({ kind: "unknown" as const, error: "sin red" }));
-    render(
-      <CheckoutModal
-        open
-        onClose={vi.fn()}
-        presented={presented}
-        total={1000}
-        clearCart={vi.fn()}
-        distributorMode
-        distributorSessionFingerprint={null}
-        distributorDiscountPercent={20}
-        submitFn={submitFn}
-      />,
-    );
-
-    expect(screen.getByRole("alert")).toHaveTextContent(/pertenece a otro canal o a otra sesión/);
-    expect(screen.queryByRole("button", { name: "Enviar pedido" })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Reintentar envío" })).toBeNull();
-    /* Sin prueba de continuidad tampoco hay liberación local. */
-    expect(screen.queryByRole("checkbox", { name: /Confirmo que consult/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
-    await waitFor(() => expect(submitFn).not.toHaveBeenCalled());
-    expect(localStorage.getItem(LOCAL_KEY)).toBe(markerBefore);
-    expect(JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey).toBe(key);
-  });
-
-  it("un rechazo DEFINITIVO sin pedido creado tampoco se libera sin prueba", () => {
-    /* Estado liberable por resultado (validation) pero SIN prueba de
-       continuidad: el registro no se borra. */
-    const prepared = orderAttempt.prepareAttempt(contact, lines, { channel: "distributor" });
-    expect(prepared).not.toBe(false);
-    const key = (prepared as { idempotencyKey: string }).idempotencyKey;
-    orderAttempt.updateAttempt(lines, {
-      channel: "distributor",
-      orderId: null,
-      status: "validation",
-    });
-    const markerBefore = localStorage.getItem(LOCAL_KEY);
-    renderCheckout(null);
-
-    expect(screen.queryByRole("checkbox", { name: /Confirmo que consult/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: "Resolver intento e iniciar nueva compra" })).toBeNull();
-    expect(localStorage.getItem(LOCAL_KEY)).toBe(markerBefore);
-    expect(JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey).toBe(key);
-    expect(sessionStorage.getItem(SESSION_KEY)).not.toBeNull();
-  });
-
-  it("con la MISMA sesión el pedido sigue conciliable: RECEIVED habilita la compra nueva", async () => {
-    const key = seedAttempt(SESSION_FINGERPRINT);
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      headers: new Headers(),
-      json: async () => ({
-        ok: true,
-        reference: key,
-        status: "RECEIVED",
-        decidedAt: "2026-11-20T10:00:00.000Z",
-      }),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    renderCheckout(SESSION_FINGERPRINT);
-    fireEvent.click(screen.getByRole("button", { name: "Consultar estado del pedido" }));
-    await screen.findAllByText("RealStep confirmó la recepción de este pedido.");
-
-    const newPurchase = screen.getByRole("button", { name: "Iniciar una nueva compra" }) as HTMLButtonElement;
-    expect(newPurchase.disabled).toBe(false);
-  });
-
-  it("con otra sesión la conciliación NO habilita el cierre", async () => {
-    const key = seedAttempt(SESSION_FINGERPRINT);
-    const fetchMock = vi.fn(async () => ({
-      ok: true,
-      status: 200,
-      headers: new Headers(),
-      json: async () => ({
-        ok: true,
-        reference: key,
-        status: "RECEIVED",
-        decidedAt: "2026-11-20T10:00:00.000Z",
-      }),
-    }));
-    vi.stubGlobal("fetch", fetchMock);
-
-    render(
-      <CheckoutModal
-        open
-        onClose={vi.fn()}
-        presented={presented}
-        total={1000}
-        clearCart={vi.fn()}
-        distributorMode
-        distributorSessionFingerprint={OTHER_SESSION_FINGERPRINT}
-        distributorDiscountPercent={20}
-        submitFn={vi.fn(async () => ({ kind: "unknown" as const, error: "sin red" }))}
-      />,
-    );
-
-    fireEvent.click(screen.getByRole("button", { name: "Consultar estado del pedido" }));
-    await screen.findAllByText("RealStep confirmó la recepción de este pedido.");
-    const newPurchase = screen.getByRole("button", { name: "Iniciar una nueva compra" }) as HTMLButtonElement;
-    expect(newPurchase.disabled).toBe(true);
-    /* El registro se conserva: otra cuenta no cierra el pedido de nadie. */
-    expect(JSON.parse(localStorage.getItem(LOCAL_KEY)!).idempotencyKey).toBe(key);
+    expect(calls[1].body?.idempotencyKey).not.toBe(calls[0].body?.idempotencyKey);
+    expect(localStorage.getItem(first.key)).toBe(original);
   });
 });
