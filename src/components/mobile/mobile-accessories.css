@@ -49,11 +49,32 @@
   .mobile-accessory-product__features li > span { font-size: calc(2.1 * var(--accessory-unit)); color: #9facb9; border-right: 1px solid #b5bec838; padding: .6cqh 0; }
   .mobile-accessory-product__features strong { font-size: inherit; line-height: 1.15; font-weight: 550; }
   .mobile-accessory-product__features p { margin: .25cqh 0 0; font-size: max(9px, calc(2.35 * var(--accessory-unit))); line-height: 1.15; color: #bfc5cb; }
-  .mobile-accessory-product__specs { position: absolute; top: 83%; left: 5%; right: 5%; margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3cqw;
+  /* Ficha de datos: DIMENSIONES | MATERIALES y, cuando el catálogo vivo tiene
+     precio, la celda PRECIO LISTA como tercera celda (misma caja, filete fino). */
+  .mobile-accessory-product__facts { position: absolute; top: 83%; left: 5%; right: 5%; margin: 0;
+    display: grid; grid-template-columns: minmax(0, 1fr); gap: 3cqw; align-items: start;
     border: 1px solid #b5bec838; border-radius: 5px; padding: 1.2cqh 2cqw; background: #10151d99; }
+  .mobile-accessory-product__facts[data-has-price="true"] { grid-template-columns: minmax(0, 1fr) minmax(0, max-content); }
+  .mobile-accessory-product__specs { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3cqw; align-content: start; }
   .mobile-accessory-product__specs > div + div { border-left: 1px solid #b5bec838; padding-left: 3cqw; }
   .mobile-accessory-product__specs dt { font-size: max(8px, calc(2.1 * var(--accessory-unit))); color: #b8c1ca; letter-spacing: .12em; }
   .mobile-accessory-product__specs dd { margin: .6cqh 0 0; font-size: max(10px, calc(2.9 * var(--accessory-unit))); line-height: 1.2; }
+  /* Celda de precio: rótulo editorial, importe blanco destacado y filete
+     vertical como el de las otras celdas. Sin placa ni panel aparte. */
+  .mobile-accessory-price { display: grid; align-content: start; gap: .25cqh; min-width: 0;
+    border-left: 1px solid #b5bec838; padding-left: 2cqw; }
+  .mobile-accessory-price__label { font-size: max(8px, calc(2.1 * var(--accessory-unit))); font-weight: 700; letter-spacing: .12em; color: #e84b3e; }
+  .mobile-accessory-price__amount { color: #fff; font-size: max(11px, calc(3.4 * var(--accessory-unit))); font-weight: 760; letter-spacing: -.03em; line-height: 1.05; white-space: nowrap; }
+  .mobile-accessory-price__net { display: grid; align-content: start; gap: .15cqh; margin-top: .25cqh; }
+  .mobile-accessory-price__net-label { font-size: max(8px, calc(2 * var(--accessory-unit))); letter-spacing: .1em; color: #b8c1ca; }
+  .mobile-accessory-price__net-value { color: #fff; font-size: max(10px, calc(2.9 * var(--accessory-unit))); font-weight: 700; line-height: 1.05; white-space: nowrap; }
+  /* Con neto confirmado manda el neto; el precio lista pasa a segundo plano. */
+  .mobile-accessory-price[data-has-net="true"] .mobile-accessory-price__amount { color: #b8c1ca; font-size: max(9px, calc(2.4 * var(--accessory-unit))); font-weight: 500; letter-spacing: 0; }
+  .mobile-accessory-price[data-price-state="pending"] .mobile-accessory-price__net-value { color: #b8c1ca; font-weight: 500; }
+  /* La tercera celda reparte el ancho de la ficha: los valores largos se
+     reparten en más de una línea y la ficha necesita algo de altura extra.
+     Con un interlineado más ceñido la ficha sigue por encima del CTA. */
+  .mobile-accessory-product__facts[data-has-price="true"] .mobile-accessory-product__specs dd { margin-top: .4cqh; line-height: 1.05; }
   .mobile-accessory-product footer { position: absolute; bottom: 3.4%; left: 5%; right: 5%; font-size: max(8px, calc(2.15 * var(--accessory-unit))); line-height: 1.6; color: #b7b0a7; }
   .mobile-accessory-product footer > span:last-child { display: none; }
   .mobile-accessory-product__explore { position: absolute; bottom: 3%; right: 5%; width: 39%; min-height: 44px; border: 1px solid #b5bec899; background: #b5bec821; color: #f3eeea;
@@ -65,7 +86,7 @@
   }
   /* Opt-in space for two-line material values; all existing profiles keep their geometry. */
   .mobile-accessory-product[data-extended-specs="true"] .mobile-accessory-product__features { height: calc(30% - 3cqh); }
-  .mobile-accessory-product[data-extended-specs="true"] .mobile-accessory-product__specs { top: calc(83% - 3cqh); }
+  .mobile-accessory-product[data-extended-specs="true"] .mobile-accessory-product__facts { top: calc(83% - 3cqh); }
   /* Frontal backpack composition: nearly half the leaf belongs to the real
      photograph. Registered backpacks share compact cards; specs/footer stay anchored. */
   .mobile-accessory-product:is([data-accessory-product="m hard eva black"], [data-accessory-product="artic sport"], [data-accessory-product="black voltage"]) .mobile-accessory-product__hero { top: 13%; height: 47%; }
@@ -75,9 +96,9 @@
   @media (max-height: 720px) {
     .mobile-accessory-product__hero { top: 16%; height: 25%; }
     .mobile-accessory-product__features { top: 43%; height: 34.5%; }
-    .mobile-accessory-product__specs { top: 79%; padding-block: .8cqh; }
+    .mobile-accessory-product__facts { top: 79%; padding-block: .8cqh; }
     .mobile-accessory-product[data-extended-specs="true"] .mobile-accessory-product__features { height: calc(34.5% - 3cqh); }
-    .mobile-accessory-product[data-extended-specs="true"] .mobile-accessory-product__specs { top: calc(79% - 3cqh); }
+    .mobile-accessory-product[data-extended-specs="true"] .mobile-accessory-product__facts { top: calc(79% - 3cqh); }
     /* Short phones retain space for wrapped copy and a complete handle/base. */
     .mobile-accessory-product:is([data-accessory-product="m hard eva black"], [data-accessory-product="artic sport"], [data-accessory-product="black voltage"]) .mobile-accessory-product__hero { top: 15%; height: 35.5%; }
     .mobile-accessory-product:is([data-accessory-product="m hard eva black"], [data-accessory-product="artic sport"], [data-accessory-product="black voltage"]) .mobile-accessory-product__hero::before { width: 23cqh; }
@@ -94,7 +115,7 @@
     .mobile-accessory-product:is([data-accessory-product="m hard eva black"], [data-accessory-product="artic sport"], [data-accessory-product="black voltage"]) .mobile-accessory-product__hero { top: 14%; height: 41%; }
     .mobile-accessory-product:is([data-accessory-product="m hard eva black"], [data-accessory-product="artic sport"], [data-accessory-product="black voltage"]) .mobile-accessory-product__features { top: 55.5%; height: 22%; }
     .mobile-accessory-product:is([data-accessory-product="m hard eva black"], [data-accessory-product="artic sport"], [data-accessory-product="black voltage"]) .mobile-accessory-product__features li { padding-block: 0; font-size: 10px; line-height: 1.1; }
-    .mobile-accessory-product:is([data-accessory-product="m hard eva black"], [data-accessory-product="artic sport"], [data-accessory-product="black voltage"]) .mobile-accessory-product__specs { top: 79%; padding-block: .8cqh; }
+    .mobile-accessory-product:is([data-accessory-product="m hard eva black"], [data-accessory-product="artic sport"], [data-accessory-product="black voltage"]) .mobile-accessory-product__facts { top: 79%; padding-block: .8cqh; }
   }
   /* Two products share a single portrait leaf. Touch controls reserve 44px;
      the remaining space belongs to complete, proportionally contained photos. */
@@ -107,10 +128,24 @@
   .mobile-accessory-pair__hero { top: calc(44px + .6cqh); bottom: calc(44px + 1.5cqh); left: 0; width: 100%; height: auto; }
   .mobile-accessory-pair__hero::before { bottom: -.4cqh; left: 5%; right: 5%; }
   .mobile-accessory-pair .mobile-premium-product-page__product-button { --mobile-premium-accent: #e84b3e; top: 0; bottom: auto; right: 0; }
-  .mobile-accessory-pair__details { position: absolute; left: 0; bottom: 0; width: 60%; }
+  .mobile-accessory-pair__details { position: absolute; left: 0; bottom: 0; width: 60%;
+    display: grid; grid-template-columns: minmax(0, 1fr) auto; column-gap: 2cqw; row-gap: 0; align-items: start; }
   .mobile-accessory-pair__details dl { margin: 0; }
   .mobile-accessory-pair__details dt { font-size: max(8px, calc(2.1 * var(--accessory-unit))); color: #b8c1ca; letter-spacing: .12em; }
   .mobile-accessory-pair__details dd { margin: .2cqh 0 0; font-size: max(10px, calc(2.8 * var(--accessory-unit))); line-height: 1.1; }
-  .mobile-accessory-pair__details p { margin: .4cqh 0 0; font-size: max(8px, calc(2.15 * var(--accessory-unit))); line-height: 1.35; color: #b7b0a7; }
+  .mobile-accessory-pair__details p { grid-column: 1 / -1; margin: .4cqh 0 0; font-size: max(8px, calc(2.15 * var(--accessory-unit))); line-height: 1.35; color: #b7b0a7; }
+  /* Cada neceser conserva su propio precio (P37): celda propia, filete fino.
+     La celda no crece por encima del bloque de materiales: la foto conserva
+     su sitio y no hay solapamiento con la ficha del bloque. */
+  .mobile-accessory-pair__details .mobile-accessory-price { gap: 0; padding-left: 2cqw; }
+  .mobile-accessory-pair__details .mobile-accessory-price__amount { font-size: max(10px, calc(2.8 * var(--accessory-unit))); line-height: 1.1; }
+  /* El neto del distribuidor ocupa una sola línea (rótulo + importe) para no
+     empujar la ficha del bloque hacia arriba. */
+  .mobile-accessory-pair__details .mobile-accessory-price__net { display: flex; align-items: baseline; gap: .4em; margin-top: .15cqh; }
+  .mobile-accessory-pair__details .mobile-accessory-price__net-label { font-size: max(8px, calc(2 * var(--accessory-unit))); }
+  .mobile-accessory-pair__details .mobile-accessory-price__net-value { font-size: max(10px, calc(2.9 * var(--accessory-unit))); }
+  /* Con un neto confirmado la ficha del bloque crece una línea: la fotografía
+     cede ese espacio y nunca queda por debajo de los datos del bloque. */
+  .mobile-accessory-pair__block:has(.mobile-accessory-price[data-has-net="true"]) .mobile-accessory-pair__hero { bottom: calc(44px + 1.5cqh + 10px); }
   .mobile-accessory-pair .mobile-accessory-product__explore { bottom: 0; right: 0; width: 36%; font-size: max(9px, calc(2.6 * var(--accessory-unit))); }
 }

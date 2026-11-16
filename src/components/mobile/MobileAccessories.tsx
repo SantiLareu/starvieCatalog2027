@@ -3,6 +3,8 @@ import type { CommerceProduct } from "../../commerce/types";
 import { MOBILE_ACCESSORY_INDEX_PAGE, mobileAccessorySections, type MobileAccessoryPresentation, type MobileAccessoryPairPresentation } from "../../data/mobileAccessoryPresentation";
 import logo from "../../assets/desktop/starvie-wall-logo.webp";
 import { ProductImage, assetUrl } from "../ProductImage";
+import { hasPrice } from "../../commerce/productEligibility";
+import { MobileAccessoryPriceCell } from "./MobileAccessoryPriceCell";
 import { MobileCourtBackground } from "./MobileCourtBackground";
 import { MobileIcon } from "./MobileIcon";
 import { usePremiumPageZoom } from "./usePremiumPageZoom";
@@ -60,6 +62,8 @@ export function MobileAccessoryProductPage({ product: candidate, presentation, a
   product: CommerceProduct | null; presentation: MobileAccessoryPresentation;
 }) {
   const product = candidate?.id === presentation.productId ? candidate : null;
+  // La ficha sólo suma la celda de precio cuando el catálogo vivo tiene precio.
+  const priced = product != null && hasPrice(product);
   return <AccessoryViewport active={active} pageId={presentation.pageId} accent={presentation.accent}>{ref =>
     <article ref={ref} className="mobile-premium-product-page mobile-accessory-page mobile-accessory-product" aria-label={`Página ${presentation.pageId}, ${presentation.title}`}
       data-accessory-product={presentation.productId}
@@ -84,7 +88,10 @@ export function MobileAccessoryProductPage({ product: candidate, presentation, a
           <div><strong>{feature.title}</strong>{feature.description ? <p>{feature.description}</p> : null}</div>
         </li>)}</ol>
       </section>
-      <dl className="mobile-accessory-product__specs">{presentation.specs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+      <div className="mobile-accessory-product__facts" data-has-price={priced ? "true" : undefined}>
+        <dl className="mobile-accessory-product__specs">{presentation.specs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+        <MobileAccessoryPriceCell product={product} active={active} live={live} />
+      </div>
       <footer><span>REF: {presentation.ref}<br />EAN: {presentation.ean}</span><span>{presentation.pageId}</span></footer>
       <button className="mobile-accessory-product__explore" type="button" data-product-id={product?.id} disabled={!live || !product}
         aria-label={product ? `Explorar ${product.nombre}` : "Producto no disponible"}>EXPLORAR <span aria-hidden="true">↗</span></button>
@@ -120,6 +127,7 @@ export function MobileAccessoryPairPage({ products, presentation, active, load, 
           </button>
           <div className="mobile-accessory-pair__details">
             <dl><dt>MATERIALES</dt><dd>{item.materials}</dd></dl>
+            <MobileAccessoryPriceCell product={product ?? null} active={active} live={live} />
             <p>REF: {item.ref}<br />EAN: {item.ean}</p>
           </div>
           <button className="mobile-accessory-product__explore" type="button" data-product-id={product?.id}

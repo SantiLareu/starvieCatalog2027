@@ -1,11 +1,12 @@
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import catalog from "../../../generated/products.json";
 import type { CommerceProduct } from "../../commerce/types";
+import { DistributorProvider } from "../../commerce/distributor/DistributorContext";
 import { mobileAccessoryPresentations, mobileAccessorySections, mobileNecessairesPresentation } from "../../data/mobileAccessoryPresentation";
 import { MobileAccessoriesIndex, MobileAccessoryProductPage, MobileAccessoryPairPage } from "./MobileAccessories";
 
-afterEach(cleanup);
+afterEach(() => { cleanup(); vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 const products = catalog.products as CommerceProduct[];
 const presentation = mobileAccessoryPresentations[0];
 const product = products.find(item => item.id === presentation.productId)!;
@@ -267,6 +268,69 @@ describe("mobile accessories share the live catalog and native book actions", ()
     const { container } = render(<MobileAccessoryProductPage presentation={presentation} product={products[0]} active={false} live={false} load={false} />);
     expect(container.querySelectorAll("[data-product-id], [data-accessory-hero-source]")).toHaveLength(0);
     screen.getAllByRole("button").forEach(button => expect(button).toBeDisabled());
+  });
+  it("keeps the data sheet without a price cell while the live catalog has no price", () => {
+    const { container } = render(<MobileAccessoryProductPage presentation={presentation} product={product} active live load />);
+    expect(product.precio).toBeNull();
+    expect(screen.queryByText("PRECIO LISTA")).toBeNull();
+    expect(container.querySelector(".mobile-accessory-product__facts")).not.toHaveAttribute("data-has-price");
+    expect([...container.querySelectorAll("dd")].map(item => item.textContent)).toEqual(["62x35x35 cm", "Hard Eva y PVC"]);
+  });
+  it("adds the price cell to the data sheet when the live catalog has a price", () => {
+    const eternal = mobileAccessoryPresentations.find(item => item.pageId === 29)!;
+    const original = products.find(item => item.id === "hard eva eternal")!;
+    const { container } = render(<MobileAccessoryProductPage presentation={eternal} product={original} active live load />);
+    expect(original.precio).toBe(146000);
+    expect(screen.getByText("PRECIO LISTA")).toBeVisible();
+    expect(screen.getByText("$ 146.000")).toBeVisible();
+    expect(container.querySelector(".mobile-accessory-product__facts")).toHaveAttribute("data-has-price", "true");
+  });
+  it("keeps each neceser with its own price on the shared P37 leaf", () => {
+    const updated = products.map(item => item.id === "neceser moss" ? { ...item, precio: 41500 } : item);
+    render(<MobileAccessoryPairPage presentation={mobileNecessairesPresentation} products={updated} active live load />);
+    const navy = screen.getByRole("region", { name: "NAVY" });
+    const moss = screen.getByRole("region", { name: "MOSS" });
+    expect(within(navy).getByText("PRECIO LISTA")).toBeVisible();
+    expect(within(navy).getByText("$ 39.000")).toBeVisible();
+    expect(within(moss).getByText("$ 41.500")).toBeVisible();
+    expect(within(navy).queryByText("$ 41.500")).toBeNull();
+    expect(within(moss).queryByText("$ 39.000")).toBeNull();
+  });
+  it("mantiene cada neceser con su propio precio neto de distribuidor", async () => {
+    vi.stubEnv("VITE_DISTRIBUTOR_API_BASE_URL", "http://127.0.0.1:9999");
+    const listByProduct: Record<string, number> = { "neceser navy": 39000, "neceser moss": 41500 };
+    const netByProduct: Record<string, number> = { "neceser navy": 31200, "neceser moss": 33200 };
+    const json = (body: unknown) => new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("/api/distributor/session")) {
+        return json({ ok: true, authenticated: true, discountPercent: 20, expiresAt: new Date(Date.now() + 3_600_000).toISOString(), sessionId: "prueba" });
+      }
+      if (url.includes("/api/distributor/quote")) {
+        // La cotización se arma con el productId que pide el frontend.
+        const productId = new URL(url).searchParams.get("productId") ?? "";
+        const list = listByProduct[productId] ?? 100000;
+        const net = netByProduct[productId] ?? Math.round(list * .8);
+        return json({ ok: true, currency: "ARS", discountPercent: 20, lines: [{ productId, qty: 1, listUnitPrice: list, netUnitPrice: net, netSubtotal: net }] });
+      }
+      throw new Error(`fetch inesperado: ${url}`);
+    }));
+
+    const updated = products.map(item => item.id === "neceser moss" ? { ...item, precio: 41500 } : item);
+    render(
+      <DistributorProvider>
+        <MobileAccessoryPairPage presentation={mobileNecessairesPresentation} products={updated} active live load />
+      </DistributorProvider>,
+    );
+
+    const navy = screen.getByRole("region", { name: "NAVY" });
+    const moss = screen.getByRole("region", { name: "MOSS" });
+    await waitFor(() => expect(within(navy).getByText("$ 31.200")).toBeVisible());
+    expect(within(navy).getByText("$ 39.000")).toBeVisible();
+    expect(within(moss).getByText("$ 33.200")).toBeVisible();
+    expect(within(moss).getByText("$ 41.500")).toBeVisible();
+    // Ningún neceser muestra el importe del otro.
+    expect(within(navy).queryByText("$ 33.200")).toBeNull();
+    expect(within(moss).queryByText("$ 31.200")).toBeNull();
   });
   it("registers Eternal on P29 with the same template data and three original modal actions", () => {
     const eternal = mobileAccessoryPresentations.find(item => item.pageId === 29)!;
