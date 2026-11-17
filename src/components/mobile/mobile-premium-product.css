@@ -18,6 +18,8 @@
   /* Size individual elements against both axes; never stretch the composition
      or its assets. Short reading bands need smaller type/icons and gaps. */
   --mobile-premium-unit: min(1cqw, .65cqh);
+  --mobile-explore-bottom: max(5px, 1cqh);
+  --mobile-explore-height: 44px;
   background: var(--mobile-premium-background);
   box-shadow: inset 3px 0 9px #0006, inset -1px 0 1px #ffffff12;
 }
@@ -94,7 +96,7 @@
 .mobile-premium-product-page .mobile-premium-product-page__features svg { width: calc(4 * var(--mobile-premium-unit)); height: calc(4 * var(--mobile-premium-unit)); color: color-mix(in srgb, var(--mobile-premium-accent) 55%, #e5dacf); }
 .mobile-premium-product-page .mobile-premium-product-page__features dt { font-size: calc(2.3 * var(--mobile-premium-unit)); color: #b3a49b; }
 .mobile-premium-product-page .mobile-premium-product-page__features dd { margin: calc(1 * var(--mobile-premium-unit)) 0 0; font-size: calc(3 * var(--mobile-premium-unit)); line-height: 1.2; }
-.mobile-premium-product-page .mobile-premium-product-page__explore { position: absolute; bottom: 2.5%; left: 29%; width: 42%; min-height: 44px; padding: 0 calc(4 * var(--mobile-premium-unit)); display: flex; align-items: center; justify-content: center; gap: calc(3 * var(--mobile-premium-unit));
+.mobile-premium-product-page .mobile-premium-product-page__explore { position: absolute; bottom: var(--mobile-explore-bottom); left: 32%; width: 36%; min-height: var(--mobile-explore-height); padding: 0 calc(2.5 * var(--mobile-premium-unit)); display: flex; align-items: center; justify-content: center; gap: calc(3 * var(--mobile-premium-unit));
   border: 1px solid color-mix(in srgb, var(--mobile-premium-accent) 75%, transparent); background: linear-gradient(120deg, color-mix(in srgb, var(--mobile-premium-accent) 25%, #101012), color-mix(in srgb, var(--mobile-premium-accent) 10%, #101012)); color: #f7eee7; border-radius: 0; font-size: calc(2.8 * var(--mobile-premium-unit)); letter-spacing: .15em; cursor: pointer; z-index: 3;
   box-shadow: inset 0 1px 0 color-mix(in srgb, var(--mobile-premium-accent) 15%, transparent), 0 0 18px color-mix(in srgb, var(--mobile-premium-accent) 8%, transparent); }
 .mobile-premium-product-page .mobile-premium-product-page__explore > span { font-size: calc(5 * var(--mobile-premium-unit)); line-height: 1; }
@@ -120,7 +122,7 @@
 .mobile-premium-product-page .mobile-premium-product-page__rail .mobile-premium-product-page__technical { position: static; inset: auto; width: 100%; }
 .mobile-premium-product-page--stacked { display: grid; grid-template-rows: 18% 1fr auto; row-gap: 1%; }
 .mobile-premium-product-page--stacked .mobile-premium-product-page__hero { position: static; inset: auto; grid-row: 2; width: 100%; height: auto; align-self: stretch; }
-.mobile-premium-product-page--stacked .mobile-premium-product-page__lower { grid-row: 3; margin-bottom: calc(44px + 3.5cqh); }
+.mobile-premium-product-page--stacked .mobile-premium-product-page__lower { grid-row: 3; margin-bottom: calc(var(--mobile-explore-height) + 3.5cqh); }
 .mobile-premium-product-page--stacked .mobile-premium-product-page__lower .mobile-premium-product-page__features { position: static; inset: auto; width: auto; }
 /* Reparte el espacio de la antigua fila de lista sin cambiar el tamaño de
    la pala. Las hojas más anchas liberan más espacio antes de los atributos. */
@@ -132,7 +134,19 @@
   margin-bottom: var(--mobile-premium-price-clearance);
 }
 .mobile-premium-product-page--stacked:has(.mobile-premium-product-page__price) .mobile-premium-product-page__lower {
-  margin-bottom: calc(44px + 3.5cqh + var(--mobile-premium-former-price-space) - var(--mobile-premium-price-clearance));
+  margin-bottom: calc(var(--mobile-explore-height) + 3.5cqh + var(--mobile-premium-former-price-space) - var(--mobile-premium-price-clearance));
+}
+@container (max-height: 560px) {
+  /* Fija la fila sobre el botón cuando su posición en la cuadrícula
+     desborda la hoja. La imagen conserva la altura de su propia fila. */
+  .mobile-premium-product-page--stacked .mobile-premium-product-page__lower {
+    position: sticky;
+    bottom: calc(var(--mobile-explore-height) + var(--mobile-explore-bottom) + 2px);
+  }
+  .mobile-premium-product-page .mobile-premium-product-page__features > div { gap: 0; }
+  .mobile-premium-product-page .mobile-premium-product-page__features dt { line-height: 1; }
+  .mobile-premium-product-page .mobile-premium-product-page__features dd { margin-top: 0; line-height: 1.1; }
+  .mobile-premium-product-page .mobile-premium-product-page__explore:focus-visible { outline-offset: -4px; }
 }
 .mobile-premium-product-page .mobile-premium-product-page__price { align-self: flex-end; width: 34cqw; pointer-events: none; text-shadow: 0 1px 3px #000; }
 .mobile-premium-product-page .mobile-premium-product-page__price .mobile-accessory-price {

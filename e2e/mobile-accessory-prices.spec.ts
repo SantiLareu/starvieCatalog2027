@@ -588,14 +588,15 @@ test('portrait: la navegación y el hotspot de producto siguen funcionando con l
  * tapan la pala, las tecnologías, las especificaciones ni las características,
  * y el precio queda por ENCIMA del CTA de la hoja.
  *
- * Matriz: 360 / 390 / 430 px × (visitante / distribuidor confirmado).
+ * Matriz: 360 / 390 / 430 px × 640 / 844 px × visitante / distribuidor.
  */
 const PADDLE_WIDTHS = [360, 390, 430] as const;
+const PADDLE_VIEWPORTS = [640, 844].flatMap(height => PADDLE_WIDTHS.map(width => ({ width, height })));
 const PADDLE_MODES = ['public', 'distributor-confirmed'] as const;
 
-for (const width of PADDLE_WIDTHS) {
+for (const { width, height } of PADDLE_VIEWPORTS) {
   for (const mode of PADDLE_MODES) {
-    test(`portrait ${width}px · ${mode}: las hojas de paletas muestran su precio sin tapar la pala, las especificaciones ni el CTA`, async ({ page, isMobile }) => {
+    test(`portrait ${width}×${height} · ${mode}: precio y EXPLORAR caben en las hojas de paletas`, async ({ page, isMobile }) => {
       test.skip(!isMobile, 'Mobile portrait only');
       test.setTimeout(120_000);
       const external = await blockExternalHosts(page);
@@ -603,12 +604,12 @@ for (const width of PADDLE_WIDTHS) {
         authenticated: mode !== 'public',
         pending: false,
       });
-      await page.setViewportSize({ width, height: 844 });
+      await page.setViewportSize({ width, height });
       await page.goto('/');
       await expect(page.locator('.catalog-app')).toHaveClass(/cover-ready/);
 
       for (const { pagina: number, id: productId } of PADDLE_PAGES) {
-        const description = `P${number} · ${width}px · ${mode}`;
+        const description = `P${number} · ${width}×${height} · ${mode}`;
         await goTo(page, number);
         const leaf = page.getByRole('article', { name: `Página ${number}, edición vertical StarVie` }).first();
         await expect(leaf).toBeVisible();
@@ -661,16 +662,41 @@ for (const width of PADDLE_WIDTHS) {
         const technical = await boxOf(leaf.locator('.mobile-premium-product-page__technical'));
         const technologies = await boxOf(leaf.locator('.mobile-premium-product-page__technologies'));
         const features = await boxOf(leaf.locator('.mobile-premium-product-page__features'));
-        const explore = await boxOf(leaf.locator('.mobile-premium-product-page__explore'));
+        const exploreButton = leaf.getByRole('button', { name: /^Explorar / });
+        const explore = await boxOf(exploreButton);
         const footer = await boxOf(leaf.locator('.mobile-premium-product-page__folio'));
+        const pageBox = await boxOf(leaf);
         expect(above(technical, priceBox), `${description}: precio debajo de la ficha`).toBe(true);
         expect(priceBox.right).toBeCloseTo(technical.right, 0);
         expect(above(priceBox, features), `${description}: precio encima de los atributos`).toBe(true);
         expect(overlaps(priceBox, technologies), `${description}: precio sobre las tecnologías`).toBe(false);
-        await expectPriceTextClear(price, { cta: explore, footer, leaf: await boxOf(leaf) });
+        await expectPriceTextClear(price, { cta: explore, footer, leaf: pageBox });
+
+        expect(contains(pageBox, features, 0), `${description}: atributos dentro de la hoja`).toBe(true);
+        expect(above(features, explore, 0), `${description}: botón debajo de los atributos`).toBe(true);
+        expect(explore.top - features.bottom, `${description}: separación del botón`).toBeGreaterThanOrEqual(1);
+        expect(contains(pageBox, explore, 0), `${description}: botón dentro de la hoja`).toBe(true);
+        expect(pageBox.bottom - explore.bottom).toBeGreaterThanOrEqual(4);
+        expect(explore.height).toBeGreaterThanOrEqual(44);
+        expect((explore.left + explore.right) / 2).toBeCloseTo((pageBox.left + pageBox.right) / 2, 0);
+        const footerColumns = leaf.locator('.mobile-premium-product-page__folio > span');
+        for (const column of await footerColumns.all()) {
+          const columnBox = await boxOf(column);
+          expect(overlaps(explore, columnBox), `${description}: botón sobre REF/EAN o folio`).toBe(false);
+          expect(overlaps(features, columnBox), `${description}: atributos sobre REF/EAN o folio`).toBe(false);
+        }
+        expect(await leaf.evaluate(element => element.scrollWidth)).toBeLessThanOrEqual(Math.ceil(pageBox.width));
+        await exploreButton.tap({ trial: true });
 
         if (number === 17 || number === 24) {
-          await leaf.screenshot({ path: test.info().outputPath(`paleta-${number}-${width}-${mode}.png`) });
+          await leaf.screenshot({ path: test.info().outputPath(`paleta-${number}-${width}x${height}-${mode}.png`) });
+        }
+        if (number === 17) {
+          await exploreButton.tap();
+          const modal = page.getByRole('dialog', { name: 'Raptor+', exact: true });
+          await expect(modal).toBeVisible();
+          await modal.getByRole('button', { name: 'Cerrar ficha', exact: true }).tap();
+          await expect(modal).toHaveCount(0);
         }
       }
       expect(calls.orders).toBe(0);
