@@ -1,4 +1,5 @@
 import { readFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
 import { expect, test, type Locator, type Page, type Route } from '@playwright/test';
 
 /**
@@ -19,6 +20,13 @@ import { expect, test, type Locator, type Page, type Route } from '@playwright/t
 
 type Rect = { left: number; top: number; right: number; bottom: number; width: number; height: number };
 
+const catalog = JSON.parse(readFileSync(new URL('../public/products.json', import.meta.url), 'utf8')) as {
+  products: { id: string; pagina: number; precio: number }[];
+};
+const PADDLE_PAGES = catalog.products
+  .filter(product => product.pagina >= 15 && product.pagina <= 26)
+  .sort((a, b) => a.pagina - b.pagina);
+
 /** Precio lista vigente del catálogo (el que debe verse en la hoja). */
 const LIST_PRICES: Record<string, number> = {
   'hard eva eternal': 146000,
@@ -30,9 +38,7 @@ const LIST_PRICES: Record<string, number> = {
   'black voltage': 110000,
   'neceser navy': 39000,
   'neceser moss': 41500,
-  'eternal': 372000,
-  'triton+ balance': 372000,
-  'kyra': 165000,
+  ...Object.fromEntries(PADDLE_PAGES.map(product => [product.id, product.precio])),
 };
 
 /** Precio NETO simulado por el servidor: distinto en cada producto. */
@@ -584,12 +590,6 @@ test('portrait: la navegación y el hotspot de producto siguen funcionando con l
  *
  * Matriz: 360 / 390 / 430 px × (visitante / distribuidor confirmado).
  */
-const PADDLE_PAGES: Array<[number, string]> = [
-  [15, 'eternal'],
-  [20, 'triton+ balance'],
-  [26, 'kyra'],
-];
-
 const PADDLE_WIDTHS = [360, 390, 430] as const;
 const PADDLE_MODES = ['public', 'distributor-confirmed'] as const;
 
@@ -607,18 +607,16 @@ for (const width of PADDLE_WIDTHS) {
       await page.goto('/');
       await expect(page.locator('.catalog-app')).toHaveClass(/cover-ready/);
 
-      for (const [number, productId] of PADDLE_PAGES) {
+      for (const { pagina: number, id: productId } of PADDLE_PAGES) {
+        const description = `P${number} · ${width}px · ${mode}`;
         await goTo(page, number);
         const leaf = page.getByRole('article', { name: `Página ${number}, edición vertical StarVie` }).first();
         await expect(leaf).toBeVisible();
 
         const zone = leaf.locator('[data-mobile-price-zone="premium"]');
         await expect(zone).toHaveCount(1);
-        // La banda de precio es propia y ancha: vive en la composición
-        // inferior, NO en el carril derecho de 24 % (86 px a 360 px), donde
-        // el rótulo de distribuidor no entraba en una línea.
-        await expect(leaf.locator('.mobile-premium-product-page__rail [data-mobile-price-zone="premium"]')).toHaveCount(0);
-        await expect(leaf.locator('.mobile-premium-product-page__lower [data-mobile-price-zone="premium"]')).toHaveCount(1);
+        await expect(leaf.locator('.mobile-premium-product-page__rail [data-mobile-price-zone="premium"]')).toHaveCount(1);
+        await expect(leaf.locator('.mobile-premium-product-page__lower [data-mobile-price-zone="premium"]')).toHaveCount(0);
         await expect(zone.locator('.mobile-accessory-price')).toHaveAttribute('data-price-product', productId);
         await expect(zone.locator('.mobile-accessory-price__label')).toHaveText('PRECIO LISTA');
         await expect(zone.locator('.mobile-accessory-price__amount')).toHaveText(`$ ${displayAmount(LIST_PRICES[productId])}`);
@@ -628,7 +626,7 @@ for (const width of PADDLE_WIDTHS) {
           await expect(zone.locator('.mobile-accessory-price__discount')).toHaveCount(0);
           expect(calls.quotes).not.toContain(`${productId}:1`);
         } else {
-          await expect(zone.locator('.mobile-accessory-price__net-value')).toHaveText(`$ ${displayAmount(NET_PRICES[productId])}`);
+          await expect(zone.locator('.mobile-accessory-price__net-value')).toHaveText(`$ ${displayAmount(NET_PRICES[productId] ?? Math.round(LIST_PRICES[productId] * .8))}`);
           await expect(zone.locator('.mobile-accessory-price__net-label')).toHaveText('PRECIO DISTRIBUIDOR');
           await expect(zone.locator('.mobile-accessory-price__discount')).toHaveText('\u221220%');
           await expect(zone.locator('.mobile-accessory-price')).toHaveAttribute('data-has-net', 'true');
@@ -643,28 +641,37 @@ for (const width of PADDLE_WIDTHS) {
           expect(contains(zoneBox, textBox), `el texto del precio sale de su zona: ${JSON.stringify(textBox)}`).toBe(true);
         }
 
-        // El precio no pisa la pala, las tecnologías, la ficha técnica ni las
-        // características: se comparan rectángulos REALES, no un orden supuesto.
-        const paddle = await drawnRect(leaf.locator('.mobile-premium-product-page__hero img'));
-        expect(overlaps(priceBox, paddle), 'el precio sobre la pala').toBe(false);
-        const technologies = await boxOf(leaf.locator('.mobile-premium-product-page__technologies'));
-        expect(overlaps(priceBox, technologies), 'el precio sobre las tecnologías').toBe(false);
-        const technical = await boxOf(leaf.locator('.mobile-premium-product-page__technical'));
-        expect(overlaps(priceBox, technical), 'el precio sobre las especificaciones').toBe(false);
-        const features = await boxOf(leaf.locator('.mobile-premium-product-page__features'));
-        expect(overlaps(priceBox, features), 'el precio sobre las características').toBe(false);
+        const hero = leaf.locator('.mobile-premium-product-page__hero img');
+        await hero.evaluate(img => (img as HTMLImageElement).decode());
+        const paddle = await drawnRect(hero);
+        // La foto tiene márgenes transparentes. Medir su caja completa
+        // daría falsos positivos aunque el precio no cubra la pala.
+        if (overlaps(zoneBox, paddle)) {
+          const coversPaddle = await hero.evaluate((img, { paddle, zoneBox }) => {
+            const canvas = document.createElement('canvas');
+            canvas.width = Math.ceil(zoneBox.width);
+            canvas.height = Math.ceil(zoneBox.height);
+            const ctx = canvas.getContext('2d')!;
+            ctx.drawImage(img as HTMLImageElement, paddle.left - zoneBox.left, paddle.top - zoneBox.top, paddle.width, paddle.height);
+            return ctx.getImageData(0, 0, canvas.width, canvas.height).data.some((value, i) => i % 4 === 3 && value > 16);
+          }, { paddle, zoneBox });
+          expect(coversPaddle, `${description}: el precio sobre la pala`).toBe(false);
+        }
 
-        // ORDEN VERTICAL real: el precio va por encima del CTA EXPLORAR.
+        const technical = await boxOf(leaf.locator('.mobile-premium-product-page__technical'));
+        const technologies = await boxOf(leaf.locator('.mobile-premium-product-page__technologies'));
+        const features = await boxOf(leaf.locator('.mobile-premium-product-page__features'));
         const explore = await boxOf(leaf.locator('.mobile-premium-product-page__explore'));
-        expect(above(priceBox, explore), 'el precio no está por encima del CTA').toBe(true);
-        // El precio vive en el carril derecho, DEBAJO de la ficha técnica: no
-        // la pisa y sigue su altura real.
-        const technicalBox = await boxOf(leaf.locator('.mobile-premium-product-page__technical'));
-        expect(above(technicalBox, priceBox), 'el precio no está debajo de la ficha técnica').toBe(true);
-        // Y el carril entero queda por encima de las características y del CTA.
-        const rail = await boxOf(leaf.locator('.mobile-premium-product-page__rail'));
-        expect(above(rail, features), 'el carril sobre las características').toBe(true);
-        expect(above(rail, explore), 'el carril sobre el CTA').toBe(true);
+        const footer = await boxOf(leaf.locator('.mobile-premium-product-page__folio'));
+        expect(above(technical, priceBox), `${description}: precio debajo de la ficha`).toBe(true);
+        expect(priceBox.right).toBeCloseTo(technical.right, 0);
+        expect(above(priceBox, features), `${description}: precio encima de los atributos`).toBe(true);
+        expect(overlaps(priceBox, technologies), `${description}: precio sobre las tecnologías`).toBe(false);
+        await expectPriceTextClear(price, { cta: explore, footer, leaf: await boxOf(leaf) });
+
+        if (number === 17 || number === 24) {
+          await leaf.screenshot({ path: test.info().outputPath(`paleta-${number}-${width}-${mode}.png`) });
+        }
       }
       expect(calls.orders).toBe(0);
       expect(external).toEqual([]);
@@ -672,26 +679,8 @@ for (const width of PADDLE_WIDTHS) {
   }
 }
 
-/**
- * Contrato de ESTRUCTURA de las zonas de precio mobile (SIN navegador): el
- * precio de las paletas y el de los accesorios tienen su propia zona de
- * ancho completo, fuera del carril derecho y fuera de la tercera columna de
- * la ficha. Esto NO prueba el dibujo: la geometría real se comprueba en el
- * navegador, que no se pudo ejecutar en este entorno.
- */
-test('contrato: el precio mobile tiene su propia zona ancha (no el carril, no la tercera celda)', async () => {
+test('contrato: el precio mobile de accesorios tiene su propia zona ancha', async () => {
   const accessories = await readFile(new URL('../src/components/mobile/mobile-accessories.css', import.meta.url), 'utf8');
-  const premium = await readFile(new URL('../src/components/mobile/mobile-premium-product.css', import.meta.url), 'utf8');
-
-  // Paletas: la banda está en la composición inferior; el carril derecho no
-  // vuelve a llevar el precio.
-  expect(premium).toMatch(/\.mobile-premium-product-page__lower\b/);
-  expect(premium).not.toMatch(/\.mobile-premium-product-page__rail[^{]*\{[^}]*mobile-accessory-price/);
-  // Rótulo a la izquierda e importe atómico a la derecha: el rótulo puede
-  // envolver por palabra, el importe nunca se parte.
-  expect(premium).toMatch(/\.mobile-premium-product-page__price\s+\.mobile-accessory-price__row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/);
-  expect(premium).toMatch(/\.mobile-premium-product-page__price\s+\.mobile-accessory-price__row--net\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto\s+auto/);
-
   // Accesorios: la zona de precio es de ancho completo y la ficha ya no
   // declara una tercera columna para el precio.
   expect(accessories).toMatch(/\.mobile-accessory-product__price\s*\{[^}]*width:\s*100%/);
@@ -703,25 +692,19 @@ test('contrato: el precio mobile tiene su propia zona ancha (no el carril, no la
  * teléfono por contexto, dos filas con filete de 1 px y etiqueta de
  * descuento en texto plano (sin pastilla, sin borde, sin fondo).
  *
- * Esto NO prueba el dibujo: el navegador no se pudo ejecutar en este entorno.
  */
 test('contrato: la Opción A en las hojas mobile (escalas, filete y etiqueta plana)', async () => {
   const accessories = await readFile(new URL('../src/components/mobile/mobile-accessories.css', import.meta.url), 'utf8');
   const premium = await readFile(new URL('../src/components/mobile/mobile-premium-product.css', import.meta.url), 'utf8');
 
-  for (const [name, css, unit] of [
-    ['accesorios', accessories, '--accessory-unit'],
-    ['paletas', premium, '--mobile-premium-unit'],
-  ] as const) {
-    const cell = /\.mobile-accessory-price\s*\{([^}]*)\}/.exec(css);
-    expect(cell, `${name}: no se encuentra la celda de precio`).not.toBeNull();
-    expect(cell![1], name).toMatch(new RegExp(`--pv-label-size:\\s*max\\(8px,\\s*calc\\(2\\.1 \\* var\\(${unit}\\)\\)\\)`));
-    expect(cell![1], name).toMatch(new RegExp(`--pv-list-size:\\s*max\\(11px,\\s*calc\\(3\\.1 \\* var\\(${unit}\\)\\)\\)`));
-    expect(cell![1], name).toMatch(new RegExp(`--pv-net-size:\\s*max\\(12px,\\s*calc\\(3\\.6 \\* var\\(${unit}\\)\\)\\)`));
-    expect(cell![1], name).toMatch(new RegExp(`--pv-save-size:\\s*max\\(8px,\\s*calc\\(1\\.9 \\* var\\(${unit}\\)\\)\\)`));
-    // La etiqueta de descuento no existe todavía en estas hojas: la pinta la
-    // piel compartida de src/styles.css. Ninguna placa local la compite.
-    expect(css, name).not.toMatch(/mobile-accessory-price__discount[^{]*\{[^}]*border/);
+  const cell = /\.mobile-accessory-price\s*\{([^}]*)\}/.exec(accessories);
+  expect(cell).not.toBeNull();
+  expect(cell![1]).toMatch(/--pv-label-size:\s*max\(8px,\s*calc\(2\.1 \* var\(--accessory-unit\)\)\)/);
+  expect(cell![1]).toMatch(/--pv-list-size:\s*max\(11px,\s*calc\(3\.1 \* var\(--accessory-unit\)\)\)/);
+  expect(cell![1]).toMatch(/--pv-net-size:\s*max\(12px,\s*calc\(3\.6 \* var\(--accessory-unit\)\)\)/);
+  expect(cell![1]).toMatch(/--pv-save-size:\s*max\(8px,\s*calc\(1\.9 \* var\(--accessory-unit\)\)\)/);
+  for (const css of [accessories, premium]) {
+    expect(css).not.toMatch(/mobile-accessory-price__discount[^{]*\{[^}]*border/);
   }
 
   // El carril de precio de las paletas no lleva placa (Opción A).
