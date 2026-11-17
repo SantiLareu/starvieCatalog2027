@@ -49,14 +49,14 @@
   .mobile-accessory-product__features li > span { font-size: calc(2.1 * var(--accessory-unit)); color: #9facb9; border-right: 1px solid #b5bec838; padding: .6cqh 0; }
   .mobile-accessory-product__features strong { font-size: inherit; line-height: 1.15; font-weight: 550; }
   .mobile-accessory-product__features p { margin: .25cqh 0 0; font-size: max(9px, calc(2.35 * var(--accessory-unit))); line-height: 1.15; color: #bfc5cb; }
-  /* Ficha de datos: DIMENSIONES | MATERIALES y, cuando el catálogo vivo tiene
-     precio, la celda PRECIO LISTA como tercera celda (misma caja, filete fino).
-     La ficha ya NO es una caja absoluta: vive en la zona inferior en flujo,
-     así que su texto nunca puede desbordar hacia el CTA. */
+  /* Ficha de datos: DIMENSIONES | MATERIALES. La ficha ya NO es una caja
+     absoluta: vive en la zona inferior en flujo, así que su texto nunca
+     puede desbordar hacia el CTA. El precio NO va aquí: tiene su propia
+     zona de ancho completo (abajo), para que las especificaciones no
+     queden apretadas ni la bloque empuje hacia arriba. */
   .mobile-accessory-product__facts { margin: 0;
     display: grid; grid-template-columns: minmax(0, 1fr); gap: 3cqw; align-items: start; align-content: start;
-    border: 1px solid #b5bec838; border-radius: 5px; padding: 1.2cqh 2cqw; background: #10151d99; }
-  .mobile-accessory-product__facts[data-has-price="true"] { grid-template-columns: minmax(0, 1fr) minmax(0, max-content); }
+    border: 1px solid #b5bec838; border-radius: 5px; padding: .4cqh 2cqw; background: #10151d99; }
   .mobile-accessory-product__specs { margin: 0; display: grid; grid-template-columns: 1fr 1fr; gap: 3cqw; align-content: start; }
   .mobile-accessory-product__specs > div + div { border-left: 1px solid #b5bec838; padding-left: 3cqw; }
   .mobile-accessory-product__specs dt { font-size: max(8px, calc(2.1 * var(--accessory-unit))); color: #b8c1ca; letter-spacing: .12em; }
@@ -71,19 +71,28 @@
     --pv-net-size: max(12px, calc(3.6 * var(--accessory-unit)));
     --pv-save-size: max(8px, calc(1.9 * var(--accessory-unit)));
     border-left: 1px solid #b5bec838; padding-left: 2cqw; }
+  /* Zona de precio de la hoja: ancho COMPLETO, entre la ficha y la fila de
+     acciones. Rótulo a la izquierda e importe atómico a la derecha; el
+     filete de 1 px separa las dos filas (PRECIO LISTA / PRECIO
+     DISTRIBUIDOR). Sin la tercera columna de la ficha, el bloque ya no
+     empuja la zona inferior hacia las características. */
+  .mobile-accessory-product__price { width: 100%; border-top: 1px solid #b5bec838; }
+  .mobile-accessory-product__price .mobile-accessory-price { border-left: 0; padding-left: 0; gap: 4px; }
+  .mobile-accessory-product__price .mobile-accessory-price__row { grid-template-columns: minmax(0, 1fr) auto;
+    align-items: baseline; column-gap: 3cqw; }
+  .mobile-accessory-product__price .mobile-accessory-price__row--net { grid-template-columns: minmax(0, 1fr) auto auto; }
   /* Una cotización pendiente no es un importe: se lee apagada. */
   .mobile-accessory-price[data-price-state="pending"] .mobile-accessory-price__net-value { color: #b8c1ca; font-weight: 500; }
-  /* La tercera celda reparte el ancho de la ficha: los valores largos se
-     reparten en más de una línea y la ficha crece con su contenido (ya no
-     hay una caja fija que desbordar). */
+  /* Los valores largos de la ficha se reparten en más de una línea y la
+     ficha crece con su contenido (ya no hay una caja fija que desbordar). */
   .mobile-accessory-product__facts[data-has-price="true"] .mobile-accessory-product__specs dd { margin-top: .4cqh; line-height: 1.05; }
   .mobile-accessory-product footer { font-size: max(8px, calc(2.15 * var(--accessory-unit))); line-height: 1.6; color: #b7b0a7; }
   .mobile-accessory-product footer > span:last-child { display: none; }
-  /* Zona inferior EN FLUJO: primero la ficha con el precio y después la fila
-     con REF/EAN y el botón EXPLORAR. La zona está anclada abajo, así que si
-     el precio o el texto crecen, la zona crece hacia arriba y el CTA nunca
-     queda debajo del precio ni superpuesto. */
-  .mobile-accessory-product__bottom { position: absolute; left: 5%; right: 5%; bottom: 2%; display: grid; gap: 1cqh; }
+  /* Zona inferior EN FLUJO: primero la ficha, después la banda de precio y
+     al final la fila con REF/EAN y el botón EXPLORAR. La zona está anclada
+     abajo, así que si el precio o el texto crecen, la zona crece hacia
+     arriba y el CTA nunca queda debajo del precio ni superpuesto. */
+  .mobile-accessory-product__bottom { position: absolute; left: 5%; right: 5%; bottom: .8%; display: grid; gap: .4cqh; }
   .mobile-accessory-product__actions { display: flex; align-items: center; justify-content: space-between; gap: 3cqw; }
   .mobile-accessory-product__explore { flex: 0 0 auto; width: 39%; min-height: 44px; border: 1px solid #b5bec899; background: #b5bec821; color: #f3eeea;
     font-size: calc(2.6 * var(--accessory-unit)); letter-spacing: .12em; display: flex; align-items: center; justify-content: center; gap: 3cqw; cursor: pointer; }

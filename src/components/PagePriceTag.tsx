@@ -38,6 +38,19 @@ export function pagePriceZone(pageNumber: number, index: number): PagePriceZone 
 export type PagePriceTarget = { productId: string; index: number };
 
 /**
+ * Páginas cuyo chip se dimensiona con la HOJA y no con píxeles fijos.
+ *
+ * La hoja del motor (y el arte 1920×1080 que pinta) cambian de tamaño con el
+ * monitor; un chip de píxeles fijos crecía con la ventana y terminaba encima
+ * del texto impreso de la página. P37 es la única página con esa distribución
+ * propia: sus dos neceseres miden su bloque contra la hoja, de modo que
+ * su geometría es la misma en cualquier pantalla.
+ */
+export function pagePriceScalesWithLeaf(pageNumber: number): boolean {
+  return pageNumber === 37;
+}
+
+/**
  * Productos con precio de una página, tomados del mapa editorial existente
  * (CatalogData): P15–26 una pala, P28–36 un accesorio, P37 dos neceseres.
  * La categoría no aparece en ninguna decisión: manda el mapa.
@@ -119,16 +132,19 @@ export function PagePriceTag({ product, pageNumber, index, active, live }: {
  *
  * Sólo las páginas con ubicación medida (P15–26, P28–36) llevan el marcador
  * `data-price-measured`: es lo que habilita la contención de tamaño para
- * medir el chip respecto del ancho de la hoja. P37 (distribución aprobada) y
- * P38 (sin precios) conservan la capa tal cual, sin marcador ni contención.
+ * medir el chip respecto del ancho de la hoja. P37 lleva su propio marcador
+ * `data-price-leaf` (mide su bloque contra la hoja) y P38 (sin precios)
+ * conserva la capa tal cual, sin marcador ni contención.
  */
 export function PriceOverlayFrame({ pageNumber, children }: {
   pageNumber: number;
   children: ReactNode;
 }) {
   const measured = hasPagePricePlacement(pageNumber);
+  const leaf = pagePriceScalesWithLeaf(pageNumber);
   return (
-    <div className="page-price-overlay" data-price-measured={measured ? "true" : undefined}>
+    <div className="page-price-overlay" data-price-measured={measured ? "true" : undefined}
+      data-price-leaf={leaf ? "true" : undefined}>
       {children}
     </div>
   );

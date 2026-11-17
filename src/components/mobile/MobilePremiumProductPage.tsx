@@ -39,6 +39,9 @@ export function MobilePremiumProductPage({ product: catalogProduct, presentation
   const decoration = hasScene ? presentation.backgroundTheme.asset : undefined;
   const scene = hasScene && hero ? assetUrl(decoration?.source ?? hero.source) : undefined;
   const ambientSource = decoration ? scene : undefined;
+  // La banda de precio de la hoja sólo existe cuando el catálogo vivo tiene
+  // precio: sin precio no hay banda y el héroe toma su altura.
+  const priced = product != null && hasPrice(product);
   useEffect(() => {
     if (!ambientSource) return;
     // Hidden neighbour leaves defer CSS backgrounds until the first fold.
@@ -56,7 +59,7 @@ export function MobilePremiumProductPage({ product: catalogProduct, presentation
   return <div ref={zoom.viewportRef} className="mobile-premium-page-viewport" data-premium-zoom-viewport="true"
     data-testid="mobile-premium-viewport" data-zoom={zoom.view.scale.toFixed(2)} data-pan-x={zoom.view.x.toFixed(2)} data-pan-y={zoom.view.y.toFixed(2)}
     style={{ "--premium-zoom-accent": presentation.themeAccent } as CSSProperties}>
-    <article ref={zoom.contentRef} className={`mobile-premium-product-page${hero?.role === "hero" ? " mobile-premium-product-page--premium" : ""}${decoration ? " mobile-premium-product-page--ambient" : ""}${courtScene ? " mobile-premium-product-page--court" : ""}`}
+    <article ref={zoom.contentRef} className={`mobile-premium-product-page mobile-premium-product-page--stacked${hero?.role === "hero" ? " mobile-premium-product-page--premium" : ""}${decoration ? " mobile-premium-product-page--ambient" : ""}${courtScene ? " mobile-premium-product-page--court" : ""}`}
     style={{ "--mobile-premium-background": presentation.backgroundTheme.background, "--mobile-premium-accent": presentation.themeAccent,
       "--mobile-premium-scene": scene ? `url("${scene}")` : undefined,
       "--mobile-premium-scene-position": decoration?.position,
@@ -87,20 +90,27 @@ export function MobilePremiumProductPage({ product: catalogProduct, presentation
       <MobileIcon name="bag" />
     </button>
     <MobilePremiumTechnologyRail technologies={presentation.technologies} productName={product?.nombre ?? "producto"} load={load} />
-    {/* Carril derecho EN FLUJO: la ficha técnica y el precio se apilan, así el
-        precio sigue la altura real de la tabla y nunca la pisa (ni a las
-        características ni al EXPLORAR). */}
+    {/* Carril derecho EN FLUJO: sólo la ficha técnica. El precio sale de
+        aquí: en 24 % de ancho (86 px a 360 px) el rótulo de distribuidor no
+        entraba en una línea y el bloque, al ser el último hijo de un carril
+        de altura fija, crecía hacia abajo sobre las características. */}
     <div className="mobile-premium-product-page__rail">
       <MobilePremiumTechnicalPanel product={product} presentation={presentation} load={load} />
-      {product && hasPrice(product) ? (
+    </div>
+    {/* COMPOSICIÓN INFERIOR en flujo: las características y la banda de
+        precio. La hoja reparte la altura real entre el héroe y esta franja
+        (18 % · 1fr · auto), así que la banda ocupa el ancho y el alto que
+        le corresponden y nada se pisa. */}
+    <div className="mobile-premium-product-page__lower">
+      {features.length ? <dl className="mobile-premium-product-page__features">{features.map(([label, value]) => <div key={label}>
+        <MobileIcon name={label as "Forma" | "Plano" | "Peso" | "Balance"} /><div><dt>{label}</dt><dd>{value}</dd></div>
+      </div>)}</dl> : null}
+      {priced ? (
         <div className="mobile-premium-product-page__price" data-mobile-price-zone="premium">
           <MobileAccessoryPriceCell product={product} active={active} live={live} />
         </div>
       ) : null}
     </div>
-    {features.length ? <dl className="mobile-premium-product-page__features">{features.map(([label, value]) => <div key={label}>
-      <MobileIcon name={label as "Forma" | "Plano" | "Peso" | "Balance"} /><div><dt>{label}</dt><dd>{value}</dd></div>
-    </div>)}</dl> : null}
     <button className="mobile-premium-product-page__explore" type="button" data-product-id={product?.id} disabled={!product || !live}
       aria-label={product ? `Explorar ${product.nombre}` : "Producto no disponible"}>EXPLORAR <span aria-hidden="true">↗</span></button>
     <footer className="mobile-premium-product-page__folio mobile-premium-product-page__folio--details">

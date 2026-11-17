@@ -285,6 +285,28 @@ describe("mobile accessories share the live catalog and native book actions", ()
     expect(screen.getByText("$ 146.000")).toBeVisible();
     expect(container.querySelector(".mobile-accessory-product__facts")).toHaveAttribute("data-has-price", "true");
   });
+  it("gives the price of P28–36 its own full-width zone, out of the data sheet", () => {
+    const eternal = mobileAccessoryPresentations.find(item => item.pageId === 29)!;
+    const original = products.find(item => item.id === "hard eva eternal")!;
+    const { container } = render(<MobileAccessoryProductPage presentation={eternal} product={original} active live load />);
+    const facts = container.querySelector(".mobile-accessory-product__facts")!;
+    const zone = container.querySelector(".mobile-accessory-product__price")!;
+    expect(zone).not.toBeNull();
+    // La ficha conserva las especificaciones; el precio ya no es una tercera
+    // columna squeezed que empuja el resto del bloque hacia arriba.
+    expect(facts.querySelector(".mobile-accessory-price")).toBeNull();
+    expect([...facts.querySelectorAll("dd")].map(item => item.textContent)).toEqual(["62x35x35 cm", "Hard Eva y PVC"]);
+    expect(zone.querySelector(".mobile-accessory-price")).not.toBeNull();
+    expect(zone.querySelector(".mobile-accessory-price__label")).toHaveTextContent("PRECIO LISTA");
+    expect(zone.querySelector(".mobile-accessory-price__amount")).toHaveTextContent("$ 146.000");
+    // La zona de precio va DEBAJO de la ficha y antes de la fila de acciones.
+    const bottom = container.querySelector(".mobile-accessory-product__bottom")!;
+    expect([...bottom.children].map(child => child.className)).toEqual([
+      "mobile-accessory-product__facts",
+      "mobile-accessory-product__price",
+      "mobile-accessory-product__actions",
+    ]);
+  });
   it("keeps each neceser with its own price on the shared P37 leaf", () => {
     const updated = products.map(item => item.id === "neceser moss" ? { ...item, precio: 41500 } : item);
     render(<MobileAccessoryPairPage presentation={mobileNecessairesPresentation} products={updated} active live load />);

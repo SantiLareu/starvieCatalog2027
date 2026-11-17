@@ -91,8 +91,16 @@ export function MobileAccessoryProductPage({ product: candidate, presentation, a
       <div className="mobile-accessory-product__bottom">
         <div className="mobile-accessory-product__facts" data-has-price={priced ? "true" : undefined}>
           <dl className="mobile-accessory-product__specs">{presentation.specs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-          <MobileAccessoryPriceCell product={product} active={active} live={live} />
         </div>
+        {/* El precio tiene su PROPIA zona de ancho completo: como tercera
+            celda de la ficha quedaba en una columna de ~107 px (el rótulo
+            de distribuidor no entraba en una línea) y empujaba el bloque
+            inferior hacia arriba. */}
+        {priced ? (
+          <div className="mobile-accessory-product__price" data-mobile-price-zone="accessory">
+            <MobileAccessoryPriceCell product={product} active={active} live={live} />
+          </div>
+        ) : null}
         <div className="mobile-accessory-product__actions">
           <footer><span>REF: {presentation.ref}<br />EAN: {presentation.ean}</span><span>{presentation.pageId}</span></footer>
           <button className="mobile-accessory-product__explore" type="button" data-product-id={product?.id} disabled={!live || !product}

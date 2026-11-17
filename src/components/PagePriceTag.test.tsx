@@ -355,6 +355,50 @@ describe("ubicación del precio por página (medida sobre el arte original)", ()
   });
 });
 
+describe("P37 escala su bloque con la hoja (no con px fijos)", () => {
+  it("la capa de P37 declara el escalado con la hoja y conserva su distribución propia", () => {
+    const { container } = render(
+      <PriceOverlayFrame pageNumber={37}><span className="page-price-tag" /></PriceOverlayFrame>,
+    );
+    const overlay = container.querySelector(".page-price-overlay")!;
+    // La hoja del motor cambia de tamaño con el monitor: un chip de px fijos
+    // crecía hasta pisar el nombre/REF/EAN impresos. P37 mide su bloque
+    // contra la hoja; las demás páginas siguen con su propia zona.
+    expect(overlay).toHaveAttribute("data-price-leaf", "true");
+    expect(overlay).not.toHaveAttribute("data-price-measured");
+    expect(overlay.getAttribute("class")).toBe("page-price-overlay");
+  });
+
+  it("sólo P37 declara el escalado con la hoja", () => {
+    for (const pageNumber of [15, 26, 28, 36, 38]) {
+      const { container } = render(
+        <PriceOverlayFrame pageNumber={pageNumber}><span /></PriceOverlayFrame>,
+      );
+      expect(container.querySelector(".page-price-overlay")).not.toHaveAttribute("data-price-leaf");
+    }
+  });
+
+  it("cada neceser de P37 conserva su propio precio y su propio nombre en el chip", () => {
+    const NECESER_NAVY: CommerceProduct = { ...PALA, id: "neceser navy", nombre: "Neceser Navy", precio: 39000 };
+    const NECESER_MOSS: CommerceProduct = { ...PALA, id: "neceser moss", nombre: "Neceser Moss", precio: 41500 };
+    const { container } = render(
+      <>
+        <PagePriceTag product={NECESER_NAVY} pageNumber={37} index={0} active live />
+        <PagePriceTag product={NECESER_MOSS} pageNumber={37} index={1} active live />
+      </>,
+    );
+    const tags = container.querySelectorAll(".page-price-tag");
+    expect(tags).toHaveLength(2);
+    expect(tags[0]).toHaveAttribute("data-price-zone", "pair-left");
+    expect(tags[1]).toHaveAttribute("data-price-zone", "pair-right");
+    // La identidad de cada neceser sigue escrita en su propio chip.
+    expect(tags[0].querySelector(".page-price-tag__name")).toHaveTextContent("Neceser Navy");
+    expect(tags[1].querySelector(".page-price-tag__name")).toHaveTextContent("Neceser Moss");
+    expect(tags[0].querySelector(".mobile-accessory-price__amount")).toHaveTextContent("$ 39.000");
+    expect(tags[1].querySelector(".mobile-accessory-price__amount")).toHaveTextContent("$ 41.500");
+  });
+});
+
 describe("la contención de tamaño sólo alcanza a las páginas con ubicación medida", () => {
   it("P37 conserva la capa sin marcador de contención", () => {
     const { container } = render(

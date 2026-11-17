@@ -865,7 +865,7 @@ describe("celda de precio reutilizada en las hojas mobile de paletas", () => {
     expect(container.querySelector("[data-mobile-price-zone]")).toBeNull();
   });
 
-  it("el precio vive en el mismo carril derecho que la ficha técnica y va DESPUÉS de ella", () => {
+  it("el precio ya NO vive en el carril derecho: tiene su propia banda ancha, después de la ficha técnica", () => {
     const { container } = render(
       <MobilePremiumProductPage
         product={PALA}
@@ -875,16 +875,21 @@ describe("celda de precio reutilizada en las hojas mobile de paletas", () => {
         active
       />,
     );
-    // Un único carril derecho: la ficha técnica y el precio se apilan en
-    // flujo, así que el precio sigue la altura real de la tabla y no se
-    // superpone con ella.
+    // El carril derecho queda con la sola ficha técnica: el precio ya no
+    // comparte ese 24 % de ancho (86 px a 360 px), donde el rótulo de
+    // distribuidor no entraba en una línea.
     const rail = container.querySelector(".mobile-premium-product-page__rail")!;
     expect(rail).not.toBeNull();
     const technical = rail.querySelector(".mobile-premium-product-page__technical")!;
-    const price = rail.querySelector("[data-mobile-price-zone]")!;
     expect(technical).not.toBeNull();
+    expect(rail.querySelector("[data-mobile-price-zone]")).toBeNull();
+    // El precio vive en la banda ancha de la composición inferior, después
+    // de la ficha técnica en el documento.
+    const lower = container.querySelector(".mobile-premium-product-page__lower")!;
+    expect(lower).not.toBeNull();
+    const price = lower.querySelector("[data-mobile-price-zone]")!;
     expect(price).not.toBeNull();
-    expect(price.parentElement).toBe(rail);
+    expect(price.parentElement).toBe(lower);
     expect((technical.compareDocumentPosition(price) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
   });
 });

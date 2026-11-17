@@ -113,17 +113,37 @@
 .mobile-premium-product-page .mobile-premium-product-page__printed-details { display: block; margin-top: calc(.5 * var(--mobile-premium-unit)); font-size: calc(1.6 * var(--mobile-premium-unit)); line-height: 1.3; letter-spacing: .02em; color: #c5b9b3; }
 .mobile-premium-product-page .mobile-premium-product-page__placeholder { font-size: calc(3 * var(--mobile-premium-unit)); color: #a99b91; }
 .mobile-premium-product-page .mobile-premium-product-page__asset-note { position: absolute; bottom: .7%; left: 5%; font-size: calc(1.7 * var(--mobile-premium-unit)); color: #9a8f88; }
-/* Precio editorial de la hoja de paletas: columna derecha, bajo la ficha
-   técnica y por encima de las características. No tapa la pala, las
-   tecnologías ni las especificaciones, y no reduce la imagen. Reutiliza la
-   celda de precio aprobada: aquí se presenta con la piel de la Opción A
-   (dos filas y un filete de 1 px, sin placa ni recuadro). */
-.mobile-premium-product-page .mobile-premium-product-page__rail { position: absolute; top: 30%; bottom: 23%; right: 4.5%; width: 24%; z-index: 3;
+/* Precio editorial de la hoja de paletas: banda propia y ancha en la
+   composición inferior (debajo de las características y encima del EXPLORAR).
+   Ya NO vive en el carril derecho de 24 %: ahí el rótulo de distribuidor no
+   entraba en una línea y el bloque crecía hacia abajo sobre las
+   características. Reutiliza la celda de precio aprobada: aquí se presenta
+   con la piel de la Opción A (dos filas y un filete de 1 px, sin placa ni
+   recuadro). */
+.mobile-premium-product-page .mobile-premium-product-page__rail { position: absolute; top: 30%; bottom: auto; right: 4.5%; width: 24%; z-index: 3;
   display: flex; flex-direction: column; align-items: stretch; gap: 1cqh; }
 .mobile-premium-product-page .mobile-premium-product-page__rail .mobile-premium-product-page__technical { position: static; inset: auto; width: 100%; }
-.mobile-premium-product-page .mobile-premium-product-page__price { position: static; inset: auto; width: 100%; margin: 0; pointer-events: none; }
+/* La hoja reparte su altura real: la fila del héroe toma lo que sobra
+   después de la composición inferior (características + banda de precio).
+   Ninguna zona queda con un top absoluto: la banda crece con su contenido y
+   el héroe cede exactamente esa altura, así que nunca se pisan. */
+.mobile-premium-product-page--stacked { display: grid; grid-template-rows: 18% 1fr auto; row-gap: 1%; }
+.mobile-premium-product-page--stacked .mobile-premium-product-page__hero { position: static; inset: auto; grid-row: 2; width: 100%; height: auto; align-self: stretch; }
+.mobile-premium-product-page--stacked .mobile-premium-product-page__lower { grid-row: 3; display: grid; justify-items: stretch; align-content: start;
+  gap: calc(1.5 * var(--mobile-premium-unit));
+  /* La franja reservada abajo para el EXPLORAR y el pie. */
+  margin-bottom: calc(44px + 3.5cqh); }
+.mobile-premium-product-page--stacked .mobile-premium-product-page__lower .mobile-premium-product-page__features { position: static; inset: auto; width: auto; }
+.mobile-premium-product-page .mobile-premium-product-page__price { position: static; inset: auto; width: 100%; margin: 0; pointer-events: none;
+  border-top: 1px solid color-mix(in srgb, var(--mobile-premium-accent) 30%, transparent); padding-top: calc(1 * var(--mobile-premium-unit)); }
 /* Escalas de teléfono de la Opción A: rótulo, lista, neto y porcentaje. */
 .mobile-premium-product-page .mobile-premium-product-page__price .mobile-accessory-price { --pv-label-size: max(8px, calc(2.1 * var(--mobile-premium-unit)));
   --pv-list-size: max(11px, calc(3.1 * var(--mobile-premium-unit)));
   --pv-net-size: max(12px, calc(3.6 * var(--mobile-premium-unit)));
   --pv-save-size: max(8px, calc(1.9 * var(--mobile-premium-unit))); }
+/* La banda es ancha: el rótulo va a la izquierda y el importe a la derecha,
+   en una sola línea. El rótulo nunca se parte (si no entra, envuelve por
+   palabra) y el importe es atómico: nunca se parte en dos renglones. */
+.mobile-premium-product-page .mobile-premium-product-page__price .mobile-accessory-price__row { grid-template-columns: minmax(0, 1fr) auto;
+  align-items: baseline; column-gap: calc(3 * var(--mobile-premium-unit)); }
+.mobile-premium-product-page .mobile-premium-product-page__price .mobile-accessory-price__row--net { grid-template-columns: minmax(0, 1fr) auto auto; }

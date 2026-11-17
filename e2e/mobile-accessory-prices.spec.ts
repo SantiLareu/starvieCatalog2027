@@ -425,6 +425,11 @@ for (const [width, height] of SIZES) {
         await expect(price).toHaveAttribute('data-price-product', item.productId);
         await expect(price.locator('.mobile-accessory-price__amount')).toHaveText(item.amount);
         await expect(price.locator('.mobile-accessory-price__label')).toHaveText('PRECIO LISTA');
+        // El precio tiene su PROPIA zona de ancho completo: ya no es una
+        // tercera columna de la ficha (que dejaba las especificaciones
+        // apretadas y empujaba el bloque inferior hacia arriba).
+        await expect(leaf.locator('.mobile-accessory-product__price')).toHaveCount(1);
+        await expect(leaf.locator('.mobile-accessory-product__facts .mobile-accessory-price')).toHaveCount(0);
 
         if (mode === 'public') {
           // Sin sesión de distribuidor no hay línea de distribuidor ni precio neto.
@@ -453,6 +458,7 @@ for (const [width, height] of SIZES) {
         const hero = await boxOf(leaf.locator('.mobile-accessory-product__hero'));
         const photo = await drawnRect(leaf.locator('.mobile-accessory-product__hero img'));
         const facts = await boxOf(leaf.locator('.mobile-accessory-product__facts'));
+        const priceZone = await boxOf(leaf.locator('.mobile-accessory-product__price'));
         const cta = await boxOf(leaf.locator('.mobile-accessory-product__explore'));
         const footer = await boxOf(leaf.locator(REF_EAN_SELECTOR));
         await expectPriceTextClear(price, {
@@ -462,11 +468,13 @@ for (const [width, height] of SIZES) {
           footer,
           leaf: await boxOf(leaf),
         });
-        // El texto del precio está CONTENIDO en la ficha: la zona inferior es
-        // un flujo y el texto no puede desbordar su caja.
+        // El texto del precio está CONTENIDO en su propia zona: la zona
+        // inferior es un flujo y el texto no puede desbordar su caja.
         for (const textBox of await priceTextBoxes(price)) {
-          expect(contains(facts, textBox), `el texto del precio sale de la ficha: ${JSON.stringify(textBox)}`).toBe(true);
+          expect(contains(priceZone, textBox), `el texto del precio sale de su zona: ${JSON.stringify(textBox)}`).toBe(true);
         }
+        // La zona de precio es propia: no pisa la ficha de especificaciones.
+        expect(overlaps(facts, priceZone), 'la zona de precio sobre la ficha').toBe(false);
         // ORDEN VERTICAL real: el precio va por encima del CTA EXPLORAR.
         const priceBox = await boxOf(price);
         expect(above(priceBox, cta), 'el precio no está por encima del CTA').toBe(true);
@@ -606,6 +614,11 @@ for (const width of PADDLE_WIDTHS) {
 
         const zone = leaf.locator('[data-mobile-price-zone="premium"]');
         await expect(zone).toHaveCount(1);
+        // La banda de precio es propia y ancha: vive en la composición
+        // inferior, NO en el carril derecho de 24 % (86 px a 360 px), donde
+        // el rótulo de distribuidor no entraba en una línea.
+        await expect(leaf.locator('.mobile-premium-product-page__rail [data-mobile-price-zone="premium"]')).toHaveCount(0);
+        await expect(leaf.locator('.mobile-premium-product-page__lower [data-mobile-price-zone="premium"]')).toHaveCount(1);
         await expect(zone.locator('.mobile-accessory-price')).toHaveAttribute('data-price-product', productId);
         await expect(zone.locator('.mobile-accessory-price__label')).toHaveText('PRECIO LISTA');
         await expect(zone.locator('.mobile-accessory-price__amount')).toHaveText(`$ ${displayAmount(LIST_PRICES[productId])}`);
@@ -658,6 +671,32 @@ for (const width of PADDLE_WIDTHS) {
     });
   }
 }
+
+/**
+ * Contrato de ESTRUCTURA de las zonas de precio mobile (SIN navegador): el
+ * precio de las paletas y el de los accesorios tienen su propia zona de
+ * ancho completo, fuera del carril derecho y fuera de la tercera columna de
+ * la ficha. Esto NO prueba el dibujo: la geometría real se comprueba en el
+ * navegador, que no se pudo ejecutar en este entorno.
+ */
+test('contrato: el precio mobile tiene su propia zona ancha (no el carril, no la tercera celda)', async () => {
+  const accessories = await readFile(new URL('../src/components/mobile/mobile-accessories.css', import.meta.url), 'utf8');
+  const premium = await readFile(new URL('../src/components/mobile/mobile-premium-product.css', import.meta.url), 'utf8');
+
+  // Paletas: la banda está en la composición inferior; el carril derecho no
+  // vuelve a llevar el precio.
+  expect(premium).toMatch(/\.mobile-premium-product-page__lower\b/);
+  expect(premium).not.toMatch(/\.mobile-premium-product-page__rail[^{]*\{[^}]*mobile-accessory-price/);
+  // Rótulo a la izquierda e importe atómico a la derecha: el rótulo puede
+  // envolver por palabra, el importe nunca se parte.
+  expect(premium).toMatch(/\.mobile-premium-product-page__price\s+\.mobile-accessory-price__row\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto/);
+  expect(premium).toMatch(/\.mobile-premium-product-page__price\s+\.mobile-accessory-price__row--net\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)\s+auto\s+auto/);
+
+  // Accesorios: la zona de precio es de ancho completo y la ficha ya no
+  // declara una tercera columna para el precio.
+  expect(accessories).toMatch(/\.mobile-accessory-product__price\s*\{[^}]*width:\s*100%/);
+  expect(accessories).not.toMatch(/\.mobile-accessory-product__facts\[data-has-price="true"\]\s*\{[^}]*max-content/);
+});
 
 /**
  * Contrato de la Opción A en las hojas mobile (SIN navegador): escalas de

@@ -359,6 +359,12 @@ for (const [width, height] of DESKTOP_SIZES) {
     await expect(pair.nth(0)).toHaveAttribute('data-price-zone', 'pair-left');
     await expect(pair.nth(1)).toHaveAttribute('data-price-zone', 'pair-right');
     await expect(pair.nth(0)).not.toHaveAttribute('data-price-page', /.+/);
+    // La hoja de P37 mide su bloque contra la hoja (no con píxeles fijos).
+    await expect(pdfPage(page, 37).locator('.page-price-overlay')).toHaveAttribute('data-price-leaf', 'true');
+    // P15–26 y P28–36 siguen con su ubicación medida por página.
+    await goToPage(page, 15);
+    await expect(pdfPage(page, 15).locator('.page-price-overlay')).toHaveAttribute('data-price-measured', 'true');
+    await expect(pdfPage(page, 15).locator('.page-price-overlay')).not.toHaveAttribute('data-price-leaf', 'true');
 
     // P38: la retícula de accesorios no lleva precios.
     await goToPage(page, 38);
@@ -384,14 +390,61 @@ test('contrato: la contención de tamaño sólo alcanza a las páginas con ubica
   expect(measured, 'no se encuentra la regla de la capa medida').not.toBeNull();
   expect(measured![1]).toMatch(/container-type:\s*size/);
 
-  // El tamaño relativo a la hoja (cqw) sólo existe en reglas de páginas
-  // medidas: los chips de P37 no reciben ningún override de tamaño.
+  // El tamaño relativo a la hoja (cqw) sólo existe en reglas con alcance
+  // explícito: las páginas medidas (P15–26, P28–36) y la hoja de P37, que
+  // mide su bloque contra la hoja para que no crezca con el monitor.
   const relative = [...css.matchAll(/([^{}]*)\{([^}]*cqw[^}]*)\}/g)].map(match => ({ selector: match[1], body: match[2] }));
   expect(relative.length).toBeGreaterThan(0);
-  for (const rule of relative) expect(rule.selector).toContain('[data-price-page]');
+  for (const rule of relative) expect(rule.selector).toMatch(/\[data-price-page\]|\[data-price-leaf="true"\]/);
   const pairRules = [...css.matchAll(/\.page-price-tag\[data-price-zone="pair-[^"]+"\][^{]*\{([^}]*)\}/g)].map(match => match[1]);
   expect(pairRules.length).toBeGreaterThan(0);
   for (const rule of pairRules) expect(rule).not.toMatch(/cqw/);
+});
+
+/**
+ * Contrato de P37 (SIN navegador): el bloque de los neceseres se mide
+ * CONTRA LA HOJA, no con píxeles fijos.
+ *
+ * La hoja del motor (960×540 de diseño) y el arte 1920×1080 escalan con el
+ * monitor; un chip de píxeles fijos crecía con la ventana y en una hoja de
+ * 700 px ocupaba el 25 % del alto (66 %→91 %) pisando el nombre/REF/EAN
+ * impresos (88,7 %–93,5 % del arte). Con la medida relativa a la hoja el
+ * bloque ocupa siempre el mismo 18,8 % (66 %→84,8 %) en cualquier pantalla.
+ *
+ * Esto NO prueba el dibujo: la geometría real se comprueba en el navegador,
+ * que no se pudo ejecutar en este entorno.
+ */
+test('contrato: el bloque de P37 se mide contra la hoja y no con píxeles fijos', async () => {
+  const css = await readFile(new URL('../src/styles.css', import.meta.url), 'utf8');
+
+  // La contención de tamaño de la capa queda acotada a la hoja de P37.
+  const leaf = /\.page-price-overlay\[data-price-leaf="true"\]\s*\{([^}]*)\}/.exec(css);
+  expect(leaf, 'no se encuentra la regla de la hoja de P37').not.toBeNull();
+  expect(leaf![1]).toMatch(/container-type:\s*size/);
+
+  // El chip de P37 mide su tipo contra la hoja: los rótulos y los importes
+  // escalan con ella (cqw) y ningún hueco interno queda en píxeles.
+  const leafRules = [...css.matchAll(/(\.page-price-overlay\[data-price-leaf="true"\][^{]*)\{([^}]*)\}/g)]
+    .map(match => ({ selector: match[1], body: match[2] }));
+  expect(leafRules.length).toBeGreaterThan(0);
+  const sized = leafRules.find(rule => rule.body.includes('--pv-label-size'));
+  expect(sized, 'no se encuentra la medida del chip de P37').toBeDefined();
+  expect(sized!.body).toMatch(/--pv-label-size:\s*0\.9375cqw/);
+  expect(sized!.body).toMatch(/--pv-list-size:\s*1\.5625cqw/);
+  expect(sized!.body).toMatch(/--pv-net-size:\s*1\.7708cqw/);
+  expect(sized!.body).toMatch(/--pv-save-size:\s*1\.0417cqw/);
+  // Sin suelo en píxeles: un suelo haría volver a crecer el bloque.
+  expect(sized!.body).not.toMatch(/clamp\(/);
+
+  // Los huecos internos del bloque también escalan con la hoja.
+  for (const rule of leafRules) {
+    expect(rule.body, `un hueco del bloque de P37 queda en píxeles: ${rule.selector}`).not.toMatch(/gap:\s*\d+px|padding-top:\s*\d+px/);
+  }
+
+  // La capa compartida sigue SIN contención: sólo las páginas medidas y P37
+  // la declaran, cada una en su propia regla.
+  const shared = /\.page-price-overlay\s*\{([^}]*)\}/.exec(css);
+  expect(shared![1]).not.toMatch(/container-type/);
 });
 
 /**

@@ -407,6 +407,27 @@ describe("Eternal / P15 presentation profile", () => {
     expect(container.querySelector(".mobile-premium-product-page__folio")).toHaveTextContent("15");
   });
 
+  it("gives the paddle price its own wide band in the lower composition, out of the right rail", () => {
+    const eternal = catalog.products.find(candidate => candidate.id === "eternal")! as CommerceProduct;
+    const profile = mobilePresentationForPage(15)!;
+    const { container } = render(<MobilePremiumProductPage product={eternal} presentation={profile} load live />);
+    const lower = container.querySelector(".mobile-premium-product-page__lower")!;
+    expect(lower).not.toBeNull();
+    // La banda de precio es propia y ancha: no vive en el carril derecho de
+    // 24 % (86 px a 360 px), donde el rótulo de distribuidor no entraba.
+    const zone = lower.querySelector("[data-mobile-price-zone='premium']")!;
+    expect(zone).not.toBeNull();
+    expect(zone.querySelector(".mobile-accessory-price__label")).toHaveTextContent("PRECIO LISTA");
+    expect(zone.querySelector(".mobile-accessory-price__amount")).toHaveTextContent("$ 372.000");
+    expect(container.querySelector(".mobile-premium-product-page__rail .mobile-accessory-price")).toBeNull();
+    // Las características siguen en la misma composición inferior.
+    expect(lower.querySelector(".mobile-premium-product-page__features")).not.toBeNull();
+    expect([...lower.children].map(child => child.className)).toEqual([
+      "mobile-premium-product-page__features",
+      "mobile-premium-product-page__price",
+    ]);
+  });
+
   it("enables direct entry to P15 without changing the Raptor+ profile", () => {
     expect(pilotPageFromSearch("?mobile-pilot=15")).toBe(15);
     expect(pilotPageFromSearch("?mobile-pilot=17")).toBe(17);
