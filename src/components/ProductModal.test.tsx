@@ -1,6 +1,7 @@
-import { cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ProductModal, assetUrl } from "./ProductModal";
+import { DistributorProvider } from "../commerce/distributor/DistributorContext";
 import type { CommerceProduct } from "../commerce/types";
 
 afterEach(() => cleanup());
@@ -85,7 +86,7 @@ describe("ProductModal comercial", () => {
     const onClose = vi.fn();
     render(<ProductModal {...props} onAdd={onAdd} onClose={onClose} />);
     expect(screen.getByRole("dialog", { name: "Raptor+" })).toBeVisible();
-    expect(screen.getByText("320,00 $")).toBeVisible();
+    expect(screen.getByText("$ 320")).toBeVisible();
     expect(screen.getByText("Con stock")).toBeVisible();
     expect(screen.getByRole("button", { name: "Agregar al pedido" })).toBeEnabled();
 
@@ -313,7 +314,7 @@ describe("ProductModal genérico (no palas)", () => {
     );
     const dialog = screen.getByRole("dialog", { name: "Tour Bag" });
     expect(dialog).toBeVisible();
-    expect(screen.getByText("120,00 $")).toBeVisible();
+    expect(screen.getByText("$ 120")).toBeVisible();
     expect(screen.getByText("Con stock")).toBeVisible();
     expect(screen.getByText("PSTTB00100", { selector: "dd" })).toBeVisible();
     // Sin campos técnicos de pala: ningún bloque vacío ni etiqueta huérfana.
@@ -339,6 +340,151 @@ describe("ProductModal genérico (no palas)", () => {
     expect(screen.getByRole("dialog", { name: "Llavero" })).toBeVisible();
     expect(screen.getByRole("button", { name: "Sin stock" })).toBeDisabled();
     expect(screen.queryByRole("button", { name: "Agregar al pedido" })).toBeNull();
+  });
+});
+
+describe("bloque de precio del modal", () => {
+  const SESSION = {
+    ok: true,
+    authenticated: true,
+    discountPercent: 20,
+    expiresAt: new Date(Date.now() + 3_600_000).toISOString(),
+    sessionId: "Zk3vJ8xQ1nT5pR7wY2bA",
+  };
+
+  function json(body: unknown): Response {
+    return new Response(JSON.stringify(body), { status: 200, headers: { "Content-Type": "application/json" } });
+  }
+
+  function quote(productId: string, listUnitPrice: number, netUnitPrice: number | null) {
+    return json({
+      ok: true,
+      currency: "ARS",
+      discountPercent: 20,
+      lines: [{ productId, qty: 1, listUnitPrice, netUnitPrice, netSubtotal: netUnitPrice }],
+      listTotal: listUnitPrice,
+      netTotal: netUnitPrice,
+    });
+  }
+
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
+  });
+
+  it("el visitante ve sólo PRECIO LISTA, con el símbolo pegado al importe", () => {
+    render(<ProductModal {...props} />);
+    expect(screen.getByText("Precio lista")).toBeVisible();
+    // Símbolo e importe en el mismo texto: nunca separados.
+    expect(screen.getByText("$ 320")).toBeVisible();
+    expect(screen.queryByText("Precio distribuidor")).toBeNull();
+    expect(screen.queryByText(/descuento/)).toBeNull();
+    // Un visitante ve UNA sola etiqueta: la de precio lista.
+    expect(document.querySelectorAll(".product-prices small")).toHaveLength(1);
+    expect(document.querySelector(".product-prices small")!.textContent).toBe("Precio lista");
+    expect(document.querySelectorAll(".product-price__discount")).toHaveLength(0);
+  });
+
+  it("la disponibilidad es un bloque propio, fuera del bloque de precio", () => {
+    render(<ProductModal {...props} />);
+    const prices = document.querySelector(".product-prices")!;
+    expect(prices).not.toBeNull();
+    expect(prices.querySelector(".stock-line")).toBeNull();
+    expect(document.querySelector(".product-details > .stock-line")).not.toBeNull();
+  });
+
+  it("sin precio vivo no hay bloque de precio ni símbolo de moneda", () => {
+    render(<ProductModal {...props} product={{ ...raptor, precio: null }} />);
+    expect(screen.queryByText("Precio lista")).toBeNull();
+    expect(document.querySelector(".product-prices")!.textContent).not.toContain("$");
+  });
+
+  it("el distribuidor ve PRECIO DISTRIBUIDOR con el neto del servidor y la etiqueta de descuento", async () => {
+    vi.stubEnv("VITE_DISTRIBUTOR_API_BASE_URL", "http://127.0.0.1:9999");
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("/api/distributor/session")) return json(SESSION);
+      if (url.includes("/api/distributor/quote")) return quote(raptor.id, 320, 256);
+      throw new Error(`fetch inesperado: ${url}`);
+    }));
+
+    render(
+      <DistributorProvider>
+        <ProductModal {...props} />
+      </DistributorProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("$ 256")).toBeVisible());
+    expect(screen.getByText("Precio distribuidor")).toBeVisible();
+    // Signo menos tipográfico (U+2212), como en el prototipo aprobado.
+    expect(screen.getByText("\u221220%")).toBeVisible();
+    // El neto es EXACTAMENTE el del servidor: 320 − 20% sería 256,00.
+    expect(screen.queryByText("$ 256,00")).toBeNull();
+  });
+
+  it("el porcentaje de la etiqueta sale de la cotización del servidor, no de la sesión", async () => {
+    vi.stubEnv("VITE_DISTRIBUTOR_API_BASE_URL", "http://127.0.0.1:9999");
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("/api/distributor/session")) return json(SESSION);
+      if (url.includes("/api/distributor/quote")) {
+        // La cotización vigente autoriza 30%: eso es lo que se muestra.
+        return json({
+          ok: true,
+          currency: "ARS",
+          discountPercent: 30,
+          lines: [{ productId: raptor.id, qty: 1, listUnitPrice: 320, netUnitPrice: 224, netSubtotal: 224 }],
+          listTotal: 320,
+          netTotal: 224,
+        });
+      }
+      throw new Error(`fetch inesperado: ${url}`);
+    }));
+
+    render(
+      <DistributorProvider>
+        <ProductModal {...props} />
+      </DistributorProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("$ 224")).toBeVisible());
+    expect(screen.getByText("\u221230%")).toBeVisible();
+    expect(screen.queryByText("\u221220%")).toBeNull();
+  });
+
+  it("el importe se publica como una caja atómica: un solo nodo de texto con el símbolo y los dígitos", () => {
+    render(<ProductModal {...props} product={{ ...raptor, precio: 1234567.89 }} />);
+    const amount = document.querySelector(".product-price__amount")!;
+    // El importe COMPLETO en un único nodo de texto: el navegador no puede
+    // separarlo ni partirlo (S2: símbolo $ siempre junto al importe).
+    expect(amount.textContent).toBe("$ 1.234.567,89");
+    expect(amount.childNodes).toHaveLength(1);
+    expect(amount.childNodes[0].nodeType).toBe(Node.TEXT_NODE);
+    // El rótulo y la etiqueta son elementos APARTE: pueden bajar de línea
+    // enteros si el importe no entra, sin tocar el número.
+    const price = document.querySelector(".product-price")!;
+    expect(price.querySelector("small")!.textContent).toBe("Precio lista");
+    expect(amount.parentElement).toBe(price);
+  });
+
+  it("una cotización pendiente no presenta ningún importe como precio final", async () => {
+    vi.stubEnv("VITE_DISTRIBUTOR_API_BASE_URL", "http://127.0.0.1:9999");
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("/api/distributor/session")) return json(SESSION);
+      if (url.includes("/api/distributor/quote")) return quote(raptor.id, 320, null);
+      throw new Error(`fetch inesperado: ${url}`);
+    }));
+
+    render(
+      <DistributorProvider>
+        <ProductModal {...props} />
+      </DistributorProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("A confirmar")).toBeVisible());
+    expect(screen.getByText("$ 320")).toBeVisible();
+    expect(screen.queryByText("\u221220%")).toBeNull();
+    // Sin etiqueta de descuento: una cotización pendiente no anuncia nada.
+    expect(document.querySelectorAll(".product-price__discount")).toHaveLength(0);
+    expect(document.querySelectorAll(".product-price__amount")).toHaveLength(1);
   });
 });
 

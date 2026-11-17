@@ -11,11 +11,15 @@ import {
 import type { CommerceProduct } from "../../commerce/types";
 
 /**
- * Celda de precio de las hojas mobile de accesorios (P28–37).
+ * Celda de precio de las hojas mobile de accesorios (P28–37) y de las
+ * hojas mobile de paletas (P15–26). Es la misma celda que publica el
+ * precio sobre las páginas desktop (PagePriceTag).
  *
- * Es la tercera celda de la ficha de datos (DIMENSIONES | MATERIALES | PRECIO
- * LISTA) del diseño aprobado: rótulo editorial, importe destacado y un filete
- * vertical como el de las otras dos celdas. Sin placa ni panel aparte.
+ * Presenta la Opción A aprobada (editorial minimalista): DOS filas —
+ * PRECIO LISTA y PRECIO DISTRIBUIDOR — separadas por un filete de 1 px.
+ * El importe lista va apagado (peso 600) y el neto destacado (peso 720).
+ * La etiqueta de descuento es TEXTO PLANO en color de acento, con el signo
+ * menos tipográfico (U+2212). Sin fondos, sin tarjetas y sin carteles.
  *
  * Reglas de autoridad:
  *  · el precio LISTA sale del catálogo vivo; si el producto no tiene precio,
@@ -25,6 +29,9 @@ import type { CommerceProduct } from "../../commerce/types";
  *    descuentos: si la cotización no llega, o llega de otro producto, o
  *    corresponde a un precio lista que ya cambió, no se muestra ningún
  *    importe como precio final;
+ *  · el PORCENTAJE sale de esa misma cotización (`quote.discountPercent`),
+ *    nunca de la sesión, nunca de un valor fijo y nunca calculado aquí. Sin
+ *    un neto válido no se muestra ninguna etiqueta;
  *  · la hoja sólo pide su cotización cuando está activa: el motor de páginas
  *    monta todas las hojas, así que una hoja inactiva no puede pedir precios.
  */
@@ -99,6 +106,22 @@ export function MobileAccessoryPriceCell({ product, active, live }: {
     else netValue = distributorLinePendingLabel(pricing);
   }
 
+  /* El porcentaje es el que la MISMA cotización ató a esta línea. No se
+     toma de la sesión (que puede ser de otra generación) ni se calcula: si
+     la cotización no está lista, o su porcentaje no es un valor legítimo,
+     no hay etiqueta. Sin un neto validado tampoco. */
+  const quotePercent = quote?.status === "ready" ? quote.discountPercent : null;
+  const discountPercent =
+    netPrice != null &&
+    quotePercent != null &&
+    Number.isFinite(quotePercent) &&
+    quotePercent > 0 &&
+    quotePercent <= 100
+      ? quotePercent
+      : null;
+  /* Signo menos tipográfico (U+2212): el del prototipo aprobado. */
+  const discountLabel = discountPercent != null ? `\u2212${discountPercent}%` : null;
+
   /* La línea de distribuidor sólo aparece cuando hay algo que decir: una hoja
      activa consulta su precio (aunque sea "Consultando…"); una hoja inactiva
      todavía no pidió nada y no anuncia una consulta inexistente. */
@@ -111,13 +134,18 @@ export function MobileAccessoryPriceCell({ product, active, live }: {
       data-has-net={netPrice != null ? "true" : "false"}
       data-price-product={product.id}
     >
-      <span className="mobile-accessory-price__label">PRECIO LISTA</span>
-      <span className="mobile-accessory-price__amount">{formatDisplayPrice(listPrice)}</span>
+      <div className="mobile-accessory-price__row mobile-accessory-price__row--list">
+        <span className="mobile-accessory-price__label">PRECIO LISTA</span>
+        <span className="mobile-accessory-price__amount">{formatDisplayPrice(listPrice)}</span>
+      </div>
       {showNet ? (
-        <span className="mobile-accessory-price__net">
-          <span className="mobile-accessory-price__net-label">Distribuidor</span>
+        <div className="mobile-accessory-price__row mobile-accessory-price__row--net mobile-accessory-price__net">
+          <span className="mobile-accessory-price__net-label">PRECIO DISTRIBUIDOR</span>
           <span className="mobile-accessory-price__net-value">{netValue}</span>
-        </span>
+          {discountLabel != null ? (
+            <span className="mobile-accessory-price__discount">{discountLabel}</span>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

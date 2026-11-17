@@ -3,6 +3,11 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { DistributorProvider } from "../../commerce/distributor/DistributorContext";
 import type { CommerceProduct } from "../../commerce/types";
 import { MobileAccessoryPriceCell } from "./MobileAccessoryPriceCell";
+import { MobileAccessoryPairPage, MobileAccessoryProductPage } from "./MobileAccessories";
+import { MobilePremiumProductPage } from "./MobilePremiumProductPage";
+import { mobileProductPresentation } from "../../data/mobileProductPresentation";
+import { mobileAccessoryPresentations, mobileNecessairesPresentation } from "../../data/mobileAccessoryPresentation";
+import catalog from "../../../generated/products.json";
 
 /**
  * Celda de precio de las hojas mobile de accesorios (P28–37).
@@ -597,5 +602,339 @@ describe("celda de precio de los accesorios mobile", () => {
     await waitFor(() => expect(screen.queryByText("$ 117.234,56")).toBeNull());
     expect(screen.getByText("Consultando…")).toBeVisible();
     expect(screen.getByText("$ 146.000")).toBeVisible();
+  });
+});
+
+describe("Opción A: la piel editorial de los precios (S10)", () => {
+  /** Signo menos tipográfico (U+2212) como en el prototipo aprobado. */
+  const MINUS = "\u2212";
+
+  /** Cotización del servidor con su propio porcentaje (fuente de la etiqueta). */
+  function serverQuote(input: {
+    productId: string;
+    listUnitPrice: number;
+    netUnitPrice: number | null;
+    discountPercent: number;
+  }) {
+    return json({
+      ok: true,
+      currency: "ARS",
+      discountPercent: input.discountPercent,
+      lines: [
+        {
+          productId: input.productId,
+          qty: 1,
+          listUnitPrice: input.listUnitPrice,
+          netUnitPrice: input.netUnitPrice,
+          netSubtotal: input.netUnitPrice,
+        },
+      ],
+      listTotal: input.listUnitPrice,
+      netTotal: input.netUnitPrice,
+    });
+  }
+
+  it("el visitante ve sólo la fila de precio lista: sin fila de distribuidor, sin filete y sin etiqueta", () => {
+    const { container } = render(<MobileAccessoryPriceCell product={PRODUCT} active live />);
+    const cell = container.querySelector(".mobile-accessory-price")!;
+    // UNA fila (la de lista). La segunda fila es la de distribuidor.
+    expect(cell.querySelectorAll(".mobile-accessory-price__row")).toHaveLength(1);
+    expect(cell.querySelector(".mobile-accessory-price__row--list")).not.toBeNull();
+    expect(cell.querySelector(".mobile-accessory-price__row--net")).toBeNull();
+    // Sin etiqueta de descuento y sin rótulo de distribuidor.
+    expect(cell.querySelector(".mobile-accessory-price__discount")).toBeNull();
+    expect(screen.queryByText("PRECIO DISTRIBUIDOR")).toBeNull();
+  });
+
+  it("el distribuidor ve la fila PRECIO DISTRIBUIDOR con el neto del servidor y la etiqueta de descuento", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("/api/distributor/session")) return json(SESSION);
+      if (url.includes("/api/distributor/quote")) {
+        return serverQuote({
+          productId: PRODUCT.id,
+          listUnitPrice: 146000,
+          netUnitPrice: 117234.56,
+          discountPercent: 20,
+        });
+      }
+      throw new Error(`fetch inesperado: ${url}`);
+    }));
+
+    const { container } = render(
+      <DistributorProvider>
+        <MobileAccessoryPriceCell product={PRODUCT} active live />
+      </DistributorProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("$ 117.234,56")).toBeVisible());
+    const cell = container.querySelector(".mobile-accessory-price")!;
+    // DOS filas: lista y distribuidor.
+    expect(cell.querySelectorAll(".mobile-accessory-price__row")).toHaveLength(2);
+    expect(cell.querySelector(".mobile-accessory-price__row--net")).not.toBeNull();
+    expect(screen.getByText("PRECIO DISTRIBUIDOR")).toBeVisible();
+    // La etiqueta usa el signo menos tipográfico (U+2212) del prototipo.
+    const discount = cell.querySelector(".mobile-accessory-price__discount");
+    expect(discount).not.toBeNull();
+    expect(discount!.textContent).toBe(`${MINUS}20%`);
+  });
+
+  it("el porcentaje sale de la cotización del servidor, no de la sesión ni de un valor fijo", async () => {
+    // La sesión autoriza 20%, pero la cotización vigente de este producto
+    // devuelve 30%: la etiqueta muestra lo que dice la cotización.
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("/api/distributor/session")) return json(SESSION);
+      if (url.includes("/api/distributor/quote")) {
+        return serverQuote({
+          productId: PRODUCT.id,
+          listUnitPrice: 146000,
+          netUnitPrice: 102200,
+          discountPercent: 30,
+        });
+      }
+      throw new Error(`fetch inesperado: ${url}`);
+    }));
+
+    const { container } = render(
+      <DistributorProvider>
+        <MobileAccessoryPriceCell product={PRODUCT} active live />
+      </DistributorProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("$ 102.200")).toBeVisible());
+    expect(container.querySelector(".mobile-accessory-price__discount")?.textContent).toBe(`${MINUS}30%`);
+  });
+
+  it("una cotización pendiente no muestra etiqueta de descuento ni importe neto", async () => {
+    const pending = deferred<Response>();
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("/api/distributor/session")) return json(SESSION);
+      if (url.includes("/api/distributor/quote")) return pending.promise;
+      throw new Error(`fetch inesperado: ${url}`);
+    }));
+
+    const { container } = render(
+      <DistributorProvider>
+        <MobileAccessoryPriceCell product={PRODUCT} active live />
+      </DistributorProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("Consultando…")).toBeVisible());
+    expect(container.querySelector(".mobile-accessory-price__discount")).toBeNull();
+    expect(container.querySelector(".mobile-accessory-price__net-value")?.textContent).not.toContain("$");
+  });
+
+  it("una cotización desactualizada o de otro producto no muestra etiqueta de descuento", async () => {
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("/api/distributor/session")) return json(SESSION);
+      // Cotización de un catálogo anterior: el importe no es presentable.
+      if (url.includes("/api/distributor/quote")) {
+        return serverQuote({
+          productId: PRODUCT.id,
+          listUnitPrice: 100000,
+          netUnitPrice: 80000,
+          discountPercent: 20,
+        });
+      }
+      throw new Error(`fetch inesperado: ${url}`);
+    }));
+
+    const { container } = render(
+      <DistributorProvider>
+        <MobileAccessoryPriceCell product={PRODUCT} active live />
+      </DistributorProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("A confirmar")).toBeVisible());
+    expect(container.querySelector(".mobile-accessory-price__discount")).toBeNull();
+    expect(screen.queryByText("$ 80.000")).toBeNull();
+  });
+
+  it("el importe lista es una caja atómica y el rótulo es un elemento aparte", () => {
+    const { container } = render(
+      <MobileAccessoryPriceCell product={{ ...PRODUCT, precio: 1234567.89 }} active live />,
+    );
+    const amount = container.querySelector(".mobile-accessory-price__amount")!;
+    // El símbolo y los dígitos viajan juntos: nunca se separan.
+    expect(amount.textContent).toBe("$ 1.234.567,89");
+    expect(amount.childNodes).toHaveLength(1);
+    expect(amount.childNodes[0].nodeType).toBe(Node.TEXT_NODE);
+    // El rótulo es otro elemento (puede partirse sin tocar el número).
+    const label = container.querySelector(".mobile-accessory-price__label")!;
+    expect(label.textContent).toBe("PRECIO LISTA");
+    expect(label).not.toBe(amount.parentElement);
+  });
+
+  it("P37 publica un precio y un descuento propios por producto, sin mezclarlos", async () => {
+    const liveProducts = catalog.products as CommerceProduct[];
+    vi.stubGlobal("fetch", vi.fn(async (url: string) => {
+      if (url.includes("/api/distributor/session")) return json(SESSION);
+      if (url.includes("/api/distributor/quote")) {
+        const productId = new URL(url).searchParams.get("productId") ?? "";
+        if (productId === "neceser navy") {
+          return serverQuote({
+            productId,
+            listUnitPrice: 39000,
+            netUnitPrice: 31200,
+            discountPercent: 20,
+          });
+        }
+        return serverQuote({
+          productId,
+          listUnitPrice: 39000,
+          netUnitPrice: 27300,
+          discountPercent: 30,
+        });
+      }
+      throw new Error(`fetch inesperado: ${url}`);
+    }));
+
+    const { container } = render(
+      <DistributorProvider>
+        <MobileAccessoryPairPage
+          presentation={mobileNecessairesPresentation}
+          products={liveProducts}
+          active
+          live
+          load
+        />
+      </DistributorProvider>,
+    );
+
+    await waitFor(() => expect(screen.getByText("$ 31.200")).toBeVisible());
+    const cells = container.querySelectorAll(".mobile-accessory-price");
+    expect(cells).toHaveLength(2);
+    const discounts = [...container.querySelectorAll(".mobile-accessory-price__discount")].map(node => node.textContent);
+    // Cada neceser con SU importe y SU etiqueta: ninguno hereda el del otro.
+    expect(discounts).toContain(`${MINUS}20%`);
+    expect(discounts).toContain(`${MINUS}30%`);
+    const nets = [...container.querySelectorAll(".mobile-accessory-price__net-value")].map(node => node.textContent);
+    expect(nets).toContain("$ 31.200");
+    expect(nets).toContain("$ 27.300");
+  });
+});
+
+describe("celda de precio reutilizada en las hojas mobile de paletas", () => {
+  const PALA: CommerceProduct = {
+    id: "eternal",
+    sku: "PSTETE41000",
+    nombre: "Eternal",
+    categoria: "palas",
+    subcategoria: "super-pro",
+    precio: 372000,
+    disponible: true,
+    imagenes: [],
+    gama: "Super Pro",
+    tipoJuego: "Versátil",
+    forma: "Híbrida",
+    plano: "18K Carbon",
+    peso: "350–370 gr",
+    balance: "Medio",
+    ean: "8436612941998",
+    pagina: 15,
+  };
+
+  it("publica el precio lista del catálogo en una zona propia de la hoja de paletas", () => {
+    const { container } = render(
+      <MobilePremiumProductPage
+        product={PALA}
+        presentation={mobileProductPresentation.eternal}
+        load
+        live
+        active
+      />,
+    );
+    const zone = container.querySelector("[data-mobile-price-zone]")!;
+    expect(zone).not.toBeNull();
+    const price = zone.querySelector(".mobile-accessory-price")!;
+    expect(price).not.toBeNull();
+    expect(price).toHaveAttribute("data-price-product", "eternal");
+    expect(price.querySelector(".mobile-accessory-price__label")).toHaveTextContent("PRECIO LISTA");
+    expect(price.querySelector(".mobile-accessory-price__amount")).toHaveTextContent("$ 372.000");
+  });
+
+  it("no publica precio en una hoja de paleta sin precio vivo", () => {
+    const { container } = render(
+      <MobilePremiumProductPage
+        product={{ ...PALA, precio: null }}
+        presentation={mobileProductPresentation.eternal}
+        load
+        live
+        active
+      />,
+    );
+    expect(container.querySelector("[data-mobile-price-zone]")).toBeNull();
+  });
+
+  it("el precio vive en el mismo carril derecho que la ficha técnica y va DESPUÉS de ella", () => {
+    const { container } = render(
+      <MobilePremiumProductPage
+        product={PALA}
+        presentation={mobileProductPresentation.eternal}
+        load
+        live
+        active
+      />,
+    );
+    // Un único carril derecho: la ficha técnica y el precio se apilan en
+    // flujo, así que el precio sigue la altura real de la tabla y no se
+    // superpone con ella.
+    const rail = container.querySelector(".mobile-premium-product-page__rail")!;
+    expect(rail).not.toBeNull();
+    const technical = rail.querySelector(".mobile-premium-product-page__technical")!;
+    const price = rail.querySelector("[data-mobile-price-zone]")!;
+    expect(technical).not.toBeNull();
+    expect(price).not.toBeNull();
+    expect(price.parentElement).toBe(rail);
+    expect((technical.compareDocumentPosition(price) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0).toBe(true);
+  });
+});
+
+describe("orden vertical precio → CTA en las hojas mobile de accesorios", () => {
+  const liveProducts = catalog.products as CommerceProduct[];
+
+  /** ¿El primer nodo aparece ANTES que el segundo en el documento? */
+  function precedes(first: Element, second: Element): boolean {
+    return (first.compareDocumentPosition(second) & Node.DOCUMENT_POSITION_FOLLOWING) !== 0;
+  }
+
+  it("la hoja de producto único publica el precio antes del CTA y en una misma zona de flujo", () => {
+    const presentation = mobileAccessoryPresentations.find(item => item.pageId === 29)!;
+    const product = liveProducts.find(item => item.id === presentation.productId)!;
+    const { container } = render(
+      <MobileAccessoryProductPage presentation={presentation} product={product} active live load />,
+    );
+
+    // El precio y el CTA viven en la MISMA zona inferior: no son dos cajas
+    // absolutas que puedan pisarse.
+    const bottom = container.querySelector(".mobile-accessory-product__bottom")!;
+    expect(bottom).not.toBeNull();
+    const price = bottom.querySelector(".mobile-accessory-price")!;
+    const cta = bottom.querySelector(".mobile-accessory-product__explore")!;
+    expect(price).not.toBeNull();
+    expect(cta).not.toBeNull();
+    expect(precedes(price, cta)).toBe(true);
+    // La ficha de datos (materiales + precio) precede al CTA.
+    const facts = bottom.querySelector(".mobile-accessory-product__facts")!;
+    expect(precedes(facts, cta)).toBe(true);
+  });
+
+  it("cada neceser de P37 publica su precio antes de su propio EXPLORAR", () => {
+    const { container } = render(
+      <MobileAccessoryPairPage presentation={mobileNecessairesPresentation} products={liveProducts} active live load />,
+    );
+    const blocks = container.querySelectorAll(".mobile-accessory-pair__block");
+    expect(blocks).toHaveLength(2);
+    for (const block of blocks) {
+      // Precio y CTA comparten la zona inferior del bloque (flujo, no dos
+      // cajas absolutas una al lado de la otra).
+      const bottom = block.querySelector(".mobile-accessory-pair__bottom")!;
+      expect(bottom).not.toBeNull();
+      const price = bottom.querySelector(".mobile-accessory-price")!;
+      const cta = bottom.querySelector(".mobile-accessory-product__explore")!;
+      expect(price).not.toBeNull();
+      expect(cta).not.toBeNull();
+      // Orden vertical real: primero el precio, después el CTA.
+      expect(precedes(price, cta)).toBe(true);
+    }
   });
 });

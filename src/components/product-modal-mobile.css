@@ -1,7 +1,31 @@
 /* Only the large-image area of the original modal, on portrait phones.
    The original image transforms, gestures, gallery and commerce are unchanged. */
 @media (max-width: 599px) and (orientation: portrait) {
-  .product-modal .product-visual { height: min(55dvh, 480px); }
+  /* Una sola columna que cabe en el ancho de la pantalla. La causa real del
+     desborde horizontal eran el ancho mínimo automático de la grilla y la
+     fila de precios inflexible: aquí el contenido se reacomoda en columna y
+     se permite scroll VERTICAL. No se oculta nada con overflow-x. */
+  .product-modal { width: 100%; max-width: 100%; min-width: 0; max-height: calc(100dvh - 12px); border-radius: 14px; }
+  .product-modal .product-visual { height: min(38dvh, 300px); }
+  .product-modal .product-details { min-width: 0; padding: 18px 16px 20px; }
+  .product-modal .product-details h2 { margin-bottom: 12px; font-size: clamp(1.5rem, 6.6vw, 2rem); overflow-wrap: anywhere; }
+  .product-modal .product-details dl { grid-template-columns: repeat(auto-fit, minmax(104px, 1fr)); }
+  .product-modal .product-details dl div { padding: 10px 0; }
+  .product-modal .product-details dl div:nth-child(odd) { padding-right: 10px; }
+  .product-modal .product-details dl div:nth-child(even) { padding-left: 10px; }
+  /* Precio (Opción A): dos filas —PRECIO LISTA y PRECIO DISTRIBUIDOR— con
+     un filete de 1 px entre ellas. El rótulo ocupa su propia línea y se
+     parte si hace falta; el IMPORTE nunca: es una caja atómica (símbolo y
+     dígitos juntos, sin partirse). La etiqueta de descuento es texto plano. */
+  .product-modal .product-prices { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 12px 0 4px; }
+  .product-modal .product-price { gap: 2px 12px; min-width: 0; flex-wrap: wrap; }
+  .product-modal .product-price small { flex: 0 0 100%; min-width: 0; }
+  .product-modal .product-price__amount { flex: 0 0 auto; font-size: clamp(1.05rem, 4.8vw, 1.2rem); white-space: nowrap; overflow-wrap: normal; }
+  .product-modal .product-price--net .product-price__amount { font-size: clamp(1.2rem, 5.4vw, 1.4rem); }
+  .product-modal .product-price__discount { flex: 0 0 auto; }
+  .product-modal .product-details .stock-line { display: flex; align-items: baseline; gap: 8px; padding: 8px 0 0; border-top: 1px solid rgba(255,255,255,0.1); }
+  .product-modal .purchase-row { grid-template-columns: auto minmax(0, 1fr); }
+  .product-modal .order-button { min-width: 0; }
   .product-modal .product-main-image {
     padding: 6px 4px;
     background: radial-gradient(ellipse at 50% 42%, #ffffff10, transparent 68%), linear-gradient(145deg, #17181b, #090a0c);

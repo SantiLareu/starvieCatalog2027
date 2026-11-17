@@ -1,5 +1,6 @@
 import { useEffect, useState, type CSSProperties } from "react";
 import type { CommerceProduct } from "../../commerce/types";
+import { hasPrice } from "../../commerce/productEligibility";
 import { mainProductFeatures, mobileAssets, mobilePresentationText, type MobileProductPresentation } from "../../data/mobileProductPresentation";
 import { ProductImage, assetUrl } from "../ProductImage";
 import { MobileIcon } from "./MobileIcon";
@@ -7,6 +8,7 @@ import { MobilePremiumTechnologyRail, MobilePremiumTechnicalPanel } from "./Mobi
 import "./mobile-premium-product.css";
 import { usePremiumPageZoom } from "./usePremiumPageZoom";
 import { MobileCourtBackground } from "./MobileCourtBackground";
+import { MobileAccessoryPriceCell } from "./MobileAccessoryPriceCell";
 
 export function MobilePremiumProductPage({ product: catalogProduct, presentation, load, live, active = live, courtScene = false }: {
   product: CommerceProduct | null;
@@ -85,7 +87,17 @@ export function MobilePremiumProductPage({ product: catalogProduct, presentation
       <MobileIcon name="bag" />
     </button>
     <MobilePremiumTechnologyRail technologies={presentation.technologies} productName={product?.nombre ?? "producto"} load={load} />
-    <MobilePremiumTechnicalPanel product={product} presentation={presentation} load={load} />
+    {/* Carril derecho EN FLUJO: la ficha técnica y el precio se apilan, así el
+        precio sigue la altura real de la tabla y nunca la pisa (ni a las
+        características ni al EXPLORAR). */}
+    <div className="mobile-premium-product-page__rail">
+      <MobilePremiumTechnicalPanel product={product} presentation={presentation} load={load} />
+      {product && hasPrice(product) ? (
+        <div className="mobile-premium-product-page__price" data-mobile-price-zone="premium">
+          <MobileAccessoryPriceCell product={product} active={active} live={live} />
+        </div>
+      ) : null}
+    </div>
     {features.length ? <dl className="mobile-premium-product-page__features">{features.map(([label, value]) => <div key={label}>
       <MobileIcon name={label as "Forma" | "Plano" | "Peso" | "Balance"} /><div><dt>{label}</dt><dd>{value}</dd></div>
     </div>)}</dl> : null}

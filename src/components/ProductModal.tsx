@@ -11,10 +11,14 @@ import {
 } from "react";
 import { createPortal } from "react-dom";
 import type { CommerceProduct } from "../commerce/types";
-import { formatPrice } from "../commerce/money";
+import { formatDisplayPrice } from "../commerce/displayPrice";
 import { hasPrice, isPurchasable } from "../commerce/productEligibility";
+import { useOptionalDistributor } from "../commerce/distributor/DistributorContext";
+import {
+  distributorLinePendingLabel,
+  distributorLinePricing,
+} from "../commerce/distributor/pricingDisplay";
 import { ProductImage, assetUrl } from "./ProductImage";
-import { DistributorPriceLine } from "./distributor/DistributorPriceLine";
 import { ProductGalleryImage } from "./ProductGalleryImage";
 import { MOBILE_PILOT_QUERY } from "./mobile/mobilePilot";
 import "./product-modal-mobile.css";
@@ -353,6 +357,61 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
   const purchasable = isPurchasable(product);
   const safeQty = Math.max(1, qty);
 
+  /* Precio del distribuidor: la MISMA fuente que el resto del catálogo (la
+     cotización del servidor). El frontend NO calcula descuentos: si la
+     cotización no es de este producto, no corresponde al precio lista
+     vigente o todavía no llegó, no se muestra ningún importe como final. */
+  const distributor = useOptionalDistributor();
+  const authenticated = distributor?.isAuthenticated ?? false;
+  const quoteEpoch = distributor?.quoteEpoch;
+  const distributorRef = useRef(distributor);
+  distributorRef.current = distributor;
+  /* Una sola petición por producto y generación de cotizaciones: el efecto
+     no depende del objeto del contexto (si dependiera, cada cambio de
+     cotizaciones volvería a pedirla). */
+  const requestedRef = useRef<string | null>(null);
+  useEffect(() => {
+    const current = distributorRef.current;
+    if (!current?.isAuthenticated) {
+      requestedRef.current = null;
+      return;
+    }
+    const requestKey = `${product.id}:${current.quoteEpoch}`;
+    if (requestedRef.current === requestKey) return;
+    requestedRef.current = requestKey;
+    current.ensureQuote(product.id, 1);
+  }, [authenticated, product.id, quoteEpoch]);
+
+  const quote = authenticated && distributor ? distributor.quoteFor(product.id, 1) : null;
+  const pricing = distributorLinePricing({
+    authenticated,
+    productId: product.id,
+    qty: 1,
+    quote,
+  });
+  const quoteLine = quote?.status === "ready" ? quote.line : null;
+  const matchesCatalog =
+    quoteLine != null &&
+    quoteLine.listUnitPrice != null &&
+    quoteLine.listUnitPrice === product.precio;
+  const netPrice = pricing.kind === "ready" && matchesCatalog ? pricing.netUnitPrice : null;
+  const pendingNet = authenticated ? distributorLinePendingLabel(pricing) : null;
+  /* El porcentaje es el que ató la MISMA cotización vigente (el servidor lo
+     devolvió con la línea): ni el de la sesión (que puede ser de otra
+     generación), ni un valor fijo, ni una cuenta en el cliente. Sólo se
+     muestra junto a un neto validado de esa cotización. */
+  const quotePercent = quote?.status === "ready" ? quote.discountPercent : null;
+  const discountPercent =
+    netPrice != null &&
+    quotePercent != null &&
+    Number.isFinite(quotePercent) &&
+    quotePercent > 0 &&
+    quotePercent <= 100
+      ? quotePercent
+      : null;
+  /* Signo menos tipográfico (U+2212): el del prototipo aprobado. */
+  const discountLabel = discountPercent != null ? `\u2212${discountPercent}%` : null;
+
   // Ficha categoría-agnóstica: los campos técnicos de pala (gama, tipoJuego,
   // forma, plano, peso, balance) son opcionales y los bloques vacíos no se
   // muestran. Un paletero/bolso/accesorio sin esos campos presenta nombre,
@@ -499,17 +558,35 @@ export function ProductModal({ product, pageSrc, cartQty, onAdd, onClose }: Prod
             ))}
           </dl> : null}
           <div className="product-prices">
-            {hasPrice(product) ? <span><small>Precio</small>{formatPrice(product.precio)}</span> : null}
-            <DistributorPriceLine productId={product.id} />
-            <span className="stock-line">
-              <small>Disponibilidad</small>
-              {product.disponible ? (
-                <em className="in-stock">Con stock</em>
-              ) : (
-                <em className="out-of-stock">Sin stock</em>
-              )}
-            </span>
+            {hasPrice(product) ? (
+              <div className="product-price product-price--list">
+                <small>Precio lista</small>
+                <span className="product-price__amount">{formatDisplayPrice(product.precio)}</span>
+              </div>
+            ) : null}
+            {netPrice != null ? (
+              <div className="product-price product-price--net" data-has-net="true">
+                <small>Precio distribuidor</small>
+                <span className="product-price__amount">{formatDisplayPrice(netPrice)}</span>
+                {discountLabel != null ? (
+                  <em className="product-price__discount">{discountLabel}</em>
+                ) : null}
+              </div>
+            ) : pendingNet != null ? (
+              <div className="product-price product-price--net" data-has-net="false">
+                <small>Precio distribuidor</small>
+                <span className="product-price__pending">{pendingNet}</span>
+              </div>
+            ) : null}
           </div>
+          <span className="stock-line">
+            <small>Disponibilidad</small>
+            {product.disponible ? (
+              <em className="in-stock">Con stock</em>
+            ) : (
+              <em className="out-of-stock">Sin stock</em>
+            )}
+          </span>
           {purchasable ? (
             <div className="purchase-row">
               <div className="qty-selector" role="group" aria-label="Cantidad">

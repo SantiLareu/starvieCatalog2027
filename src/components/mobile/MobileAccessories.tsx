@@ -88,13 +88,17 @@ export function MobileAccessoryProductPage({ product: candidate, presentation, a
           <div><strong>{feature.title}</strong>{feature.description ? <p>{feature.description}</p> : null}</div>
         </li>)}</ol>
       </section>
-      <div className="mobile-accessory-product__facts" data-has-price={priced ? "true" : undefined}>
-        <dl className="mobile-accessory-product__specs">{presentation.specs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
-        <MobileAccessoryPriceCell product={product} active={active} live={live} />
+      <div className="mobile-accessory-product__bottom">
+        <div className="mobile-accessory-product__facts" data-has-price={priced ? "true" : undefined}>
+          <dl className="mobile-accessory-product__specs">{presentation.specs.map(([label, value]) => <div key={label}><dt>{label}</dt><dd>{value}</dd></div>)}</dl>
+          <MobileAccessoryPriceCell product={product} active={active} live={live} />
+        </div>
+        <div className="mobile-accessory-product__actions">
+          <footer><span>REF: {presentation.ref}<br />EAN: {presentation.ean}</span><span>{presentation.pageId}</span></footer>
+          <button className="mobile-accessory-product__explore" type="button" data-product-id={product?.id} disabled={!live || !product}
+            aria-label={product ? `Explorar ${product.nombre}` : "Producto no disponible"}>EXPLORAR <span aria-hidden="true">↗</span></button>
+        </div>
       </div>
-      <footer><span>REF: {presentation.ref}<br />EAN: {presentation.ean}</span><span>{presentation.pageId}</span></footer>
-      <button className="mobile-accessory-product__explore" type="button" data-product-id={product?.id} disabled={!live || !product}
-        aria-label={product ? `Explorar ${product.nombre}` : "Producto no disponible"}>EXPLORAR <span aria-hidden="true">↗</span></button>
     </article>
   }</AccessoryViewport>;
 }
@@ -125,15 +129,17 @@ export function MobileAccessoryPairPage({ products, presentation, active, load, 
             aria-label={product ? `Ver ficha y opciones de pedido de ${product.nombre}` : `${item.title}: producto no disponible`}>
             <MobileIcon name="bag" />
           </button>
-          <div className="mobile-accessory-pair__details">
-            <dl><dt>MATERIALES</dt><dd>{item.materials}</dd></dl>
-            <MobileAccessoryPriceCell product={product ?? null} active={active} live={live} />
-            <p>REF: {item.ref}<br />EAN: {item.ean}</p>
+          <div className="mobile-accessory-pair__bottom">
+            <div className="mobile-accessory-pair__details">
+              <dl><dt>MATERIALES</dt><dd>{item.materials}</dd></dl>
+              <MobileAccessoryPriceCell product={product ?? null} active={active} live={live} />
+              <p>REF: {item.ref}<br />EAN: {item.ean}</p>
+            </div>
+            <button className="mobile-accessory-product__explore" type="button" data-product-id={product?.id}
+              disabled={!live || !product} aria-label={product ? `Explorar ${product.nombre}` : `${item.title}: producto no disponible`}>
+              EXPLORAR <span aria-hidden="true">↗</span>
+            </button>
           </div>
-          <button className="mobile-accessory-product__explore" type="button" data-product-id={product?.id}
-            disabled={!live || !product} aria-label={product ? `Explorar ${product.nombre}` : `${item.title}: producto no disponible`}>
-            EXPLORAR <span aria-hidden="true">↗</span>
-          </button>
         </section>;
       })}</div>
     </article>

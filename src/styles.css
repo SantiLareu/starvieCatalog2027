@@ -707,7 +707,105 @@ button { -webkit-tap-highlight-color: transparent; }
   pointer-events: none;
 }
 
-.hotspot-layer { position: absolute; inset: 0; pointer-events: none; }
+/* Precio editorial sobre la página del catálogo (desktop).
+   La capa es INERTE: no intercepta el clic del hotspot ni publica
+   identificadores de producto (los hotspots los delega el motor del libro).
+   El precio no tapa firmas, fotos, tablas ni textos: vive en la zona libre
+   que la maqueta deja junto a la ficha de especificaciones. */
+/* La capa de precio es inerte: no intercepta el clic del hotspot ni publica
+   identificadores de producto (los hotspots los delega el motor del libro). */
+.page-price-overlay { position: absolute; inset: 0; z-index: 1; pointer-events: none; }
+/* Sólo las páginas con ubicación medida (P15–26, P28–36) se convierten en
+   contenedor de tamaño: es lo que permite medir el chip respecto del ancho de
+   la hoja. P37 (distribución aprobada) y P38 (sin precios) no lo llevan. */
+.page-price-overlay[data-price-measured="true"] { container-type: size; container-name: catalog-page; }
+.page-price-tag { position: absolute; display: grid; gap: 3px; justify-items: start; pointer-events: none; }
+/* La posición sale de la zona libre medida de cada página
+   (src/data/pagePriceZones.ts): no hay un criterio genérico por familia. */
+.page-price-tag[data-price-page] { left: var(--price-left); top: var(--price-top); max-width: var(--price-width); }
+.page-price-tag[data-price-zone="pair-left"] { left: 10.5%; top: 66%; }
+.page-price-tag[data-price-zone="pair-right"] { left: 40.5%; top: 66%; }
+.page-price-tag__name { font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: #cfd2d8; }
+
+/* ── Opción A · piel editorial minimalista de los precios (S10) ───────────
+   Dos filas —PRECIO LISTA y PRECIO DISTRIBUIDOR— y un filete de 1 px
+   entre ellas. El importe lista va apagado (peso 600) y el neto destacado
+   (peso 720). La etiqueta de descuento es TEXTO PLANO en color de acento
+   (signo menos tipográfico U+2212): sin pastilla, sin borde y sin fondo.
+   Sin fondos, sin tarjetas, sin recuadros redondeados y sin carteles: el
+   precio entra como un dato más de la página.
+   La piel es la misma en los tres lugares donde el catálogo muestra precios
+   (página desktop, carril mobile de paletas y hojas mobile de accesorios);
+   cada contexto fija sus propias escalas y su contraste. */
+:is(.page-price-tag, .mobile-premium-product-page__price, .mobile-accessory-page) .mobile-accessory-price {
+  --pv-label: #f0a49c;
+  --pv-accent: #f0a49c;
+  --pv-amount: #fff;
+  --pv-muted: #b6b9bf;
+  --pv-hairline: rgba(255, 255, 255, .16);
+  --pv-label-size: 9px;
+  --pv-list-size: 15px;
+  --pv-net-size: 17px;
+  --pv-save-size: 10px;
+  display: grid; gap: 6px; align-content: start; min-width: 0;
+}
+:is(.page-price-tag, .mobile-premium-product-page__price, .mobile-accessory-page) .mobile-accessory-price__row {
+  display: grid; gap: 2px; justify-items: start; min-width: 0;
+}
+/* El filete va EN la fila de distribuidor: el visitante (una sola fila) no
+   ve ninguna línea. */
+:is(.page-price-tag, .mobile-premium-product-page__price, .mobile-accessory-page) .mobile-accessory-price__row--net {
+  border-top: 1px solid var(--pv-hairline);
+  padding-top: 6px;
+}
+:is(.page-price-tag, .mobile-premium-product-page__price, .mobile-accessory-page) .mobile-accessory-price__label,
+:is(.page-price-tag, .mobile-premium-product-page__price, .mobile-accessory-page) .mobile-accessory-price__net-label {
+  font-size: var(--pv-label-size); font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--pv-label);
+  /* El rótulo largo se parte: nunca se abrevia ni se recorta. */
+  overflow-wrap: break-word; hyphens: none;
+}
+:is(.page-price-tag, .mobile-premium-product-page__price, .mobile-accessory-page) .mobile-accessory-price__amount {
+  font-size: var(--pv-list-size); font-weight: 600; letter-spacing: -0.01em;
+  line-height: 1.1; color: var(--pv-muted);
+  white-space: nowrap; overflow-wrap: normal;
+}
+:is(.page-price-tag, .mobile-premium-product-page__price, .mobile-accessory-page) .mobile-accessory-price__net-value {
+  font-size: var(--pv-net-size); font-weight: 720; letter-spacing: -0.02em;
+  line-height: 1.1; color: var(--pv-amount);
+  white-space: nowrap; overflow-wrap: normal;
+}
+:is(.page-price-tag, .mobile-premium-product-page__price, .mobile-accessory-page) .mobile-accessory-price__discount {
+  font-size: var(--pv-save-size); font-weight: 750; letter-spacing: 0.08em;
+  color: var(--pv-accent); white-space: nowrap;
+}
+/* Páginas claras (paleteros, mochilas y neceseres): el texto invierte el
+   contraste para seguir siendo legible sobre la banda clara de la maqueta.
+   Sin placa ni fondo: sólo cambian los tokens. */
+.page-price-tag[data-price-zone="accessory"] .mobile-accessory-price,
+.page-price-tag[data-price-zone="pair-left"] .mobile-accessory-price,
+.page-price-tag[data-price-zone="pair-right"] .mobile-accessory-price {
+  --pv-label: #a5342b;
+  --pv-accent: #a5342b;
+  --pv-amount: #17181b;
+  --pv-muted: #5c5f66;
+  --pv-hairline: rgba(0, 0, 0, .16);
+}
+.page-price-tag[data-price-zone="pair-left"] .page-price-tag__name,
+.page-price-tag[data-price-zone="pair-right"] .page-price-tag__name { color: #3a3c41; }
+/* El chip de las páginas con zona medida se dimensiona respecto de la hoja
+   (cqw) para no crecer al achicarse la ventana. Sólo aplica a las páginas con
+   ubicación medida: P37 conserva su tamaño en px fijos. */
+.page-price-tag[data-price-page] .mobile-accessory-price {
+  --pv-label-size: clamp(7px, 0.62cqw, 11px);
+  --pv-list-size: clamp(10px, 1.05cqw, 17px);
+  --pv-net-size: clamp(12px, 1.35cqw, 21px);
+  --pv-save-size: clamp(7px, 0.58cqw, 10px);
+}
+
+/* La capa de hotspots queda por encima de la capa de precio (inerte) para
+   que el marcador del producto nunca quede tapado por el chip. */
+.hotspot-layer { position: absolute; inset: 0; z-index: 2; pointer-events: none; }
 .product-hotspot {
   position: absolute;
   padding: 0;
@@ -962,16 +1060,38 @@ button { -webkit-tap-highlight-color: transparent; }
 }
 .product-details { padding: 56px 44px 32px; background: linear-gradient(160deg, rgba(255,255,255,0.025), transparent 55%); }
 .product-range { margin: 0 0 8px; color: var(--accent); font-size: 0.75rem; font-weight: 750; letter-spacing: 0.1em; text-transform: uppercase; }
-.product-details h2 { margin: 0 0 28px; color: #fff; font-size: clamp(2.25rem, 4vw, 4rem); line-height: 0.95; letter-spacing: -0.05em; }
+.product-details h2 { margin: 0 0 28px; color: #fff; font-size: clamp(2.25rem, 4vw, 4rem); line-height: 0.95; letter-spacing: -0.05em; overflow-wrap: anywhere; }
 .product-details dl { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0; border-top: 1px solid rgba(255,255,255,0.12); }
 .product-details dl div { padding: 13px 0; border-bottom: 1px solid rgba(255,255,255,0.12); }
 .product-details dl div:nth-child(odd) { padding-right: 16px; }
 .product-details dl div:nth-child(even) { padding-left: 16px; border-left: 1px solid rgba(255,255,255,0.12); }
 .product-details dt { margin-bottom: 3px; color: #d2675e; font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; }
 .product-details dd { margin: 0; color: #f3f3f4; font-size: 0.9rem; font-weight: 650; }
-.product-prices { display: flex; gap: 32px; padding: 22px 0 18px; }
-.product-prices span { display: grid; gap: 3px; font-size: 1.45rem; font-weight: 760; letter-spacing: -0.03em; }
-.product-prices small { color: #a3a5aa; font-size: 0.67rem; font-weight: 550; letter-spacing: 0.08em; text-transform: uppercase; }
+/* Bloque de precio del modal (Opción A): dos filas —PRECIO LISTA y PRECIO
+   DISTRIBUIDOR— con un filete de 1 px entre ellas. El importe lista va
+   apagado (peso 600) y el neto destacado (peso 720). La etiqueta de
+   descuento es texto plano en color de acento (signo menos tipográfico
+   U+2212): sin pastilla, sin borde y sin fondo. */
+.product-prices { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 20px 0 10px; }
+.product-prices:empty { display: none; }
+.product-price { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 12px; min-width: 0; }
+/* El rótulo ocupa su propia línea (base 100%): es un elemento entero que
+   puede partirse sin tocar el importe. */
+.product-price small { flex: 0 0 100%; min-width: 0; color: #f0a49c; font-size: 0.67rem; font-weight: 700; letter-spacing: 0.14em;
+  text-transform: uppercase; overflow-wrap: break-word; hyphens: none; }
+/* El importe es una CAJA ATÓMICA: el símbolo $ y los dígitos viajan juntos y
+   no se parten nunca (S2). Si no entra, baja el rótulo o la etiqueta de
+   línea; el número no se corta ni se recorta. */
+.product-price__amount { flex: 0 0 auto; color: #b6b9bf; font-size: 1.35rem; font-weight: 600; letter-spacing: -0.01em; white-space: nowrap; overflow-wrap: normal; }
+.product-price--net { border-top: 1px solid rgba(255, 255, 255, .16); padding-top: 6px; }
+.product-price--net .product-price__amount { color: #fff; font-size: 1.6rem; font-weight: 720; letter-spacing: -0.02em; }
+.product-price__pending { color: #a3a5aa; font-size: 1rem; font-weight: 600; }
+.product-price__discount { flex: 0 0 auto; align-self: baseline; margin: 0; padding: 0; border: 0; border-radius: 0; background: none;
+  color: #f0a49c; font-size: 0.66rem; font-style: normal; font-weight: 750; letter-spacing: 0.08em; }
+/* La disponibilidad es un bloque propio (debajo del precio), no una celda
+   más del bloque de precio. */
+.product-details .stock-line { display: grid; gap: 3px; margin: 0; }
+.product-details .stock-line small { color: #a3a5aa; font-size: 0.67rem; font-weight: 550; letter-spacing: 0.08em; text-transform: uppercase; }
 .order-button { width: 100%; height: 48px; border: 1px solid rgba(255,255,255,0.08); border-radius: 10px; color: #777a80; background: #24262a; font-weight: 700; cursor: not-allowed; }
 .future-note { margin: 10px 0 0; color: #8e9196; font-size: 0.69rem; text-align: center; }
 
@@ -1093,13 +1213,26 @@ button { -webkit-tap-highlight-color: transparent; }
   }
   .thumbnail-drawer { width: 108px; padding: 9px 7px; }
   .hotspot-marker { width: 29px; }
-  .modal-backdrop { padding: 12px; }
-  .product-modal { grid-template-columns: 1fr; max-height: calc(100dvh - 24px); border-radius: 16px; }
-  .product-visual { height: min(47dvh, 390px); min-height: 0; border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
-  .product-details { padding: 30px 22px 22px; }
-  .product-details h2 { margin-bottom: 20px; font-size: 2.7rem; }
-  .product-details dl { font-size: 0.86rem; }
-  .product-prices { padding-top: 18px; }
+  /* El modal en una sola columna. La causa real del desborde era el ancho
+     mínimo automático de la grilla (una pista 1fr cuyo mínimo es el
+     min-content) junto con una fila de precios inflexible. Nada se oculta:
+     el contenido se reacomoda en columna y sólo se permite scroll VERTICAL. */
+  .modal-backdrop { padding: 8px; grid-template-columns: minmax(0, 1fr); }
+  .product-modal { width: 100%; max-width: 100%; min-width: 0; grid-template-columns: minmax(0, 1fr); max-height: calc(100dvh - 16px); border-radius: 16px; }
+  .product-modal > * { min-width: 0; }
+  .product-visual { height: min(40dvh, 320px); min-height: 0; border-right: 0; border-bottom: 1px solid rgba(255,255,255,0.1); }
+  .product-details { min-width: 0; padding: 20px 18px 22px; }
+  .product-details h2 { margin-bottom: 14px; font-size: clamp(1.6rem, 6.4vw, 2.2rem); overflow-wrap: anywhere; }
+  .product-details dl { grid-template-columns: repeat(auto-fit, minmax(112px, 1fr)); font-size: 0.82rem; }
+  .product-details dl div:nth-child(odd) { padding-right: 10px; }
+  .product-details dl div:nth-child(even) { padding-left: 10px; }
+  .product-prices { display: grid; grid-template-columns: minmax(0, 1fr); gap: 6px; padding: 14px 0 6px; }
+  .product-price { gap: 2px 12px; flex-wrap: wrap; }
+  .product-price__amount { flex: 0 0 auto; font-size: clamp(1.05rem, 4.8vw, 1.2rem); white-space: nowrap; overflow-wrap: normal; }
+  .product-price--net .product-price__amount { font-size: clamp(1.2rem, 5.4vw, 1.4rem); }
+  .product-details .stock-line { display: flex; align-items: baseline; gap: 8px; padding: 8px 0 0; border-top: 1px solid rgba(255,255,255,0.1); }
+  .purchase-row { grid-template-columns: auto minmax(0, 1fr); }
+  .order-button { min-width: 0; }
 }
 
 .mobile-gesture-hint { display: none; pointer-events: none; }

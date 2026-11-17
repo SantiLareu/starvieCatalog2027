@@ -1,8 +1,10 @@
+import { useRef } from "react";
 import type { CatalogPage } from "../types/catalog";
 import { hotspotsForPage, selectLiveHotspots } from "../data/CatalogData";
 import { CoverIntro } from "./CoverIntro";
 import { MobilePortraitCover } from "./mobile/MobilePortraitCover";
 import { HotspotLayer } from "./HotspotLayer";
+import { PagePriceOverlay, pagePriceTargets, usePageVisible } from "./PagePriceTag";
 
 type PdfPageProps = {
   page: CatalogPage;
@@ -23,9 +25,14 @@ export function PdfPage({
   // retirado del catálogo deja de mostrar hotspot; uno no disponible sigue
   // visible y abre el modal como "Sin stock".
   const pageHotspots = selectLiveHotspots(hotspotsForPage(page.id), productNames);
+  // La capa de precio sólo se monta en páginas con producto y sólo pide la
+  // cotización del distribuidor cuando la hoja está a la vista.
+  const hasPrices = pagePriceTargets(page.id, page.number).length > 0;
+  const pageRef = useRef<HTMLDivElement>(null);
+  const visible = usePageVisible(pageRef, hasPrices);
 
   return (
-    <div className="pdf-page" data-page-number={page.number}>
+    <div className="pdf-page" data-page-number={page.number} ref={pageRef}>
       <img
         className="pdf-page-image"
         data-catalog-page={page.number}
@@ -58,6 +65,9 @@ export function PdfPage({
           productNames={productNames}
           onProductSelect={onProductSelect}
         />
+      ) : null}
+      {hasPrices ? (
+        <PagePriceOverlay pageId={page.id} pageNumber={page.number} active={visible} />
       ) : null}
       <span className="page-edge" aria-hidden="true" />
     </div>

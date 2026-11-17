@@ -30,6 +30,9 @@ const LIST_PRICES: Record<string, number> = {
   'black voltage': 110000,
   'neceser navy': 39000,
   'neceser moss': 41500,
+  'eternal': 372000,
+  'triton+ balance': 372000,
+  'kyra': 165000,
 };
 
 /** Precio NETO simulado por el servidor: distinto en cada producto. */
@@ -43,6 +46,9 @@ const NET_PRICES: Record<string, number> = {
   'black voltage': 88000,
   'neceser navy': 31200,
   'neceser moss': 33200,
+  'eternal': 297600,
+  'triton+ balance': 297600,
+  'kyra': 132000,
 };
 
 /** Hojas de producto único (P28–P36): producto, ficha y un solo precio. */
@@ -116,6 +122,19 @@ export function containedRect(
 /** ¿Se cruzan dos rectángulos? (Solapamiento real, no un orden suposisto.) */
 export function overlaps(a: Rect, b: Rect): boolean {
   return a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+}
+
+/** ¿El rectángulo `inner` está contenido dentro de `outer`? (texto sin desbordar) */
+export function contains(outer: Rect, inner: Rect, tolerance = 1): boolean {
+  return inner.left >= outer.left - tolerance
+    && inner.right <= outer.right + tolerance
+    && inner.top >= outer.top - tolerance
+    && inner.bottom <= outer.bottom + tolerance;
+}
+
+/** ¿`first` termina antes de que empiece `second`? (orden vertical real) */
+export function above(first: Rect, second: Rect, tolerance = 1): boolean {
+  return first.bottom <= second.top + tolerance;
 }
 
 test('geometría de imagen contenida: el borde inferior real, no el borde superior', () => {
@@ -314,9 +333,10 @@ async function drawnRect(locator: Locator): Promise<Rect> {
   return containedRect(geometry.rect, geometry.natural, geometry.objectPosition);
 }
 
-/** Cajas del texto del precio (rótulo, importe y neto si existe). */
+/** Cajas del texto del precio (rótulo, importe, rótulo y neto de distribuidor,
+ *  importe neto y etiqueta de descuento). */
 async function priceTextBoxes(price: Locator): Promise<Rect[]> {
-  const texts = price.locator('.mobile-accessory-price__label, .mobile-accessory-price__amount, .mobile-accessory-price__net-value');
+  const texts = price.locator('.mobile-accessory-price__label, .mobile-accessory-price__amount, .mobile-accessory-price__net-label, .mobile-accessory-price__net-value, .mobile-accessory-price__discount');
   const boxes: Rect[] = [];
   for (const text of await texts.all()) boxes.push(await boxOf(text));
   return boxes;
@@ -346,7 +366,7 @@ async function expectPriceTextClear(price: Locator, regions: {
       expect(box.bottom).toBeLessThanOrEqual(regions.leaf.bottom + 1);
     }
   }
-  for (const text of await price.locator('.mobile-accessory-price__label, .mobile-accessory-price__amount, .mobile-accessory-price__net-value').all()) {
+  for (const text of await price.locator('.mobile-accessory-price__label, .mobile-accessory-price__amount, .mobile-accessory-price__net-label, .mobile-accessory-price__net-value, .mobile-accessory-price__discount').all()) {
     const overflow = await text.evaluate(node => ({ text: node.textContent, width: node.clientWidth, scrollWidth: node.scrollWidth }));
     expect(overflow.scrollWidth, JSON.stringify(overflow)).toBeLessThanOrEqual(overflow.width + 1);
   }
@@ -409,14 +429,20 @@ for (const [width, height] of SIZES) {
         if (mode === 'public') {
           // Sin sesión de distribuidor no hay línea de distribuidor ni precio neto.
           await expect(price.locator('.mobile-accessory-price__net')).toHaveCount(0);
+          await expect(price.locator('.mobile-accessory-price__discount')).toHaveCount(0);
           expect(calls.quotes).not.toContain(`${item.productId}:1`);
         } else if (mode === 'distributor-pending') {
           // Una cotización pendiente no presenta ningún importe como final.
           await expect(price.locator('.mobile-accessory-price__net-value')).toHaveText('A confirmar');
           await expect(price.locator('.mobile-accessory-price__net-value')).not.toContainText('$');
+          await expect(price.locator('.mobile-accessory-price__discount')).toHaveCount(0);
           await expect(price).toHaveAttribute('data-has-net', 'false');
         } else {
           await expect(price.locator('.mobile-accessory-price__net-value')).toHaveText(`$ ${displayAmount(NET_PRICES[item.productId])}`);
+          // Opción A: rótulo de distribuidor y etiqueta de descuento del
+          // servidor (signo menos tipográfico, texto plano).
+          await expect(price.locator('.mobile-accessory-price__net-label')).toHaveText('PRECIO DISTRIBUIDOR');
+          await expect(price.locator('.mobile-accessory-price__discount')).toHaveText('\u221220%');
           await expect(price).toHaveAttribute('data-has-net', 'true');
           expect(calls.quotes).toContain(`${item.productId}:1`);
         }
@@ -426,18 +452,28 @@ for (const [width, height] of SIZES) {
         for (const itemFeature of await leaf.locator('.mobile-accessory-product__features li').all()) features.push(await boxOf(itemFeature));
         const hero = await boxOf(leaf.locator('.mobile-accessory-product__hero'));
         const photo = await drawnRect(leaf.locator('.mobile-accessory-product__hero img'));
+        const facts = await boxOf(leaf.locator('.mobile-accessory-product__facts'));
+        const cta = await boxOf(leaf.locator('.mobile-accessory-product__explore'));
+        const footer = await boxOf(leaf.locator(REF_EAN_SELECTOR));
         await expectPriceTextClear(price, {
           features,
           photo,
-          cta: await boxOf(leaf.locator('.mobile-accessory-product__explore')),
-          footer: await boxOf(leaf.locator(REF_EAN_SELECTOR)),
+          cta,
+          footer,
           leaf: await boxOf(leaf),
         });
-        // La ficha completa tampoco invade el CTA ni el pie.
-        const facts = await boxOf(leaf.locator('.mobile-accessory-product__facts'));
-        const cta = await boxOf(leaf.locator('.mobile-accessory-product__explore'));
-        const footer = await boxOf(leaf.locator('footer'));
+        // El texto del precio está CONTENIDO en la ficha: la zona inferior es
+        // un flujo y el texto no puede desbordar su caja.
+        for (const textBox of await priceTextBoxes(price)) {
+          expect(contains(facts, textBox), `el texto del precio sale de la ficha: ${JSON.stringify(textBox)}`).toBe(true);
+        }
+        // ORDEN VERTICAL real: el precio va por encima del CTA EXPLORAR.
+        const priceBox = await boxOf(price);
+        expect(above(priceBox, cta), 'el precio no está por encima del CTA').toBe(true);
+        // La ficha y el CTA no se pisan, y el CTA no pisa el REF/EAN.
         expect(overlaps(facts, cta), 'la ficha sobre el CTA').toBe(false);
+        expect(overlaps(cta, footer), 'el CTA sobre REF/EAN').toBe(false);
+        // La ficha completa tampoco invade el CTA ni el pie.
         expect(overlaps(facts, footer), 'la ficha sobre REF/EAN').toBe(false);
         // El título y la foto no quedan debajo de la ficha.
         const title = await boxOf(leaf.getByRole('heading', { level: 1 }));
@@ -460,12 +496,16 @@ for (const [width, height] of SIZES) {
         }
         if (mode === 'public') {
           await expect(price.locator('.mobile-accessory-price__net')).toHaveCount(0);
+          await expect(price.locator('.mobile-accessory-price__discount')).toHaveCount(0);
           expect(calls.quotes).not.toContain(`${block.productId}:1`);
         } else if (mode === 'distributor-pending') {
           await expect(price.locator('.mobile-accessory-price__net-value')).toHaveText('A confirmar');
           await expect(price.locator('.mobile-accessory-price__net-value')).not.toContainText('$');
+          await expect(price.locator('.mobile-accessory-price__discount')).toHaveCount(0);
         } else {
           await expect(price.locator('.mobile-accessory-price__net-value')).toHaveText(block.net);
+          await expect(price.locator('.mobile-accessory-price__net-label')).toHaveText('PRECIO DISTRIBUIDOR');
+          await expect(price.locator('.mobile-accessory-price__discount')).toHaveText('\u221220%');
           for (const other of PAIR_PAGE.blocks.filter(item => item !== block)) {
             await expect(price.locator('.mobile-accessory-price__net-value')).not.toHaveText(other.net);
           }
@@ -480,7 +520,15 @@ for (const [width, height] of SIZES) {
         expect(overlaps(photo, details), 'la fotografía del bloque sobre su ficha').toBe(false);
         expect(photo.bottom).toBeLessThanOrEqual(details.top + 1);
         expect(overlaps(details, cta), 'la ficha del bloque sobre el CTA').toBe(false);
-        expect(overlaps(details, ref), 'la ficha del bloque sobre REF/EAN').toBe(false);
+        // El texto del precio está contenido en la ficha del bloque y NO
+        // pisa el REF/EAN (que vive dentro de la misma ficha).
+        const priceBox = await boxOf(price);
+        for (const textBox of await priceTextBoxes(price)) {
+          expect(contains(details, textBox), `el texto del precio sale de la ficha: ${JSON.stringify(textBox)}`).toBe(true);
+          expect(overlaps(textBox, ref), 'el texto del precio sobre REF/EAN').toBe(false);
+        }
+        // ORDEN VERTICAL real: el precio va por encima del CTA de su bloque.
+        expect(above(priceBox, cta), 'el precio no está por encima del CTA').toBe(true);
         await expectPriceTextClear(price, { cta, footer: ref, leaf: await boxOf(p37) });
       }
       // Cada neceser pidió su propia cotización.
@@ -519,4 +567,128 @@ test('portrait: la navegación y el hotspot de producto siguen funcionando con l
   await page.getByRole('button', { name: 'Página anterior', exact: true }).tap();
   await expect(page.getByTestId('page-indicator')).toHaveText('32 / 39');
   await expect(page.getByRole('article', { name: 'Página 32, STAR', exact: true }).first().locator('.mobile-accessory-price__amount')).toHaveText('$ 124.800');
+});
+
+/**
+ * Las hojas de paletas (P15–26) muestran su precio en una zona propia: no
+ * tapan la pala, las tecnologías, las especificaciones ni las características,
+ * y el precio queda por ENCIMA del CTA de la hoja.
+ *
+ * Matriz: 360 / 390 / 430 px × (visitante / distribuidor confirmado).
+ */
+const PADDLE_PAGES: Array<[number, string]> = [
+  [15, 'eternal'],
+  [20, 'triton+ balance'],
+  [26, 'kyra'],
+];
+
+const PADDLE_WIDTHS = [360, 390, 430] as const;
+const PADDLE_MODES = ['public', 'distributor-confirmed'] as const;
+
+for (const width of PADDLE_WIDTHS) {
+  for (const mode of PADDLE_MODES) {
+    test(`portrait ${width}px · ${mode}: las hojas de paletas muestran su precio sin tapar la pala, las especificaciones ni el CTA`, async ({ page, isMobile }) => {
+      test.skip(!isMobile, 'Mobile portrait only');
+      test.setTimeout(120_000);
+      const external = await blockExternalHosts(page);
+      const calls = await mockDistributor(page, {
+        authenticated: mode !== 'public',
+        pending: false,
+      });
+      await page.setViewportSize({ width, height: 844 });
+      await page.goto('/');
+      await expect(page.locator('.catalog-app')).toHaveClass(/cover-ready/);
+
+      for (const [number, productId] of PADDLE_PAGES) {
+        await goTo(page, number);
+        const leaf = page.getByRole('article', { name: `Página ${number}, edición vertical StarVie` }).first();
+        await expect(leaf).toBeVisible();
+
+        const zone = leaf.locator('[data-mobile-price-zone="premium"]');
+        await expect(zone).toHaveCount(1);
+        await expect(zone.locator('.mobile-accessory-price')).toHaveAttribute('data-price-product', productId);
+        await expect(zone.locator('.mobile-accessory-price__label')).toHaveText('PRECIO LISTA');
+        await expect(zone.locator('.mobile-accessory-price__amount')).toHaveText(`$ ${displayAmount(LIST_PRICES[productId])}`);
+
+        if (mode === 'public') {
+          await expect(zone.locator('.mobile-accessory-price__net')).toHaveCount(0);
+          await expect(zone.locator('.mobile-accessory-price__discount')).toHaveCount(0);
+          expect(calls.quotes).not.toContain(`${productId}:1`);
+        } else {
+          await expect(zone.locator('.mobile-accessory-price__net-value')).toHaveText(`$ ${displayAmount(NET_PRICES[productId])}`);
+          await expect(zone.locator('.mobile-accessory-price__net-label')).toHaveText('PRECIO DISTRIBUIDOR');
+          await expect(zone.locator('.mobile-accessory-price__discount')).toHaveText('\u221220%');
+          await expect(zone.locator('.mobile-accessory-price')).toHaveAttribute('data-has-net', 'true');
+          expect(calls.quotes).toContain(`${productId}:1`);
+        }
+
+        // El texto del precio está contenido en su propia zona.
+        const price = zone.locator('.mobile-accessory-price');
+        const priceBox = await boxOf(price);
+        const zoneBox = await boxOf(zone);
+        for (const textBox of await priceTextBoxes(price)) {
+          expect(contains(zoneBox, textBox), `el texto del precio sale de su zona: ${JSON.stringify(textBox)}`).toBe(true);
+        }
+
+        // El precio no pisa la pala, las tecnologías, la ficha técnica ni las
+        // características: se comparan rectángulos REALES, no un orden supuesto.
+        const paddle = await drawnRect(leaf.locator('.mobile-premium-product-page__hero img'));
+        expect(overlaps(priceBox, paddle), 'el precio sobre la pala').toBe(false);
+        const technologies = await boxOf(leaf.locator('.mobile-premium-product-page__technologies'));
+        expect(overlaps(priceBox, technologies), 'el precio sobre las tecnologías').toBe(false);
+        const technical = await boxOf(leaf.locator('.mobile-premium-product-page__technical'));
+        expect(overlaps(priceBox, technical), 'el precio sobre las especificaciones').toBe(false);
+        const features = await boxOf(leaf.locator('.mobile-premium-product-page__features'));
+        expect(overlaps(priceBox, features), 'el precio sobre las características').toBe(false);
+
+        // ORDEN VERTICAL real: el precio va por encima del CTA EXPLORAR.
+        const explore = await boxOf(leaf.locator('.mobile-premium-product-page__explore'));
+        expect(above(priceBox, explore), 'el precio no está por encima del CTA').toBe(true);
+        // El precio vive en el carril derecho, DEBAJO de la ficha técnica: no
+        // la pisa y sigue su altura real.
+        const technicalBox = await boxOf(leaf.locator('.mobile-premium-product-page__technical'));
+        expect(above(technicalBox, priceBox), 'el precio no está debajo de la ficha técnica').toBe(true);
+        // Y el carril entero queda por encima de las características y del CTA.
+        const rail = await boxOf(leaf.locator('.mobile-premium-product-page__rail'));
+        expect(above(rail, features), 'el carril sobre las características').toBe(true);
+        expect(above(rail, explore), 'el carril sobre el CTA').toBe(true);
+      }
+      expect(calls.orders).toBe(0);
+      expect(external).toEqual([]);
+    });
+  }
+}
+
+/**
+ * Contrato de la Opción A en las hojas mobile (SIN navegador): escalas de
+ * teléfono por contexto, dos filas con filete de 1 px y etiqueta de
+ * descuento en texto plano (sin pastilla, sin borde, sin fondo).
+ *
+ * Esto NO prueba el dibujo: el navegador no se pudo ejecutar en este entorno.
+ */
+test('contrato: la Opción A en las hojas mobile (escalas, filete y etiqueta plana)', async () => {
+  const accessories = await readFile(new URL('../src/components/mobile/mobile-accessories.css', import.meta.url), 'utf8');
+  const premium = await readFile(new URL('../src/components/mobile/mobile-premium-product.css', import.meta.url), 'utf8');
+
+  for (const [name, css, unit] of [
+    ['accesorios', accessories, '--accessory-unit'],
+    ['paletas', premium, '--mobile-premium-unit'],
+  ] as const) {
+    const cell = /\.mobile-accessory-price\s*\{([^}]*)\}/.exec(css);
+    expect(cell, `${name}: no se encuentra la celda de precio`).not.toBeNull();
+    expect(cell![1], name).toMatch(new RegExp(`--pv-label-size:\\s*max\\(8px,\\s*calc\\(2\\.1 \\* var\\(${unit}\\)\\)\\)`));
+    expect(cell![1], name).toMatch(new RegExp(`--pv-list-size:\\s*max\\(11px,\\s*calc\\(3\\.1 \\* var\\(${unit}\\)\\)\\)`));
+    expect(cell![1], name).toMatch(new RegExp(`--pv-net-size:\\s*max\\(12px,\\s*calc\\(3\\.6 \\* var\\(${unit}\\)\\)\\)`));
+    expect(cell![1], name).toMatch(new RegExp(`--pv-save-size:\\s*max\\(8px,\\s*calc\\(1\\.9 \\* var\\(${unit}\\)\\)\\)`));
+    // La etiqueta de descuento no existe todavía en estas hojas: la pinta la
+    // piel compartida de src/styles.css. Ninguna placa local la compite.
+    expect(css, name).not.toMatch(/mobile-accessory-price__discount[^{]*\{[^}]*border/);
+  }
+
+  // El carril de precio de las paletas no lleva placa (Opción A).
+  const rail = /\.mobile-premium-product-page__price\s+\.mobile-accessory-price\s*\{([^}]*)\}/.exec(premium);
+  expect(rail, 'no se encuentra la celda de precio del carril de paletas').not.toBeNull();
+  expect(rail![1]).not.toMatch(/background/);
+  expect(rail![1]).not.toMatch(/border-radius/);
+  expect(rail![1]).not.toMatch(/backdrop-filter/);
 });
