@@ -287,7 +287,7 @@
       "categoria": "bolso",
       "subcategoria": "paletero",
       "precio": null,
-      "disponible": true,
+      "disponible": false,
       "imagenes": [
         "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT01.webp",
         "products/bolsos/paleteroHardEvaBlack/PALETERO STARVIE HARD EVA BLACK.PT02.webp",
@@ -405,7 +405,7 @@
       "categoria": "bolso",
       "subcategoria": "paletero",
       "precio": null,
-      "disponible": true,
+      "disponible": false,
       "imagenes": [
         "products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.MAIN.webp",
         "products/bolsos/paleteroNeon/PALETERO STARVIE NEON STRIKE.PT01.webp",
@@ -544,7 +544,7 @@
       "categoria": "accesorio",
       "subcategoria": "cap",
       "precio": null,
-      "disponible": true,
+      "disponible": false,
       "imagenes": [
         "products/bolsos/accesorio/Gorra 4.webp",
         "products/bolsos/accesorio/Gorra 2.webp",
@@ -568,7 +568,7 @@
       "categoria": "accesorio",
       "subcategoria": "llavero",
       "precio": null,
-      "disponible": true,
+      "disponible": false,
       "imagenes": [],
       "gama": "",
       "tipoJuego": "",
@@ -586,7 +586,7 @@
       "categoria": "accesorio",
       "subcategoria": "muniequera",
       "precio": null,
-      "disponible": true,
+      "disponible": false,
       "imagenes": [
         "products/bolsos/accesorio/Muñequera negra pack 2 2.webp",
         "products/bolsos/accesorio/Muñequera negra pack 2 3.webp"
@@ -607,7 +607,7 @@
       "categoria": "accesorio",
       "subcategoria": "muniequera",
       "precio": null,
-      "disponible": true,
+      "disponible": false,
       "imagenes": [
         "products/bolsos/accesorio/MUÑEQUERA AZUL 1.1.png",
         "products/bolsos/accesorio/MUÑEQUERA AZUL 1.2.png"
@@ -628,7 +628,7 @@
       "categoria": "accesorio",
       "subcategoria": "muniequera",
       "precio": null,
-      "disponible": true,
+      "disponible": false,
       "imagenes": [
         "products/bolsos/accesorio/Muñequera blanca 4.webp",
         "products/bolsos/accesorio/Muñequera blanca 1.webp"
@@ -649,7 +649,7 @@
       "categoria": "accesorio",
       "subcategoria": "overgrip",
       "precio": null,
-      "disponible": true,
+      "disponible": false,
       "imagenes": [
         "products/bolsos/accesorio/OVERGRIP 60 UNITS 1.png",
         "products/bolsos/accesorio/OVERGRIP 60 UNITS 3.png"
@@ -670,7 +670,7 @@
       "categoria": "accesorio",
       "subcategoria": "overgrip",
       "precio": null,
-      "disponible": true,
+      "disponible": false,
       "imagenes": [
         "products/bolsos/accesorio/OVERGRIP 25 UNITS 1.png",
         "products/bolsos/accesorio/OVERGRIP 25 UNITS 2.png"
@@ -713,7 +713,7 @@
       "categoria": "accesorio",
       "subcategoria": "protector",
       "precio": null,
-      "disponible": true,
+      "disponible": false,
       "imagenes": [
         "products/bolsos/accesorio/protector-transparente-carbono.webp"
       ],
